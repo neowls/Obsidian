@@ -236,10 +236,11 @@ EQS는 무조건 즉시 응답한다고 가정하면 안 됩니다.
 manager tick, finish delegate, BT message 흐름까지 포함해서 생각해야 실제 런타임과 맞습니다.
 
 ## AI 스택 안에서의 위치
-- `[[AI 지각(AI Perception)]]`: 외부 자극을 수집
-- `[[환경 쿼리 시스템(EQS)]]`: 후보 위치/대상을 평가
-- `[[비헤이비어 트리(Behavior Tree)]]`: 의사결정 흐름 제어`r`n- `[[네비게이션과 PathFollowing(Navigation)]]`: 선택된 목적지를 실제 이동 요청과 경로 추종으로 실행
-- `[[블랙보드(Blackboard)]]`: 선택된 결과를 저장해 다른 노드와 공유
+- [[AI 지각(AI Perception)]] : 외부 자극을 수집
+- [[환경 쿼리 시스템(EQS)]] : 후보 위치/대상을 평가
+- [[비헤이비어 트리(Behavior Tree)]] : 의사결정 흐름 제어 
+- [[네비게이션과 PathFollowing(Navigation)]] : 선택된 목적지를 실제 이동 요청과 경로 추종으로 실행
+- [[블랙보드(Blackboard)]] : 선택된 결과를 저장해 다른 노드와 공유
 
 ## 엔진 소스 참고 포인트
 - `Engine\Source\Runtime\AIModule\Classes\EnvironmentQuery\EnvQuery.h`

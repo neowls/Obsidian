@@ -1,20 +1,16 @@
-[Remote Procedure Calls in Unreal Engine | Unreal Engine 5.7 Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/unreal-engine/remote-procedure-calls-in-unreal-engine)
+[Remote Procedure Calls in Unreal Engine | Unreal Engine 5.7 Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/unreal-engine/remote-procedure-calls-in-unreal-engine) | [Actor Owner and Owning Connection in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/actor-owner-and-owning-connection-in-unreal-engine) | [Replicate Actor Properties in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/replicate-actor-properties-in-unreal-engine)
 
 # 개요
 `RPC(Remote Procedure Calls)`는 네트워크 너머의 다른 머신에서 함수를 실행하게 만드는 기능이다.
 언리얼 엔진 네트워크 모델에서 `Replication`이 상태 동기화라면, `RPC`는 요청, 응답, 순간 이벤트 전달에 해당한다.
 
-공식문서 기준으로 RPC는 `로컬에서 호출되지만 원격에서 실행되는 함수`이며, 네트워크 연결과 ownership에 의해 실제 실행 위치가 결정된다.
-즉 RPC는 단순 문법이 아니라 `누가 누구에게 호출할 수 있는가`를 먼저 이해해야 제대로 쓸 수 있다.
+이 문서는 RPC의 사용 규칙뿐 아니라, 실제 UE 5.7 엔진 코드 기준 `callspace 판단 -> remote 전환 -> bunch 직렬화 -> 수신 복호화 -> ProcessEvent 실행` 경로까지 한 번에 정리한다.
 
-## 함께 보면 좋은 공식문서
-- [Actor Owner and Owning Connection in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/actor-owner-and-owning-connection-in-unreal-engine)
-- [Replicate Actor Properties in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/replicate-actor-properties-in-unreal-engine)
-- [Actor Role and Remote Role in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/actor-role-and-remote-role-in-unreal-engine)
-
-## 함께 볼 엔진 내부 문서
-- [[권한, 소유, 연결(Authority Ownership Connection)]]
-- [[RPC callspace와 전송 경로(RPC Callspace Transmission Path)]]
+## 함께 볼 로컬 문서
+- [[언리얼 네트워킹]]
+- [[Replication]]
+- [[Fast Array, Component, Subobject(FastArray Component Subobject)]]
+- [[CharacterMovement와 예측(CharacterMovement Prediction)]]
 
 ## 전제조건
 - RPC는 액터 또는 액터 컴포넌트에서 호출하는 것이 기본이다.
@@ -24,19 +20,8 @@
 
 # 핵심 개념
 
-## RPC의 역할
-공식문서 기준으로 RPC의 주요 용도는 아래와 같다.
-
-- 사운드 재생
-- 파티클 생성
-- 애니메이션 재생
-- 입력 의도 전달
-- 서버 요청
-- owner 전용 응답
-
-즉 `현재 상태`보다 `한 번 발생하는 동작` 쪽이 RPC의 본래 용도다.
-
 ## RPC와 Replication의 차이
+
 | 구분 | Replication | RPC |
 | --- | --- | --- |
 | 본질 | 상태 동기화 | 원격 함수 실행 |
@@ -45,63 +30,28 @@
 | 반환값 | 해당 없음 | 사용할 수 없다 |
 
 > [!info]
-> 공식문서도 RPC는 `replicated properties`를 보완하는 메커니즘이라고 설명한다. 즉 둘은 대체 관계보다 역할 분담 관계로 보는 것이 맞다.
+> RPC는 `replicated properties`를 보완하는 메커니즘이다. 둘은 대체 관계가 아니라 역할 분담 관계로 보는 편이 맞다.
 
 # RPC 종류
-
-공식문서 기준 RPC는 네 가지 메타데이터 타입을 가진다.
 
 | 타입 | 설명 | 실무 해석 |
 | --- | --- | --- |
 | `Client` | 이 액터의 owning client에서 실행 | owner 전용 응답 |
 | `Server` | 서버에서 실행 | 클라이언트의 요청 |
-| `Remote` | 연결의 반대편 원격에서 실행 | `Client`/`Server`의 혼합 개념, 특수 용도 |
+| `Remote` | 연결의 반대편 원격에서 실행 | 특수 용도 |
 | `NetMulticast` | 서버와 relevant한 모든 클라이언트에서 실행 | 공용 순간 연출 |
 
-## `Client`
-서버가 특정 owning client에게 보내는 RPC다.
-대표적으로 개인 HUD 갱신, 히트마커, 개인 메시지, owner 전용 카메라 반응 등에 맞다.
-
-## `Server`
-클라이언트가 서버에게 보내는 RPC다.
-대표적으로 발사 요청, 상호작용 요청, 장착 변경 요청처럼 `판정은 서버가 해야 하는 행동`에 사용한다.
-
-## `Remote`
-공식문서 기준으로 `Remote`는 연결의 반대편 원격에서만 실행된다.
-실무에서는 `Client`와 `Server`를 더 자주 쓰므로 상대적으로 드물지만, 공식문서 기준 타입으로는 존재한다.
-
-## `NetMulticast`
-서버와 현재 연결된 relevant 클라이언트들에서 실행된다.
-공식문서도 `NetMulticast`는 서버에서 호출하는 것을 전제로 설명한다.
-클라이언트가 호출한 `NetMulticast`는 로컬에서만 실행된다.
+## `NetMulticast`에서 특히 중요한 점
+- 서버에서 호출하면 보통 `Local | Remote`
+- 클라이언트에서 호출하면 서버 브로드캐스트가 아니라 로컬 실행에 가깝다
+- relevant한 클라이언트에게만 전송된다
 
 > [!caution]
 > `NetMulticast`는 "무조건 모든 클라이언트"가 아니라 `현재 relevant한 클라이언트`가 기준이다.
 
-# RPC 선언과 구현
+# 선언과 구현
 
 ## 기본 구조
-공식문서 기준으로 RPC는 두 부분으로 구성된다.
-
-1. 헤더에 선언한 기본 함수
-2. 소스 파일에 정의한 `_Implementation()` 함수
-
-```cpp
-// DerivedActor.h
-UFUNCTION(Client)
-void ClientRPC();
-```
-
-```cpp
-// DerivedActor.cpp
-void ADerivedActor::ClientRPC_Implementation()
-{
-}
-```
-
-언리얼의 리플렉션과 네트워크 시스템이 중간 처리를 담당하지만, 개발자는 이 두 조각을 직접 작성해야 한다.
-
-## 대표 선언 예시
 ```cpp
 UFUNCTION(Server, Reliable)
 void ServerTryFire();
@@ -113,84 +63,33 @@ UFUNCTION(NetMulticast, Unreliable)
 void MulticastPlayExplosionFX();
 ```
 
-# Reliability
+```cpp
+void AMyActor::ServerTryFire_Implementation()
+{
+}
+```
 
-공식문서는 RPC가 기본적으로 `unreliable`이며, 필요할 때만 `Reliable`을 붙이라고 설명한다.
+## `Reliable` / `Unreliable`
 
 | 종류 | 설명 | 실행 순서 보장 |
 | --- | --- | --- |
 | `Reliable` | 수신 확인될 때까지 재전송 | 순서 보장 |
-| `Unreliable` | 패킷이 유실되면 실행되지 않을 수 있음 | 순서 보장 없음 |
+| `Unreliable` | 유실될 수 있음 | 순서 보장 없음 |
 
-## `Reliable`
-놓치면 안 되는 요청이나 응답에 사용한다.
-예:
-- 문 열기 요청
-- 구매 요청
-- 라운드 종료 통지
-- 장비 변경 확정
-
-## `Unreliable`
-자주 오고, 일부 유실되어도 큰 문제가 없는 호출에 사용한다.
-예:
-- 경량 코스메틱 반응
-- 빈번한 연출 호출
-- 비핵심 트랜지언트 이벤트
-
-> [!caution]
-> 공식문서도 `Reliable RPCs require additional bandwidth`라고 명시한다. 즉 reliable은 습관적으로 붙이는 옵션이 아니라, 정말 잃으면 안 되는 호출에만 제한적으로 써야 한다.
-
-# Send Policy
-
-공식문서는 `ERemoteFunctionSendPolicy`를 통해 RPC 전송 정책을 명시적으로 줄 수 있다고 설명한다.
+## Send Policy
 
 | 값 | 설명 |
 | --- | --- |
-| `Default` | 즉시 bunch에 직렬화되고, 다음 net update 때 전송 |
-| `ForceSend` | 특정 조건에서 프레임 끝이 아니라 더 빠르게 전송 |
-| `ForceQueue` | net update 끝에서 대역폭이 남을 때 전송 |
+| `Default` | 일반 경로 |
+| `ForceSend` | 가능한 한 빨리 전송 |
+| `ForceQueue` | 낮은 우선순위 queue 경로 |
 
-실무 해석:
-- 대부분은 `Default`로 충분하다.
-- `ForceSend`는 지연을 줄이는 특수 최적화다.
-- `ForceQueue`는 낮은 우선순위 호출에 가깝게 이해하면 된다.
-
-# Ownership과 RPC
-
-## 왜 ownership이 중요한가
-공식문서에서도 RPC를 설명하기 전에 `Actor Owner and Owning Connection` 문서를 먼저 이해하라고 안내한다.
-그 이유는 `어느 연결에 RPC를 보낼지`가 액터의 owner와 owning connection에 의해 결정되기 때문이다.
-
-## owner와 owning connection
-| 개념 | 의미 |
-| --- | --- |
-| `Owner` | 이 액터를 소유하는 상위 액터 |
-| `Owning Connection` | 이 액터의 owning player controller와 연결된 네트워크 연결 |
-
-대표 관계:
-- 서버에 클라이언트가 접속하면 서버 쪽에 `PlayerController`가 생성된다.
-- 그 `PlayerController`가 `Pawn`을 소유한다.
-- 따라서 `Pawn`의 owning connection은 그 플레이어의 연결이다.
-- 인벤토리 아이템이나 소유 컴포넌트도 같은 연결을 따를 수 있다.
-
-## 실무적으로 RPC 진입점으로 많이 쓰는 클래스
-- `PlayerController`
-- possessed `Pawn` / `Character`
-- 그들의 replicated `ActorComponent`
-
-이 세 위치는 ownership이 분명해서 `Server RPC`와 `Client RPC`의 대상이 비교적 명확하다.
-
-> [!tip]
-> 월드에 그냥 놓인 일반 액터에 클라이언트가 직접 `Server RPC`를 거는 방식은 ownership 문제로 자주 막힌다. 보통은 플레이어가 소유한 액터를 통해 서버에 요청하고, 서버가 대상 월드 액터를 조작하는 흐름이 더 안전하다.
+> [!caution]
+> 큰 파라미터를 reliable RPC에 싣는 습관은 비용이 크다. UE 5.7 코드에서도 reliable overflow는 연결 종료로 이어질 수 있다.
 
 # Server RPC Validation
 
-공식문서는 `Server RPC Validation`을 별도 섹션으로 설명한다.
-서버는 클라이언트가 보낸 정보를 신뢰하되, 항상 게임 규칙에 맞는지 검증해야 한다는 관점이다.
-
 ## `WithValidation`
-서버 RPC에 `WithValidation`을 붙이면 `_Validate()` 함수를 구현할 수 있다.
-
 ```cpp
 UFUNCTION(Server, Reliable, WithValidation)
 void ServerEquipSlot(int32 Slot);
@@ -208,19 +107,124 @@ void AMyCharacter::ServerEquipSlot_Implementation(int32 Slot)
 
 ## 무엇을 검증해야 하는가
 - 인덱스 범위
-- 음수 수량
 - 비정상적으로 큰 값
 - null이면 안 되는 참조
 - 명백히 불가능한 입력
+- 거리, 소유권, 자원, 쿨다운 같은 게임 규칙
+
+# RPC 내부 경로
+
+## 전체 파이프라인
+
+| 단계 | 핵심 함수/파일 | 의미 |
+| --- | --- | --- |
+| 호출 직전 분기 | `UObject::CallFunction()`, `UObject::ProcessEvent()`, `ScriptCore.cpp` | `Local`, `Remote`, `Absorbed` 판단 |
+| callspace 계산 | `FunctionCallspace::Type`, `AActor::GetFunctionCallspace()` | ownership, role, net mode 기반 실행 공간 계산 |
+| remote 전환 | `CallRemoteFunction()` | active net driver로 넘김 |
+| 전송 | `UNetDriver::ProcessRemoteFunction()` | connection 선택, multicast relevancy 검사 |
+| 채널/직렬화 | `ProcessRemoteFunctionForChannelPrivate()` | actor channel 확보, RPC 파라미터 직렬화 |
+| 수신 | `FObjectReplicator::ReceivedRPC()` | 파라미터 복호화, 권한 검사 |
+| 실행 | `CallProcessEventForReceivedRPC()` | 최종적으로 `ProcessEvent()` 호출 |
+
+## `FunctionCallspace::Type`
+
+| 값 | 비트 | 의미 |
+| --- | --- | --- |
+| `Absorbed` | `0x0` | 로컬 실행도 하지 않고 원격 전송도 하지 않음 |
+| `Remote` | `0x1` | 원격 전송 |
+| `Local` | `0x2` | 현재 머신에서 실행 |
+| `Local | Remote` | `0x3` | 로컬 실행과 원격 전송 둘 다 수행 |
+
+> [!info]
+> `Absorbed`는 오류가 아니라, 엔진이 전송 조건을 만족하지 못한다고 보고 호출을 흡수한 정상 분기다.
+
+## `ScriptCore.cpp`에서의 실제 분기
+`UObject::CallFunction()`과 `UObject::ProcessEvent()`는 먼저 `GetFunctionCallspace()`를 호출한다.
+
+- `Remote` 비트가 있으면 `CallRemoteFunction()`
+- `Local` 비트가 있으면 현재 머신에서 함수 실행
+- `Local`이 없으면 파라미터를 건너뛰고 종료
+
+즉 RPC는 선언만 보고 곧바로 `NetDriver`로 가지 않는다.
+항상 local runtime이 먼저 해석한다.
+
+## `AActor::GetFunctionCallspace()`가 보는 것
+핵심 판단은 아래 축을 같이 본다.
+
+- 함수 플래그 (`FUNC_Net`, `FUNC_NetMulticast`, `FUNC_BlueprintCosmetic` 등)
+- 현재 net mode
+- local role
+- owner / owning player / net connection
+- `RemoteRole`
+
+대표적인 실무 해석은 아래와 같다.
+
+| 상황 | 대표 callspace |
+| --- | --- |
+| 서버가 player-owned actor에서 `Client RPC` 호출 | `Remote` |
+| 서버가 AI actor에서 `Client RPC` 호출 | 자주 `Local` |
+| 서버가 replicated actor에서 `NetMulticast` 호출 | `Local | Remote` |
+| 클라이언트가 owned actor에서 `Server RPC` 호출 | `Remote` |
+| 클라이언트가 non-owned actor에서 `Server RPC` 호출 | 자주 `Absorbed` |
 
 > [!caution]
-> `_Validate()`는 네트워크 경계에서의 기본 검증이다. 실제 게임 규칙 검사, 예를 들면 거리, 자원, 쿨다운, 소유 여부 등은 여전히 `_Implementation()` 쪽에서도 확인하는 편이 안전하다.
+> RPC가 안 가는 가장 흔한 이유는 선언이 아니라 `owner 없음`, `connection 없음`, `RemoteRole == ROLE_None` 같은 callspace 흡수 조건이다.
+
+## `CallRemoteFunction()` 이후
+`AActor::CallRemoteFunction()`은 active net driver들을 순회하면서 `ProcessRemoteFunction()`을 호출한다.
+
+### `UNetDriver::ProcessRemoteFunction()`
+이 함수는 다음을 담당한다.
+
+- actor/channel 상태 빠른 거절
+- Iris replication system 사용 시 그 경로로 위임
+- replication driver 훅 처리
+- 기본 net driver 경로로 fallback
+
+### multicast일 때
+- `ClientConnections`를 순회
+- connection별 `IsNetRelevantFor(...)` 검사
+- relevant한 connection에만 전송
+
+### 일반 RPC일 때
+- `Actor->GetNetConnection()` 조회
+- 클라이언트면 `ServerConnection` 사용
+- connection이 없으면 warning 후 종료
+
+## 채널과 bunch 직렬화
+실제 bunch 작성은 `ProcessRemoteFunctionForChannelPrivate()`가 맡는다.
+
+핵심 순서는 다음과 같다.
+
+1. actor channel 확보
+2. 필요 시 actor 초기 복제 강제 수행
+3. `FOutBunch` 생성
+4. reliable이면 `Bunch.bReliable = 1`
+5. `GetFunctionRepLayout(Function)` 조회
+6. `RepLayout->SendPropertiesForRPC(...)`로 파라미터 직렬화
+7. send policy에 따라 queue 또는 immediate send
+
+> [!tip]
+> RPC 파라미터 직렬화도 결국 `FRepLayout` 계층을 재사용한다. property replication과 완전히 별도 시스템으로 보면 안 된다.
+
+## 수신 경로
+수신의 중심은 `FObjectReplicator::ReceivedRPC()`다.
+
+핵심 순서는 다음과 같다.
+
+1. `FieldCache`에서 function 조회
+2. `FindFunction()`
+3. `FUNC_Net` 및 access rights 확인
+4. `ShouldCallRemoteFunction(...)` 검사
+5. `ReceivePropertiesForRPC()`로 파라미터 복호화
+6. `CallProcessEventForReceivedRPC()`
+7. 최종적으로 `Object->ProcessEvent(Function, Params)`
+
+즉 수신 측도 `_Implementation()`을 바로 치는 것이 아니라, 정상적인 `ProcessEvent()` 경로를 다시 통과한다.
 
 # 설계 기준
 
 ## 정석 패턴
-언리얼 네트워크 설계에서 가장 자주 쓰는 흐름은 다음과 같다.
-
 1. 클라이언트 입력
 2. `Server RPC`로 요청
 3. 서버가 검증
@@ -232,32 +236,16 @@ void AMyCharacter::ServerEquipSlot_Implementation(int32 Slot)
 ### 총 발사
 - 입력 -> `ServerTryFire()`
 - 서버 판정 -> 탄약 감소, 피해 처리
-- `Ammo`, `Health`는 Replication
+- `Ammo`, `Health`는 `Replication`
 - 총구 이펙트, 사운드는 RPC 연출
 
 ### 문 열기
 - 입력 -> `ServerTryOpenDoor()`
 - 서버 판정 -> `bIsOpen = true`
-- 현재 상태는 Replication
+- 현재 상태는 `Replication`
 - 문 열림 연출은 `OnRep` 또는 RPC
 
-### owner 전용 UI 응답
-- 서버가 결과 계산
-- `Client RPC`로 해당 owner에게만 알림
-
-# 주의사항
-
-> [!caution]
-> RPC는 과거 호출 이력을 늦게 들어온 플레이어에게 재생하지 않는다. 따라서 영속적인 결과는 결국 상태 복제로 남겨야 한다.
-
-> [!caution]
-> 공식문서 기준 RPC는 단방향 호출이다. 실무적으로도 일반 함수처럼 `return value`나 `out parameter`를 기대하면 안 된다.
-
-> [!caution]
-> `NetMulticast`는 클라이언트가 호출한다고 서버를 통해 전체 브로드캐스트되는 기능이 아니다. 클라이언트 호출 시에는 로컬 실행처럼 보이는 경우가 많다.
-
 # 일반 팁
-
 - 요청은 `Server RPC`, 결과는 `Replication`으로 분리하면 구조가 안정적이다.
 - owner 전용 정보는 `Client RPC`가 자연스럽다.
 - 모든 사람에게 보이는 일회성 연출은 `NetMulticast`가 맞지만, 상태를 대신하면 안 된다.
@@ -265,23 +253,13 @@ void AMyCharacter::ServerEquipSlot_Implementation(int32 Slot)
 
 # 엔진 소스 참고 포인트
 - `Engine\Source\Runtime\CoreUObject\Public\UObject\ObjectMacros.h`
-  - `Server`, `Client`, `NetMulticast`, `Reliable`, `Unreliable`, `WithValidation`
 - `Engine\Source\Runtime\CoreUObject\Public\UObject\Script.h`
-  - `FunctionCallspace::Type`, RPC 관련 함수 플래그
 - `Engine\Source\Runtime\CoreUObject\Private\UObject\ScriptCore.cpp`
-  - `GetFunctionCallspace()` 결과가 실제 `CallRemoteFunction()` / `Invoke()` 분기로 이어지는 지점
 - `Engine\Source\Runtime\Engine\Private\Actor.cpp`
-  - `AActor::GetFunctionCallspace()`, `CallRemoteFunction()`
 - `Engine\Source\Runtime\Engine\Private\NetDriver.cpp`
-  - `ProcessRemoteFunction()`, `ProcessRemoteFunctionForChannelPrivate()`
 - `Engine\Source\Runtime\Engine\Private\DataReplication.cpp`
-  - `ReceivedRPC()`, `ReceivePropertiesForRPC()`, `CallProcessEventForReceivedRPC()`
 - `Engine\Source\Runtime\Engine\Private\PlayerController.cpp`
-  - owning connection 관련 흐름
 - `Engine\Source\Runtime\Engine\Private\Pawn.cpp`
-  - possessed pawn의 연결 경로
-- [[RPC callspace와 전송 경로(RPC Callspace Transmission Path)]]
-  - `FunctionCallspace`에서 `ProcessEvent`까지 이어지는 내부 경로
 
 ## 정리
 RPC는 `원격 함수 실행`이고, Replication은 `상태 동기화`다.

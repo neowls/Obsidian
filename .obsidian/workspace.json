@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "언리얼/학습/네트워킹/권한, 소유, 연결(Authority Ownership Connection).md",
+                "file": "언리얼/학습/네트워킹/Replication.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "권한, 소유, 연결(Authority Ownership Connection)"
+              "title": "Replication"
             }
           }
         ]
@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 316.5
+    "width": 455.5
   },
   "right": {
     "id": "afc188096bbb5a81",
@@ -172,39 +172,39 @@
       "command-palette:명령어 팔레트 열기": false
     }
   },
-  "active": "f6e0754aea98cb35",
+  "active": "79514dadf46b67ac",
   "lastOpenFiles": [
-    "README.md",
+    "언리얼/학습/네트워킹/CharacterMovement와 예측(CharacterMovement Prediction).md",
     "언리얼/학습/네트워킹/RPC callspace와 전송 경로(RPC Callspace Transmission Path).md",
+    "언리얼/학습/네트워킹/Relevancy, Priority, Frequency, Dormancy(Relevancy Priority Frequency Dormancy).md",
+    "언리얼/학습/네트워킹/Fast Array, Component, Subobject(FastArray Component Subobject).md",
+    "언리얼/학습/네트워킹/RPC.md",
+    "언리얼/학습/네트워킹/Replication.md",
     "언리얼/학습/네트워킹/Replication 등록, 필터링, 수신 후처리(Replication Registration Filtering PostReceive).md",
     "언리얼/학습/네트워킹/언리얼 네트워킹.md",
-    "언리얼/학습/환경 쿼리 시스템(EQS)/환경 쿼리 시스템(EQS).md",
     "언리얼/학습/네트워킹/권한, 소유, 연결(Authority Ownership Connection).md",
-    "언리얼/학습/네비게이션(Navigation)/RecastNavMesh와 Navigation Data(Custom Recast Navigation Data).md",
-    "언리얼/학습/네비게이션(Navigation)/NavLink와 Smart Link(NavLink Smart Link).md",
-    "언리얼/학습/네비게이션(Navigation)/CrowdFollowing과 RVO 회피(CrowdFollowing RVO Avoidance).md",
-    "언리얼/학습/네비게이션(Navigation)/커스텀 네비게이션 영역과 Query Filter(Custom Navigation Areas Query Filters).md",
-    "언리얼/학습/네비게이션(Navigation)/네비게이션과 PathFollowing(Navigation).md",
-    "언리얼/학습/네비게이션(Navigation)",
+    "언리얼/학습/네트워킹/_mini_test.md",
+    "research.md",
+    "언리얼/학습/UPROPERTY Object Reference Guide.md",
+    "언리얼/학습/환경 쿼리 시스템(EQS)/환경 쿼리 시스템(EQS).md",
     "언리얼/학습/행동 트리(Behavior Tree)/AI 컨트롤러(AIController)와 BrainComponent.md",
-    "언리얼/학습/행동 트리(Behavior Tree)/컴포짓(Composite).md",
     "언리얼/학습/행동 트리(Behavior Tree)/태스크(Task).md",
-    "언리얼/학습/AI 지각(AI Perception)/AI 지각(AI Perception).md",
-    "언리얼/학습/환경 쿼리 시스템(EQS)",
-    "언리얼/학습/행동 트리(Behavior Tree)/블랙보드(Blackboard).md",
+    "언리얼/학습/행동 트리(Behavior Tree)/컴포짓(Composite).md",
     "언리얼/학습/행동 트리(Behavior Tree)/비헤이비어 트리 디버거(Behavior Tree Debugger).md",
     "언리얼/학습/행동 트리(Behavior Tree)/비헤이비어 트리(Behavior Tree).md",
-    "언리얼/학습/행동 트리(Behavior Tree)/데코레이터(Decorator).md",
-    "언리얼/학습/게임 어빌리티 시스템(GAS)/게임플레이 큐(GC).md",
-    "언리얼/학습/게임 어빌리티 시스템(GAS)/게임플레이 태그(Tag).md",
-    "언리얼/학습/게임 어빌리티 시스템(GAS)/기간형 게임플레이 이펙트.md",
-    "언리얼/학습/게임 어빌리티 시스템(GAS)/메타(Meta) 어트리뷰트.md",
-    "언리얼/학습/게임 어빌리티 시스템(GAS)/어빌리티 시스템 컴포넌트의 입력 처리.md",
-    "언리얼/학습/게임 어빌리티 시스템(GAS)/어빌리티 태스크(AT).md",
-    "언리얼/학습/게임 어빌리티 시스템(GAS)/어빌리티 태스크(AT)의 제작 규칙.md",
+    "언리얼/학습/행동 트리(Behavior Tree)/서비스(Service).md",
+    "언리얼/학습/행동 트리(Behavior Tree)/블랙보드(Blackboard).md",
+    "언리얼/학습/애니메이션(Animation)/모션 매칭(Motion Matching).md",
+    "언리얼/학습/애니메이션(Animation)/무제.md",
+    "언리얼/학습/애니메이션(Animation)/모션 워핑(Motion Warping).md",
+    "언리얼/UE5.7 학습 로드맵 및 진행도.md",
+    "언리얼/학습/에셋 매니저(Asset Manager).md",
+    "언리얼/학습/에셋 레지스트리(Asset Registry).md",
+    "언리얼/학습 노트.base",
+    "언리얼/학습/네비게이션(Navigation)",
+    "언리얼/학습/환경 쿼리 시스템(EQS)",
     "언리얼/학습/AI 지각(AI Perception)",
     "언리얼/학습/게임 어빌리티 시스템(GAS)/게임플레이 어빌리티 시스템.canvas",
-    "언리얼/학습 노트.base",
     "언리얼/학습/IMG/debugdemo.gif",
     "언리얼/프로젝트/NightCaretaker/Source",
     "언리얼/프로젝트/NightCaretaker/Archive/Planning",

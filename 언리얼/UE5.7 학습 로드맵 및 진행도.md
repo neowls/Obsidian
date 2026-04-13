@@ -40,14 +40,14 @@
 
 근거 문서:
 
-- [언리얼 학습 색인 및 정리](</C:/Users/DAMO/Documents/Obsidian/언리얼/언리얼 학습 색인 및 정리.md>)
-- [GAS Documentation](</C:/Users/DAMO/Documents/Obsidian/언리얼/학습/게임 어빌리티 시스템(GAS)/GAS Documentation.md>)
-- [어빌리티 리팩토링](</C:/Users/DAMO/Documents/Obsidian/언리얼/프로젝트/ProjectKY/캐릭터/어빌리티 리팩토링.md>)
-- [캐릭터 윈도우](</C:/Users/DAMO/Documents/Obsidian/언리얼/프로젝트/ProjectKY/캐릭터/캐릭터 윈도우.md>)
-- [HubTechTreeCoreFramework](</C:/Users/DAMO/Documents/Obsidian/언리얼/회사(Hypercent)/HubTechTreeCoreFramework.md>)
-- [언리얼 네트워킹](</C:/Users/DAMO/Documents/Obsidian/언리얼/학습/네트워킹/언리얼 네트워킹.md>)
-- [Replication](</C:/Users/DAMO/Documents/Obsidian/언리얼/학습/네트워킹/Replication.md>)
-- [RPC](</C:/Users/DAMO/Documents/Obsidian/언리얼/학습/네트워킹/RPC.md>)
+- [[언리얼 학습 색인 및 정리]]
+- [[GAS Documentation]]
+- [[어빌리티 리팩토링]]
+- [[캐릭터 윈도우]]
+- [[HubTechTreeCoreFramework]]
+- [[언리얼 네트워킹]]
+- [[Replication]]
+- [[RPC]]
 
 ### 아직 약한 영역
 
@@ -266,10 +266,9 @@
 | `[~]` | CrowdFollowing / RVO / Avoidance | Detour Crowd와 CharacterMovement RVO 분리 구조 및 런타임 흐름 정리 완료 | Navigation Invoker/active tiles, crowd tuning/debug 유지보수 | CrowdFollowing과 RVO의 계산 주체와 갱신 경로 차이를 설명 가능 |
 | `[~]` | NavLink / Smart Link | simple link / smart link / custom move 전환 구조 정리 완료 | custom reach condition, broadcasting, runtime rebuild 상황 유지보수 | PathFollowing -> StartUsingCustomLink -> ResumePathFollowing 흐름 설명 가능 |
 | `[~]` | UI 구조/최적화 | 강한 편 | Common UI/입력 계층/Slate 심화 | UI 구조와 성능 문제를 분리해서 설명 가능 |
-| `[~]` | Networking / Replication | 기초 이론 + authority/ownership + registration/filter/receive path + RPC callspace/transmission 정리 완료 | Relevancy/Priority/Frequency/Dormancy, FastArray/Component/Subobject | GAS/Character/UI의 네트워크 동작 차이를 엔진 문맥으로 설명 가능 |
-| `[~]` | Authority / Ownership / Connection | `Actor`, `Pawn`, `PlayerController`, `NetConnection`, `ActorComponent` 기준 구조 정리 완료 | Replication 등록 -> 필터링 -> 수신 후처리, RPC callspace 유지보수 | `HasAuthority`, `GetNetOwner`, `GetNetOwningPlayer`, `GetNetConnection`, `UpdateOwningNetConnection` 관계 설명 가능 |
-| `[~]` | Replication Registration / Filtering / PostReceive | `UnrealNetwork.h`, `ActorReplication.cpp`, `RepLayout.cpp` 기준 registration/filter/receive 흐름 정리 완료 | RPC callspace/전송 경로, Relevancy/Priority/Frequency/Dormancy | `GetLifetimeReplicatedProps` -> `FRepLayout` -> `ReceiveProperties` -> `CallRepNotifies` 흐름 설명 가능 |
-| `[~]` | RPC Callspace / Transmission Path | `ScriptCore.cpp`, `Actor.cpp`, `NetDriver.cpp`, `DataReplication.cpp` 기준 callspace/send/receive 흐름 정리 완료 | Relevancy/Priority/Frequency/Dormancy, FastArray/Component/Subobject | `GetFunctionCallspace` -> `CallRemoteFunction` -> `ProcessRemoteFunction` -> `ReceivedRPC` -> `ProcessEvent` 흐름 설명 가능 |
+| `[~]` | Networking / Replication | 기본 개념은 `언리얼 네트워킹` 허브로 통합했고, `Replication`과 `RPC`는 내부 경로까지 포함한 단일 문서로 재정리 완료 | Iris/ReplicationGraph, Subsystem/Module/Plugin | GAS/Character/UI의 네트워크 동작 차이를 엔진 문맥으로 설명 가능 |
+| `[~]` | Fast Array / Component / Subobject | `FastArraySerializer.h`, `ActorComponent.h/.cpp`, `Actor.h`, `ActorReplication.cpp`, `DataChannel.cpp` 기준 dirty/delta/component/subobject 흐름 정리 완료 | CharacterMovement/Prediction, Iris/ReplicationGraph | Fast Array와 registered subobject list를 일반 property replication과 구분해서 설명 가능 |
+| `[~]` | CharacterMovement / Prediction | `Character.cpp`, `CharacterMovementComponent.cpp`, `FSavedMove_Character`, `FNetworkPredictionData_Client/Server_Character` 기준 prediction/correction/smoothing 흐름 정리 완료 | Iris/ReplicationGraph, custom movement prediction 심화 | 소유 클라이언트 예측과 simulated proxy smoothing 경로를 분리해서 설명 가능 |
 | `[ ]` | Build / Cook / Packaging | 약함 | 빌드 타입, Cook, Packaging, Crash 대응 문서화 | 개발/테스트/배포 파이프라인을 스스로 운영 가능 |
 | `[ ]` | Subsystem / Module / Plugin | 약함 | 엔진 구조 문서 작성 | 기능을 적절한 계층에 배치할 수 있음 |
 | `[ ]` | World Partition / Data Layer | 거의 없음 | 개념 + 실습 문서 작성 | 대규모 맵 관리 흐름 설명 가능 |
@@ -292,28 +291,32 @@
 
 이번 세션 기준으로는 `프로젝트 적용`보다 `엔진 내부 구조`를 먼저 본다.
 
-1. 완료: `권한/소유/연결` 축을 엔진 클래스 기준으로 정리했다.
+1. 완료: 기본 개념은 `언리얼 네트워킹` 허브로 통합했다.
 핵심 파일:
 - `Engine\Source\Runtime\Engine\Classes\GameFramework\Actor.h`
 - `Engine\Source\Runtime\Engine\Private\Actor.cpp`
 - `Engine\Source\Runtime\Engine\Private\PlayerController.cpp`
 - `Engine\Source\Runtime\Engine\Private\Pawn.cpp`
+- `Engine\Source\Runtime\Engine\Private\ActorReplication.cpp`
+- `Engine\Source\Runtime\Engine\Private\NetDriver.cpp`
+- `Engine\Source\Runtime\Engine\Private\DataChannel.cpp`
+- `Engine\Source\Runtime\Engine\Private\NetworkObjectList.cpp`
 
 현재 결과:
-- `HasAuthority`, `GetNetOwner`, `GetNetOwningPlayer`, `GetNetConnection`, `UpdateOwningNetConnection` 관계 정리 완료
-- 왜 `PlayerController`, `Pawn`, `ActorComponent`가 RPC 진입점으로 자주 쓰이는지 설명 가능
+- `HasAuthority`, `GetNetOwner`, `GetNetOwningPlayer`, `GetNetConnection`, `UpdateOwningNetConnection` 관계를 허브 문서에서 바로 설명 가능
+- `IsNetRelevantFor`, `GetNetPriority`, `NetUpdateFrequency`, `Dormancy`를 별도 기본 문서 없이 허브 문서에서 바로 따라갈 수 있음
 
-2. 완료: `Replication 등록 -> 필터링 -> 수신 후처리` 흐름을 엔진 경로로 정리했다.
+2. 완료: `Replication` 문서에 등록 -> 필터링 -> 수신 -> `RepNotify` 흐름을 통합했다.
 핵심 파일:
 - `Engine\Source\Runtime\Engine\Public\Net\UnrealNetwork.h`
 - `Engine\Source\Runtime\Engine\Private\ActorReplication.cpp`
 - `Engine\Source\Runtime\Engine\Private\RepLayout.cpp`
 
 현재 결과:
-- `GetLifetimeReplicatedProps`, `DOREPLIFETIME`, `RepNotify`, `OnRep`, `ELifetimeCondition`을 `FRepLayout` 경로로 연결 가능
-- `Replication` 문서의 각 규칙이 `UnrealNetwork.h`, `ActorReplication.cpp`, `RepLayout.cpp` 어디에서 처리되는지 설명 가능
+- `GetLifetimeReplicatedProps` -> `FRepLayout` -> `ReceiveProperties` -> `CallRepNotifies` 흐름 설명 가능
+- property registration 문제와 전송 조건 문제를 구분해서 설명 가능
 
-3. 완료: `RPC callspace`와 전송 경로를 엔진 경로로 정리했다.
+3. 완료: `RPC` 문서에 callspace -> 전송 -> 수신 경로를 통합했다.
 핵심 파일:
 - `Engine\Source\Runtime\CoreUObject\Public\UObject\Script.h`
 - `Engine\Source\Runtime\CoreUObject\Private\UObject\ScriptCore.cpp`
@@ -322,39 +325,33 @@
 - `Engine\Source\Runtime\Engine\Private\DataReplication.cpp`
 
 현재 결과:
-- `FunctionCallspace::Absorbed/Remote/Local`, `Local | Remote` bitmask, `UObject::CallFunction()/ProcessEvent()` 분기 설명 가능
 - `GetFunctionCallspace` -> `CallRemoteFunction` -> `ProcessRemoteFunction` -> `ReceivedRPC` -> `ProcessEvent` 흐름 설명 가능
+- `Server / Client / NetMulticast` 규칙과 엔진 내부 callspace 분기를 한 문서에서 같이 볼 수 있음
 
-4. `Relevancy / Priority / Frequency / Dormancy`를 한 묶음으로 본다.
-핵심 파일:
-- `Engine\Source\Runtime\Engine\Private\ActorReplication.cpp`
-- `Engine\Source\Runtime\Engine\Private\Actor.cpp`
-- `Engine\Source\Runtime\Engine\Classes\GameFramework\Actor.h`
-
-학습 목표:
-- 왜 값이 "안 가는지"를 property 등록 문제가 아니라 전송 조건 문제로도 구분할 수 있다.
-- `ForceNetUpdate`, `FlushNetDormancy`, `NetUpdateFrequency`, `GetNetPriority`의 차이를 설명할 수 있다.
-
-5. `Fast Array / Component / Subobject`를 고급 복제 축으로 정리한다.
+4. 별도 심화: `Fast Array / Component / Subobject`, `CharacterMovement / Prediction`은 독립 문서로 유지한다.
 핵심 파일:
 - `Engine\Source\Runtime\Net\Core\Classes\Net\Serialization\FastArraySerializer.h`
 - `Engine\Source\Runtime\Engine\Classes\Components\ActorComponent.h`
 - `Engine\Source\Runtime\Engine\Private\Components\ActorComponent.cpp`
-- `Engine\Source\Runtime\Engine\Classes\GameFramework\Actor.h`
-
-학습 목표:
-- 일반 property replication과 Fast Array의 선택 기준을 설명할 수 있다.
-- component/subobject replication이 actor replication과 어떻게 연결되는지 설명할 수 있다.
-
-6. 마지막으로 `CharacterMovement`와 예측 계층으로 올라간다.
-핵심 파일:
 - `Engine\Source\Runtime\Engine\Classes\GameFramework\Character.h`
 - `Engine\Source\Runtime\Engine\Private\Character.cpp`
-- `Engine\Source\Runtime\Engine\Private\CharacterMovementComponent.cpp`
+- `Engine\Source\Runtime\Engine\Private\Components\CharacterMovementComponent.cpp`
 
-학습 목표:
-- 일반 액터 위치 복제와 `CharacterMovement` 네트워크 모델이 왜 다른지 설명할 수 있다.
-- 이후 `Prediction` 학습으로 넘어갈 준비를 만든다.
+현재 결과:
+- Fast Array dirty/delta/callback 흐름과 registered subobject list를 일반 property replication과 구분해서 설명 가능
+- `CharacterMovement`의 prediction/correction/smoothing을 일반 actor 이동 복제와 분리해서 설명 가능
+
+5. 다음 1순위: `Iris / Replication Graph`
+핵심 파일:
+- `Engine\Source\Runtime\IrisCore`
+- `Engine\Source\Runtime\Experimental\Iris`
+- `Engine\Plugins\Runtime\ReplicationGraph`
+
+다음 목표:
+- classic replication path와 Iris path가 어디서 갈라지는지 정리
+- replication graph가 relevancy/scheduling 문제를 어떻게 구조적으로 바꾸는지 정리
+- 현재 정리된 `Replication`, `RPC`, `Fast Array`, `CharacterMovement` 문서와 연결점 만들기
+
 ## 다음 학습 세션 템플릿
 
 ### 오늘 공부한 것
@@ -394,6 +391,10 @@
 | 2026-04-13 | Authority / Ownership / Connection 문서 추가 | HasAuthority, GetNetOwner, GetNetOwningPlayer, GetNetConnection, UpdateOwningNetConnection, GetFunctionCallspace 구조 정리 | Replication 등록/필터링/수신 후처리, RPC 전송 경로, relevancy/dormancy는 아직 비어 있음 | 다음 배치는 Replication 등록 -> 필터링 -> 수신 후처리 또는 RPC callspace/전송 경로 |
 | 2026-04-13 | Replication Registration / Filtering / PostReceive 문서 추가 | GetLifetimeReplicatedProps, DOREPLIFETIME, FDoRepLifetimeParams, FRepLayout::InitFromClass, RebuildConditionalProperties, ReceiveProperties, CallRepNotifies 흐름 정리 | RPC callspace/전송 경로, relevancy/dormancy, FastArray/subobject 심화는 아직 비어 있음 | 다음 배치는 RPC callspace/전송 경로 또는 Relevancy/Priority/Frequency/Dormancy |
 | 2026-04-13 | RPC Callspace / Transmission Path 문서 추가 | FunctionCallspace::Type, UObject::CallFunction, AActor::GetFunctionCallspace, CallRemoteFunction, UNetDriver::ProcessRemoteFunction, FObjectReplicator::ReceivedRPC 흐름 정리 | Relevancy/Priority/Frequency/Dormancy, FastArray/Component/Subobject, CharacterMovement prediction은 아직 비어 있음 | 다음 배치는 Relevancy/Priority/Frequency/Dormancy 또는 Fast Array / Component / Subobject |
+| 2026-04-13 | Relevancy / Priority / Frequency / Dormancy 문서 추가 | AActor::IsNetRelevantFor, AActor::GetNetPriority, NetUpdateFrequency, ShouldActorGoDormant, UActorChannel::BecomeDormant, FNetworkObjectList::MarkDormant 흐름 정리 | FastArray/Component/Subobject, CharacterMovement prediction, Iris/ReplicationGraph는 아직 비어 있음 | 다음 배치는 Fast Array / Component / Subobject 또는 CharacterMovement / Prediction |
+| 2026-04-13 | Fast Array / Component / Subobject 문서 추가 | FFastArraySerializerItem, MarkItemDirty, FastArrayDeltaSerialize_DeltaSerializeStructs, UActorComponent::SetIsReplicated, AddReplicatedSubObject, ReplicateRegisteredSubObjects 흐름 정리 | CharacterMovement prediction, Iris/ReplicationGraph, subobject delete/tearoff 운영 규칙은 아직 비어 있음 | 다음 배치는 CharacterMovement / Prediction 또는 Iris / Replication Graph |
+| 2026-04-13 | CharacterMovement / Prediction 문서 추가 | ControlledCharacterMove, ReplicateMoveToServer, FSavedMove_Character, ServerMove_HandleMoveData, ClientAdjustPosition, ClientUpdatePositionAfterServerUpdate, SmoothCorrection 흐름 정리 | Iris/ReplicationGraph, custom movement prediction, root motion 심화는 아직 비어 있음 | 다음 배치는 Iris / Replication Graph 또는 Subsystem / Module / Plugin |
+| 2026-04-13 | 네트워킹 문서 통합 정리 | 기본 개념은 `언리얼 네트워킹` 허브로 흡수하고, `Replication`과 `RPC`는 내부 경로까지 포함한 단일 문서로 병합 | Iris/ReplicationGraph, custom movement/root motion 심화는 아직 비어 있음 | 다음 배치는 Iris / Replication Graph |
 
 ## 나중에 이 파일을 다시 보여줄 때 같이 말하면 좋은 문장
 
@@ -409,8 +410,8 @@
 
 가장 먼저 할 일은 아래 셋 중 하나다.
 
-1. `Relevancy / Priority / Frequency / Dormancy`를 한 묶음으로 정리한다.
-2. `Fast Array / Component / Subobject`를 고급 복제 축으로 정리한다.
-3. `CharacterMovement / Prediction` 축으로 올라간다.
+1. Iris / Replication Graph 계층으로 내려간다.
+2. Subsystem / Module / Plugin으로 엔진 구조 계층을 보강한다.
+3. Build / Cook / Packaging으로 엔진 운영 계층을 보강한다.
 
-개인적으로는 현재 흐름상 `1 -> 2 -> 3` 순서를 권장한다.
+개인적으로는 현재 흐름상 1 -> 2 -> 3 순서를 권장한다.
