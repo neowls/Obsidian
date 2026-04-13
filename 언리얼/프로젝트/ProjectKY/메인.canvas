@@ -1,0 +1,35 @@
+{
+	"nodes":[
+		{"id":"e526d8ec2395f564","type":"group","x":2600,"y":-1620,"width":290,"height":410,"label":"플레이어"},
+		{"id":"e583b6b6e750c02f","type":"group","x":3340,"y":-1620,"width":290,"height":410,"label":"적"},
+		{"id":"30297d5f2415ebb2","type":"group","x":2620,"y":-1480,"width":250,"height":250,"label":"ASC"},
+		{"id":"60ddbebbe6cba8bc","type":"group","x":3360,"y":-1480,"width":250,"height":250,"label":"ASC"},
+		{"id":"81744612f4e40870","type":"file","file":"언리얼/프로젝트/ProjectKY/캐릭터/캐릭터 이동.md","x":1060,"y":-616,"width":980,"height":656},
+		{"id":"b5c30de1c189899e","type":"file","file":"언리얼/프로젝트/ProjectKY/캐릭터/콤보 공격.md","x":1060,"y":110,"width":980,"height":610},
+		{"id":"58813c68e0aa9c8b","type":"file","file":"언리얼/프로젝트/ProjectKY/캐릭터/회피.md","x":2120,"y":-616,"width":980,"height":656},
+		{"id":"0ab91544b5daa6c9","type":"file","file":"언리얼/프로젝트/ProjectKY/캐릭터/원거리 공격.md","x":2120,"y":110,"width":980,"height":610},
+		{"id":"52196240122a33b4","type":"file","file":"언리얼/프로젝트/ProjectKY/캐릭터/캐릭터 점프.md","x":1060,"y":800,"width":980,"height":610},
+		{"id":"ebbd3e34d95f7daf","type":"file","file":"언리얼/프로젝트/ProjectKY/캐릭터/스톰프 공격.md","x":1060,"y":1500,"width":980,"height":610},
+		{"id":"21e91af9fb7e7c4b","type":"file","file":"언리얼/프로젝트/ProjectKY/캐릭터/타겟팅.md","x":2120,"y":800,"width":980,"height":610},
+		{"id":"7a881f712c26e9b3","type":"file","file":"언리얼/프로젝트/ProjectKY/캐릭터/어퍼 공격.md","x":2120,"y":1500,"width":980,"height":610},
+		{"id":"31005038834c8285","type":"file","file":"언리얼/프로젝트/ProjectKY/개발 중점.md","x":980,"y":-1800,"width":1060,"height":1040},
+		{"id":"b3c45cfeacc2f14c","type":"text","text":"<big><center>캐릭터","x":2620,"y":-1600,"width":250,"height":60},
+		{"id":"45494c184503f858","type":"text","text":"<big><center>캐릭터","x":3360,"y":-1600,"width":250,"height":60},
+		{"id":"a2c3bbe34020e5c4","type":"text","text":"<big><center>Attr","x":2645,"y":-1460,"width":200,"height":50},
+		{"id":"e9b2729b30632913","type":"text","text":"<big><center>반응 GA","x":2673,"y":-1380,"width":145,"height":50},
+		{"id":"e0a31b185d903448","type":"text","text":"<big><center>유발 GA","x":2655,"y":-1300,"width":180,"height":50},
+		{"id":"9e158dc4078995a4","type":"text","text":"<big><center>반응 GA","x":3408,"y":-1380,"width":145,"height":50},
+		{"id":"22c1e8d320fa8e25","type":"text","text":"<big><center>유발 GA","x":3390,"y":-1300,"width":180,"height":50},
+		{"id":"0ea34d26b36d2030","type":"text","text":"<big><center>GE","x":3040,"y":-1460,"width":139,"height":50},
+		{"id":"9f39d080069ee99c","type":"text","text":"<big><center>Attr","x":3385,"y":-1460,"width":200,"height":50}
+	],
+	"edges":[
+		{"id":"a05b265325fa5b46","fromNode":"22c1e8d320fa8e25","fromSide":"left","toNode":"0ea34d26b36d2030","toSide":"right"},
+		{"id":"666189239f6a1036","fromNode":"0ea34d26b36d2030","fromSide":"left","toNode":"a2c3bbe34020e5c4","toSide":"right"},
+		{"id":"d575edbef4892554","fromNode":"0ea34d26b36d2030","fromSide":"right","toNode":"9f39d080069ee99c","toSide":"left"},
+		{"id":"d7043092be6bfe39","fromNode":"a2c3bbe34020e5c4","fromSide":"top","toNode":"b3c45cfeacc2f14c","toSide":"bottom","label":"Received"},
+		{"id":"e408be8aff00ec14","fromNode":"b3c45cfeacc2f14c","fromSide":"right","toNode":"e9b2729b30632913","toSide":"right","label":"SendEvent"},
+		{"id":"81c74b3dc80e4582","fromNode":"9f39d080069ee99c","fromSide":"top","toNode":"45494c184503f858","toSide":"bottom"},
+		{"id":"8869ed286f6c38e4","fromNode":"45494c184503f858","fromSide":"right","toNode":"9e158dc4078995a4","toSide":"right"}
+	]
+}

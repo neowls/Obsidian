@@ -1,0 +1,20 @@
+{
+	"nodes":[
+		{"id":"b8000aba5641cb25","type":"file","file":"언리얼/프로젝트/ProjectKY/AI/AI 추격.md","x":-1280,"y":1200,"width":400,"height":400},
+		{"id":"f302ce690d586c53","type":"file","file":"언리얼/프로젝트/ProjectKY/AI/AI 공격.md","x":-1840,"y":1200,"width":400,"height":400},
+		{"id":"56ffc2ea0c7796de","type":"text","text":"<big><center>공격 가능 여부","x":-1219,"y":805,"width":278,"height":64},
+		{"id":"cfbc27c2e52559e1","type":"file","file":"언리얼/프로젝트/ProjectKY/AI/AI 배회.md","x":-480,"y":1200,"width":400,"height":400},
+		{"id":"ab9f07d4d3f1eb5a","type":"text","text":"<big><center>거리 여부","x":-823,"y":1005,"width":278,"height":64},
+		{"id":"51babb88b14d4f8b","type":"file","file":"언리얼/프로젝트/ProjectKY/AI/AI 순찰.md","x":80,"y":800,"width":400,"height":400},
+		{"id":"cfd938182b80e73f","type":"file","file":"언리얼/프로젝트/ProjectKY/AI/AI 대기.md","x":-595,"y":280,"width":315,"height":180},
+		{"id":"8cc286408cf04237","type":"file","file":"언리얼/프로젝트/ProjectKY/IMG/AI_BehaviorTree.png","x":-2062,"y":-960,"width":2542,"height":1053}
+	],
+	"edges":[
+		{"id":"f83d6ab6b0e3f3e3","fromNode":"cfd938182b80e73f","fromSide":"bottom","toNode":"51babb88b14d4f8b","toSide":"top"},
+		{"id":"3c1062de6e43e831","fromNode":"56ffc2ea0c7796de","fromSide":"bottom","toNode":"f302ce690d586c53","toSide":"top"},
+		{"id":"c7e96aa192d77130","fromNode":"ab9f07d4d3f1eb5a","fromSide":"bottom","toNode":"b8000aba5641cb25","toSide":"top"},
+		{"id":"41364215c554e1f9","fromNode":"ab9f07d4d3f1eb5a","fromSide":"bottom","toNode":"cfbc27c2e52559e1","toSide":"top"},
+		{"id":"a5c1c70dbde9b408","fromNode":"56ffc2ea0c7796de","fromSide":"bottom","toNode":"ab9f07d4d3f1eb5a","toSide":"top"},
+		{"id":"f95bafbff790c3e0","fromNode":"cfd938182b80e73f","fromSide":"bottom","toNode":"56ffc2ea0c7796de","toSide":"top"}
+	]
+}

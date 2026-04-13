@@ -1,0 +1,7 @@
+- AT는 UAbilityTask 클래스를 상속받아 제작한다.
+- AT 인스턴스를 생성해 반환하는 static 함수를 선언해 구현한다.
+- AT가 종료되면 GA에 알려줄 델리게이트를 선언한다.
+- 시작과 종료 처리를 위해 Activate 와 OnDestroy 함수를 재정의(override)해 구현한다.
+- 일정 시간이 지난 후 AT를 종료하고자 한다면, 활성화시 SetWaitingOnAvatar 함수를 호출해 Waiting 상태로 설정한다.
+- 만일 Tick을 활성화하고 싶다면 bTickingTask 값을 true로 설정한다.
+- AT가 종료되면 델리게이트를 브로드캐스팅한다.

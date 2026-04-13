@@ -1,0 +1,28 @@
+- FName으로 관리되는 경량의 표식 데이터
+	- 액터나 컴포넌트에 지정했던 태그와 다른 데이터
+- 프로젝트 설정에서 별도로 게임플레이 태그를 생성하고 관리할 수 있다.
+	- 결과는 DefaultGameplayTags.ini 파일에 저장된다.
+- 계층 구조로 구성되어 있어 체계적인 관리가 가능하다.
+	- Actor.Action.Rotate : 행동에 대한 태그
+	- Actor.State.IsRotating : 상태에 대한 태그
+- 게임플레이 태그들의 저장소 - GameplayTagContainer
+	- 계층 구조를 지원하는 검색 기능 제공
+	- HasTagExact : 컨테이너에 A.1 태그가 있는 상황에서 A로 찾으면 false
+	- HasAny : 컨테이너에 A.1 태그가 있는 상황에서 A와 B로 찾으면 true 
+	- HasAnyExact : 컨테이너에 A.1 태그가 있는 상황에서 A와 B로 찾으면 false
+	- HasAll : 컨테이너에 A.1 태그와 B.1 태그가 있는 상황에서 A와 B로 찾으면 true
+	- HasAllExact : 컨테이너에 A.1 태그와 B.1 태그가 있는 상황에서 A와 B로 찾으면 false
+- 게임플레이 어빌리티 시스템과 독립적으로 사용 가능하다.
+
+- 게임플레이 어빌리티에 부착한 태그
+	- 어빌리티에 지정한 태그(AbilityTags 태그 컨테이너)
+- 게임플레이 어빌리티에 대해 다양한 실행 조건의 설정
+	- 태그로 어빌리티 취소(CancelAbilitiesWithTag) - 여기에 등록한 태그들을 AbilityTags로 가진 어빌리티들을 취소한다.
+	- 태그로 어빌리티 차단(BlockAbilitiesWithTag)
+	- 어빌리티 실행시 태그 설정(ActivationOwnedTags)
+	- 태그가 있어야만 어빌리티 실행(ActivationRequiredTags)
+	- 태그가 있으면 어빌리티 실행 차단(ActivationBlockedTags)
+	- 시전자가 태그가 있어야 어빌리티 실행(SourceRequiredTags)
+	- 시전자에 태그가 있으면 어빌리티 차단(SourceBlockedTags)
+	- 시전 대상에 태그가 있어야 어빌리티 실행(TargetRequiredTags)
+	- 시전 대상에 태그가 있으면 어빌리티 차단(TargetBlockedTags)

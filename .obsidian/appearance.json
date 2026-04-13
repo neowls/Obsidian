@@ -1,0 +1,10 @@
+{
+  "cssTheme": "Minimal",
+  "accentColor": "",
+  "theme": "obsidian",
+  "textFontFamily": "나눔고딕OTF,G마켓 산스,Brandon Grotesque",
+  "enabledCssSnippets": [
+    "space"
+  ],
+  "baseFontSize": 18
+}
