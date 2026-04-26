@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NightCaretaker Level Space Matrix</title>
+  <meta name="nightcaretaker-doc-template" content="dark-low-saturation-v1">
+  <link rel="stylesheet" href="./NightCaretaker_DocTheme.css">
+</head>
+<body class="doc-level-space-matrix">
+  <header>
+    <h1>NightCaretaker Level Space Matrix</h1>
+    <p>레벨/공간 제작 기준, 수직 슬라이스 route, LocationId, 상태 hook, 필수 제작물을 한 화면에서 검토하기 위한 정적 companion 문서.</p>
+    <div class="tags">
+      <span class="tag">Dark Low Saturation Template</span>
+      <span class="tag">LocationId</span>
+      <span class="tag">AccessState</span>
+      <span class="tag">Vertical Slice Route</span>
+      <span class="tag">Revisit Variation</span>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Production Contract</h2>
+      <div class="grid">
+        <div class="card"><h3>Location</h3><p><code>LocationId</code>는 민원, 단서, UI 목표, 레벨 actor를 연결하는 기준 id다.</p></div>
+        <div class="card"><h3>Access</h3><p><code>AccessState</code>와 <code>Progression.*</code>는 prompt와 개폐 가능 여부를 결정한다.</p></div>
+        <div class="card"><h3>State</h3><p><code>PowerState</code>, <code>TensionStage</code>, <code>Room307Stage</code>는 공간 표현을 바꾼다.</p></div>
+        <div class="card"><h3>Variation</h3><p>재방문 시 조명, 문, 소리, 표지, 오염, 기록 중 하나 이상이 달라져야 한다.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Space Matrix</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Priority</th>
+              <th>Space</th>
+              <th>LocationId</th>
+              <th>Complaints</th>
+              <th>State Hooks</th>
+              <th>Required Assets</th>
+              <th>Lighting / Sound Anchors</th>
+              <th>Validation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="priority">P0-A</td>
+              <td>관리실</td>
+              <td><code>LOC_OFFICE_MAIN</code>, <code>LOC_OFFICE_BOARD_3F_LIGHT</code>, <code>LOC_OFFICE_307_RECORDS</code></td>
+              <td><code>CMP_PRO_OfficeLightBuzz</code>, <code>CMP_CH2_ReopenedLightCase</code>, <code>CMP_CH4_RecordResident307</code></td>
+              <td><code>ENCShiftPhase::BoardReview</code>, <code>RecordIntegrity</code>, <code>TensionStage</code></td>
+              <td>민원 보드, 공구함, 명부, 정비 로그, 전화/인터폰, 형광등</td>
+              <td>형광등 hum, 종이/스탬프, 보고 후 정적</td>
+              <td>보드 수락, 보고, 도구 준비, 조명 조치가 한 공간에서 닫힘.</td>
+            </tr>
+            <tr>
+              <td class="priority">P1</td>
+              <td>1층 로비/우편함</td>
+              <td><code>LOC_1F_MAILBOX</code></td>
+              <td><code>CMP_CH1_1F_MailboxMisdelivery</code></td>
+              <td><code>Progression.Story.IntercomStaticObserved</code></td>
+              <td>우편함, 라벨, 입주 안내판, CCTV 표식, 로비 조명</td>
+              <td>금속 우편함, 종이 라벨, 먼 로비 ambience</td>
+              <td>우편함과 명부 불일치가 한 번에 대조 가능.</td>
+            </tr>
+            <tr>
+              <td class="priority">P0-A</td>
+              <td>2층 복도</td>
+              <td><code>LOC_2F_203_DOOR</code>, <code>LOC_2F_INTERCOM</code>, <code>LOC_2F_204_DOOR</code>, <code>LOC_2F_205_DOOR</code>, <code>LOC_2F_EXIT_HALL</code></td>
+              <td>203 물기, 인터폰, 204 문패, 205 냄새, 비상구 거리감</td>
+              <td><code>Progression.Chapter.One</code>, <code>TensionStage</code></td>
+              <td>203/204/205 문, 인터폰, 환기구, 젖은 타일, 비상구 표지</td>
+              <td>물소리, 인터폰 정적, 배관음</td>
+              <td>초반 조사와 재방문 변주를 모두 견딤.</td>
+            </tr>
+            <tr>
+              <td class="priority">P0-A</td>
+              <td>3층 복도</td>
+              <td><code>LOC_3F_EMERGENCY_LIGHT</code>, <code>LOC_3F_302_DOOR</code>, <code>LOC_3F_306_DOOR</code>, <code>LOC_3F_307_DOOR</code></td>
+              <td>3층 비상등, 302 TV, 306 문 센서, 307 택배/소음</td>
+              <td><code>Room307Stage</code>, <code>TensionStage</code></td>
+              <td>비상등, 302/306/307 문, 도어락, 문패, 복도 끝 암부</td>
+              <td>생활 소음, 비상등 hum, 문틈 정적</td>
+              <td>307호로 수렴하는 압박이 생김.</td>
+            </tr>
+            <tr>
+              <td class="priority">P0-B</td>
+              <td>계단실/엘리베이터</td>
+              <td><code>LOC_STAIR_1F_2F</code>, <code>LOC_ELEVATOR_MAIN</code></td>
+              <td><code>CMP_CH1_StairAutoLightDelay</code>, <code>CMP_CH2_ElevatorFloorError</code></td>
+              <td><code>PowerState</code>, <code>TensionStage</code></td>
+              <td>센서등, 층수 표기, 난간, 엘리베이터 버튼/표시창</td>
+              <td>센서 relay, 금속문 잔향, 층간 반향</td>
+              <td>길찾기를 망가뜨리지 않고 층 신뢰만 흔듦.</td>
+            </tr>
+            <tr>
+              <td class="priority">P1</td>
+              <td>4층/CCTV</td>
+              <td><code>LOC_4F_CCTV</code></td>
+              <td><code>CMP_CH2_4F_CCTVBlank</code></td>
+              <td><code>Progression.Story.RecordMismatchNoted</code></td>
+              <td>CCTV 카메라, 모니터 대응 표식, 시간 로그 단서</td>
+              <td>모니터 buzz, static dropout</td>
+              <td>영상, 로그, 현장 불일치가 확인됨.</td>
+            </tr>
+            <tr>
+              <td class="priority">P0-A</td>
+              <td>지하 전기실</td>
+              <td><code>LOC_BSMT_PUMP</code>, <code>LOC_BSMT_PANEL</code></td>
+              <td><code>CMP_CH3_BasementPumpAlarm</code>, <code>CMP_CH3_BasementPanelMislabel</code></td>
+              <td><code>AccessState=TemporaryUnlocked</code>, <code>PowerState</code>, <code>Progression.Story.SpaceDepthShift</code></td>
+              <td>지하 계단, 펌프, 배전반, 케이블, 라벨, 경고등, 젖은 바닥</td>
+              <td>펌프 저주파, 배전반 hum, 금속 잔향</td>
+              <td>정전 이후 지하 목표가 명확하고 동선이 짧음.</td>
+            </tr>
+            <tr>
+              <td class="priority">P0-B / P2</td>
+              <td>307호 앞/내부</td>
+              <td><code>LOC_3F_307_DOOR</code>, <code>LOC_3F_307_INTERIOR</code></td>
+              <td><code>CMP_CH4_307_PackageAtDoor</code>, <code>CMP_CH4_307_LifeNoise</code>, <code>CMP_CH4_FinalCheck307</code></td>
+              <td><code>Room307Stage=DoorStay/Threshold/Interior</code>, <code>AccessState=Unlocked</code></td>
+              <td>택배, 문패, 도어락, 문틈, 현관, 전실, 반사면, 생활 흔적</td>
+              <td>문틈 정적, 반사 지연, threshold silence</td>
+              <td>문을 열지 않아도 목표로 각인되고, 내부는 해석을 닫지 않음.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Vertical Slice Route</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Route</th>
+              <th>Required State</th>
+              <th>Validation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>관리실 인수인계</td><td><code>ENCShiftPhase::BoardReview</code></td><td>보드, 도구, 보고 위치를 5분 안에 이해.</td></tr>
+            <tr><td>2</td><td>관리실 조명 조치</td><td><code>CMP_PRO_OfficeLightBuzz</code></td><td>형광등, 안정기, 3F 07 흔적 확인.</td></tr>
+            <tr><td>3</td><td>2층 203호 조사</td><td><code>CMP_PRO_203_WaterAtDoor</code></td><td>visual/environmental evidence 확보.</td></tr>
+            <tr><td>4</td><td>2층 인터폰</td><td><code>CMP_CH1_2F_IntercomStatic</code></td><td>audio evidence와 수리 행동 연결.</td></tr>
+            <tr><td>5</td><td>3층 비상등</td><td><code>Room307Stage=ThirdFloorUnstable</code></td><td>3층이 다른 층보다 불안정하게 읽힘.</td></tr>
+            <tr><td>6</td><td>302호 앞</td><td><code>TensionStage=Stage2_RecordConflict</code></td><td>빈집 생활 소음과 기록 충돌 판정.</td></tr>
+            <tr><td>7</td><td>정전 복귀</td><td><code>PowerState=FloorOutage/EmergencyOnly</code></td><td>지하 목표가 생기되 길찾기가 유지됨.</td></tr>
+            <tr><td>8</td><td>지하 펌프</td><td><code>AccessState=TemporaryUnlocked</code></td><td>제한 구역이 공식 조사 구역으로 바뀜.</td></tr>
+            <tr><td>9</td><td>지하 배전반</td><td><code>Progression.Story.BasementPowerLinked</code></td><td>전기 계통과 307 단서 연결.</td></tr>
+            <tr><td>10</td><td>307호 앞</td><td><code>Room307Stage=DoorStay</code></td><td>문을 열지 않아도 다음 목표로 각인.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Static documentation. Master source: Planning, Development, Art documents in Document/.
+  </footer>
+</body>
+</html>

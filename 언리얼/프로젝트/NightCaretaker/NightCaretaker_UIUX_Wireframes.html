@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NightCaretaker UI/UX Wireframes</title>
+  <meta name="nightcaretaker-doc-template" content="dark-low-saturation-v1">
+  <link rel="stylesheet" href="./NightCaretaker_DocTheme.css">
+</head>
+<body class="doc-uiux-wireframes">
+  <header>
+    <div class="wrap">
+      <div class="top">
+        <h1>NightCaretaker UI/UX Wireframes</h1>
+        <p class="sub">업무용 소품 UI와 최소 HUD를 기준으로 민원 보드, 보고서, 기록장, 설정 화면의 제작 방향과 Unreal 위젯 계약을 시각화한다.</p>
+      </div>
+      <nav>
+        <a href="#style">Style</a>
+        <a href="#widget-tree">Widget Tree</a>
+        <a href="#hud">HUD</a>
+        <a href="#board">민원 보드</a>
+        <a href="#report">보고서</a>
+        <a href="#notebook">기록장</a>
+        <a href="#settings">설정</a>
+        <a href="#developer-flow">Developer Flow</a>
+        <a href="#uml-notes">UML Notes</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="style">
+      <h2>Style Tokens</h2>
+      <div class="token-grid">
+        <div class="token-card">
+          <span class="swatch swatch-paper"></span>
+          <strong>Paper / Ink</strong>
+          <p class="meta">보고서, 기록장, 보드 문서 영역. 낡은 사무용 종이와 검은 잉크의 대비를 기준으로 한다.</p>
+        </div>
+        <div class="token-card">
+          <span class="swatch swatch-teal"></span>
+          <strong>Fluorescent Teal</strong>
+          <p class="meta">focus, 확인 가능, 시스템 정상. Runtime HUD와 버튼 primary에 제한적으로 사용한다.</p>
+        </div>
+        <div class="token-card">
+          <span class="swatch swatch-amber"></span>
+          <strong>Warning Amber</strong>
+          <p class="meta">미확인, 주의, 추가 확인 필요. 업무용 스탬프와 태그에 사용한다.</p>
+        </div>
+        <div class="token-card">
+          <span class="swatch swatch-rust"></span>
+          <strong>Rust Red</strong>
+          <p class="meta">위험, 오류, 기록 충돌. 일반 강조색으로 사용하지 않는다.</p>
+        </div>
+      </div>
+      <div class="table-wrap compact-spec">
+        <table>
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>UMG 기준</th>
+              <th>금지</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Button</td>
+              <td>업무 양식의 선택 영역. 기본/주요/위험 상태만 둔다.</td>
+              <td>과한 glow, 큰 gradient, 장식용 아이콘 남발</td>
+            </tr>
+            <tr>
+              <td>Tabs</td>
+              <td>Notebook/Settings 전환. 현재 탭은 경계선과 배경 차이로 읽힌다.</td>
+              <td>탭마다 강한 색상 부여</td>
+            </tr>
+            <tr>
+              <td>Prompt</td>
+              <td>한 줄. <code>대상명 - 입력 행동</code> 순서를 유지한다.</td>
+              <td>긴 설명문, 화면 중앙 대형 퀘스트 문구</td>
+            </tr>
+            <tr>
+              <td>Record Corruption</td>
+              <td>문구/정렬/재출력 상태만 흔든다.</td>
+              <td>진행 버튼 숨김, Back 입력 무시, 필수 정보 판독 불가</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="widget-tree">
+      <h2>Widget Tree</h2>
+      <div class="tree-grid">
+        <div class="tree-card">
+          <h3>WBP_NCPlayerHUD</h3>
+          <pre class="tree-view">WBP_NCPlayerHUD
+└─ CanvasPanel RootCanvas
+   ├─ Image ReticleImage
+   ├─ Overlay PromptLayer
+   ├─ Overlay ToolFeedbackLayer
+   └─ Overlay ToastLayer</pre>
+          <p class="meta"><code>ReticleImage</code>는 기존 <code>UNCPlayerHUDWidget</code>의 optional binding 이름을 유지한다.</p>
+        </div>
+        <div class="tree-card">
+          <h3>WBP_NCComplaintBoard</h3>
+          <pre class="tree-view">WBP_NCComplaintBoard
+└─ Border BoardFrame
+   └─ VerticalBox BoardLayout
+      ├─ Header
+      ├─ ComplaintList
+      ├─ DetailPanel
+      └─ CommandBar</pre>
+          <p class="meta">목록과 상세는 runtime snapshot을 읽고, 수락 요청만 controller/runtime owner로 전달한다.</p>
+        </div>
+        <div class="tree-card">
+          <h3>WBP_NCReportForm</h3>
+          <pre class="tree-view">WBP_NCReportForm
+└─ Border ReportFrame
+   └─ VerticalBox ReportLayout
+      ├─ Header
+      ├─ EvidenceList
+      ├─ ResultOptions
+      └─ CommandBar</pre>
+          <p class="meta">허용된 <code>AllowedReportResults</code>만 표시하고 제출 검증은 runtime owner가 수행한다.</p>
+        </div>
+        <div class="tree-card">
+          <h3>WBP_NCNotebook</h3>
+          <pre class="tree-view">WBP_NCNotebook
+└─ Border NotebookFrame
+   ├─ TabBar
+   └─ PageSwitcher
+      ├─ CurrentComplaint
+      ├─ Evidence
+      ├─ Location
+      └─ Room307</pre>
+          <p class="meta">기록장은 길찾기 정답지가 아니라 현장 판단을 돕는 read-only summary로 제작한다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="hud">
+      <h2>Runtime HUD</h2>
+      <div class="grid">
+        <div class="frame">
+          <div class="screen">
+            <div class="hud-reticle"></div>
+            <div class="prompt">3층 비상등 - E 확인</div>
+            <div class="toast">단서 기록: 비상등 라벨이 307로 덧씌워져 있음</div>
+          </div>
+          <p class="meta">상시 정보는 reticle과 짧은 prompt 중심이다. 도구/저장/단서는 toast로 짧게 표시한다.</p>
+        </div>
+        <div class="frame">
+          <h3>HUD 규칙</h3>
+          <p class="meta">체력, 스태미나, 미니맵, 큰 퀘스트 추적기는 사용하지 않는다. 포커스와 상호작용 가능 여부만 전달한다.</p>
+          <p class="meta">메뉴, 보드, 보고서, 기록장이 열리면 Runtime HUD는 비활성화한다.</p>
+          <div class="ownership-card">
+            <strong>Runtime Contract</strong>
+            <p class="meta"><code>ANCPlayerControllerBase</code>가 local player에서 <code>UNCUISubsystem.ShowPlayerHUD</code>를 호출한다. HUD 상태는 <code>FNCHUDState</code>로 push된다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="board">
+      <h2>Complaint Board</h2>
+      <div class="frame">
+        <div class="board">
+          <div>
+            <strong>야간 민원 접수 보드</strong>
+            <span class="tag">CH1</span>
+            <span class="tag warn">3건 대기</span>
+          </div>
+          <div class="board-layout">
+            <div class="rows">
+              <div class="row"><span>#014</span><span>2층 인터폰 잡음</span><span>대기</span></div>
+              <div class="row"><span>#015</span><span>3층 비상등 상시 점등</span><span>수락됨</span></div>
+              <div class="row"><span>#016</span><span>계단실 자동등 지연</span><span>대기</span></div>
+              <div class="row"><span>#017</span><span>해결 완료된 조명 민원</span><span>재접수</span></div>
+            </div>
+            <div class="detail">
+              <h3>3층 비상등 상시 점등</h3>
+              <p class="meta">위치: 3F 복도 동쪽 끝</p>
+              <p class="meta">필요 도구: 손전등, 드라이버</p>
+              <p class="meta">비고: 전기 낭비 신고. 야간 중 반복 확인 요청.</p>
+              <p><span class="tag">Repair</span><span class="tag bad">Power</span></p>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn primary">수락</button>
+            <button class="btn">위치 확인</button>
+            <button class="btn">닫기</button>
+          </div>
+        </div>
+        <p class="meta">후반에는 같은 행이 새 종이처럼 재출력되거나 비고 문구만 바뀐다. 선택 가능 상태는 유지한다.</p>
+      </div>
+    </section>
+
+    <section id="report">
+      <h2>Report Form</h2>
+      <div class="frame">
+        <div class="report">
+          <strong>민원 처리 보고서</strong>
+          <div class="report-grid">
+            <div class="paper-box">
+              <h3>확인 단서</h3>
+              <div class="checkline">비상등 커버 안쪽 라벨이 덧붙어 있음</div>
+              <div class="checkline">스위치 OFF 후에도 약한 잔광 유지</div>
+              <div class="checkline">근처 문패 표기가 잠깐 307로 보임</div>
+            </div>
+            <div class="paper-box">
+              <h3>보고 결과</h3>
+              <p><button class="btn primary">해결 완료</button></p>
+              <p><button class="btn">이상 없음</button></p>
+              <p><button class="btn danger">추가 확인 필요</button></p>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn primary">제출</button>
+            <button class="btn">기록장 열기</button>
+            <button class="btn">취소</button>
+          </div>
+        </div>
+        <p class="meta">AllowedReportResults에 없는 선택지는 표시하지 않는다. 단서 수가 부족하면 제출 대신 현장 재확인을 유도한다.</p>
+      </div>
+    </section>
+
+    <section id="notebook">
+      <h2>Notebook</h2>
+      <div class="frame">
+        <div class="notebook">
+          <div class="tabs">
+            <span class="tab">현재 민원</span>
+            <span class="tab">단서</span>
+            <span class="tab">위치</span>
+            <span class="tab">307</span>
+          </div>
+          <div class="paper-box">
+            <h3>현재 민원</h3>
+            <p class="meta">3층 비상등 상시 점등</p>
+            <p class="meta">확인 필요: 전원 라벨, 스위치 상태, 문패/복도 표기</p>
+            <p class="meta">보고 가능: 단서 2개 이상 확인 후 관리실 복귀</p>
+          </div>
+          <div class="paper-box">
+            <h3>307 관련 기록</h3>
+            <p class="meta">교체 스티커 아래 <code>3F 07 line?</code> 표기.</p>
+            <p class="meta">3층 비상등 라벨과 우편함 표기가 맞지 않음.</p>
+          </div>
+        </div>
+        <p class="meta">기록장은 길찾기 자동 해결책이 아니라 현장 판단을 보조하는 업무 수첩이다.</p>
+      </div>
+    </section>
+
+    <section id="settings">
+      <h2>Pause / Settings</h2>
+      <div class="frame">
+        <div class="settings">
+          <strong>설정</strong>
+          <div class="setting-line"><span>카메라 흔들림</span><div class="bar"><span class="fill-42"></span></div><span>42</span></div>
+          <div class="setting-line"><span>텍스트 크기</span><div class="bar"><span class="fill-58"></span></div><span>58</span></div>
+          <div class="setting-line"><span>깜빡임 완화</span><div class="bar"><span class="fill-75"></span></div><span>ON</span></div>
+          <div class="setting-line"><span>Ambience</span><div class="bar"><span class="fill-64"></span></div><span>64</span></div>
+          <div class="actions">
+            <button class="btn primary">적용</button>
+            <button class="btn">뒤로</button>
+          </div>
+        </div>
+        <p class="meta">공포 의도를 유지하되 텍스트 크기, 깜빡임 완화, 오디오 밸런스는 P0 접근성으로 본다.</p>
+      </div>
+    </section>
+
+    <section id="developer-flow">
+      <h2>Developer Flow</h2>
+      <div class="flow-lanes">
+        <div class="flow-lane">
+          <strong>GameOnly</strong>
+          <span>Runtime HUD, Interaction Prompt, Toast</span>
+          <p class="meta"><code>UNCUISubsystem</code>이 HUD state를 캐시하고 <code>WBP_NCPlayerHUD</code>에 적용한다.</p>
+        </div>
+        <div class="flow-lane">
+          <strong>GameAndUI</strong>
+          <span>Complaint Board, Report Form, Notebook, Document Viewer</span>
+          <p class="meta">이동 입력은 막고 Back/Close는 즉시 처리한다. 데이터 변경은 runtime owner 요청으로만 수행한다.</p>
+        </div>
+        <div class="flow-lane">
+          <strong>UIOnly</strong>
+          <span>Pause Menu, Settings Menu</span>
+          <p class="meta">게임 입력을 정지하고 메뉴 focus를 유지한다. CommonUI는 향후 이 범위에서만 후보로 검토한다.</p>
+        </div>
+      </div>
+      <div class="ownership-grid">
+        <div class="ownership-card">
+          <strong>읽기</strong>
+          <p class="meta">위젯은 complaint/evidence/document snapshot을 읽는다.</p>
+        </div>
+        <div class="ownership-card">
+          <strong>쓰기 요청</strong>
+          <p class="meta">수락, 단서 등록, 보고 제출은 controller wrapper 또는 runtime subsystem API로 전달한다.</p>
+        </div>
+        <div class="ownership-card">
+          <strong>금지</strong>
+          <p class="meta">GameState 배열 직접 수정, Level Actor hard reference, 진행 버튼 숨김형 오염 연출.</p>
+        </div>
+      </div>
+      <div class="table-wrap compact-spec">
+        <table>
+          <thead>
+            <tr>
+              <th>Widget</th>
+              <th>Native Parent</th>
+              <th>Input Policy</th>
+              <th>Runtime Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>WBP_NCPlayerHUD</code></td>
+              <td><code>UNCPlayerHUDWidget</code></td>
+              <td><code>GameOnly</code></td>
+              <td><code>ReticleImage</code> optional binding 유지</td>
+            </tr>
+            <tr>
+              <td><code>WBP_NCComplaintBoard</code></td>
+              <td><code>UNCUserWidget</code></td>
+              <td><code>GameAndUI</code></td>
+              <td>민원 runtime owner에 수락 요청</td>
+            </tr>
+            <tr>
+              <td><code>WBP_NCReportForm</code></td>
+              <td><code>UNCUserWidget</code></td>
+              <td><code>GameAndUI</code></td>
+              <td>보고 결과는 runtime owner가 검증</td>
+            </tr>
+            <tr>
+              <td><code>WBP_NCPauseMenu</code></td>
+              <td><code>UNCUserWidget</code></td>
+              <td><code>UIOnly</code></td>
+              <td>설정 진입과 resume 처리</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="uml-notes">
+      <h2>UML Notes</h2>
+      <div class="grid">
+        <div class="frame">
+          <h3>다이어그램 문서</h3>
+          <p class="meta">개발자용 classDiagram, flowchart, sequenceDiagram, stateDiagram-v2는 <a href="./NightCaretaker_UIUX_Diagrams.md">NightCaretaker_UIUX_Diagrams.md</a>에서 관리한다.</p>
+          <p class="meta">이 HTML은 브라우저에서 바로 열어 화면 톤과 구현 계약을 빠르게 확인하는 용도다.</p>
+        </div>
+        <div class="frame">
+          <h3>P0 / P1</h3>
+          <p class="meta">P0는 HUD, prompt, board, report, notebook, pause/settings다. Document viewer와 toast는 P0 연결 대상이지만 고급 오염 연출은 P1로 둔다.</p>
+          <p class="meta">CommonUI는 현재 런타임 기반이 아니므로 메뉴/설정 확장 후보로만 기록한다.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

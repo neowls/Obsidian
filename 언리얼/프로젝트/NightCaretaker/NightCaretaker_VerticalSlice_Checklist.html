@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NightCaretaker Vertical Slice Checklist</title>
+  <meta name="nightcaretaker-doc-template" content="dark-low-saturation-v1">
+  <link rel="stylesheet" href="./NightCaretaker_DocTheme.css">
+</head>
+<body class="doc-vertical-slice-checklist">
+  <header>
+    <h1>NightCaretaker Vertical Slice Checklist</h1>
+    <p>데모 수직 슬라이스의 10단계 route, 구현 티켓, 상태 hook, smoke-test 기준을 한 화면에서 검토하기 위한 정적 companion 문서.</p>
+    <div class="tags">
+      <span class="tag">Dark Low Saturation Template</span>
+      <span class="tag">10-Step Route</span>
+      <span class="tag">Implementation Tickets</span>
+      <span class="tag">Smoke-Test Criteria</span>
+      <span class="tag">No New Runtime State</span>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Ticket Groups</h2>
+      <div class="grid">
+        <div class="card"><h3>VS-BLOCKOUT</h3><p>관리실, 2층 복도, 3층 복도, 지하, 307호 앞 route 구성.</p></div>
+        <div class="card"><h3>VS-INTERACTION</h3><p>보드, 도구, 문, 인터폰, 형광등, 배전반, 택배 상호작용.</p></div>
+        <div class="card"><h3>VS-COMPLAINT</h3><p>10개 민원 row와 evidence/report loop 연결.</p></div>
+        <div class="card"><h3>VS-UI</h3><p>HUD prompt, board, report, notebook, document viewer 연결.</p></div>
+        <div class="card"><h3>VS-AUDIO</h3><p>ambience, SFX, UI sound, MetaSound layer 연결.</p></div>
+        <div class="card"><h3>VS-LIGHTING</h3><p><code>PowerState</code>별 조명 preset과 정전 이벤트.</p></div>
+        <div class="card"><h3>VS-QADEBUG</h3><p>단계별 시작/검증 debug와 smoke-test pass 기록.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Route Checklist</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Content</th>
+              <th>Location / State</th>
+              <th>Ticket Groups</th>
+              <th>UI / Audio / Lighting</th>
+              <th>Pass Criteria</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>관리실 인수인계</td><td><code>LOC_OFFICE_MAIN</code>, <code>ENCShiftPhase::BoardReview</code></td><td><span class="group">VS-BLOCKOUT</span>, <span class="group">VS-UI</span>, <span class="group">VS-INTERACTION</span></td><td>보드 prompt, 공구함 cue, 기본 ambience</td><td>5분 안에 보드/도구/보고 위치 이해.</td></tr>
+            <tr><td>2</td><td><code>CMP_PRO_OfficeLightBuzz</code></td><td>관리실 형광등, <code>PowerState=Normal</code></td><td><span class="group">VS-INTERACTION</span>, <span class="group">VS-COMPLAINT</span>, <span class="group">VS-LIGHTING</span></td><td>형광등 buzz, 스위치, 안정기 prompt</td><td>보드 활성화와 <code>3F 07</code> 흔적 확인.</td></tr>
+            <tr><td>3</td><td><code>CMP_PRO_203_WaterAtDoor</code></td><td><code>LOC_2F_203_DOOR</code></td><td><span class="group">VS-BLOCKOUT</span>, <span class="group">VS-COMPLAINT</span></td><td>젖은 타일, 손전등, 물소리</td><td>visual/environmental evidence로 보고 가능.</td></tr>
+            <tr><td>4</td><td><code>CMP_CH1_2F_IntercomStatic</code></td><td><code>LOC_2F_INTERCOM</code>, <code>Evidence.Audio</code></td><td><span class="group">VS-INTERACTION</span>, <span class="group">VS-AUDIO</span>, <span class="group">VS-UI</span></td><td>인터폰 static, 오디오 단서 badge</td><td>오디오 단서 확보 후 보고 가능.</td></tr>
+            <tr><td>5</td><td><code>CMP_CH1_3F_EmergencyLight</code></td><td><code>LOC_3F_EMERGENCY_LIGHT</code>, <code>Room307Stage=ThirdFloorUnstable</code></td><td><span class="group">VS-BLOCKOUT</span>, <span class="group">VS-LIGHTING</span>, <span class="group">VS-AUDIO</span></td><td>비상등 hum, 3층 문패 기준점</td><td>3층이 2층과 다르게 느껴짐.</td></tr>
+            <tr><td>6</td><td><code>CMP_CH2_302_TVHum</code></td><td><code>LOC_3F_302_DOOR</code>, <code>TensionStage=Stage2_RecordConflict</code></td><td><span class="group">VS-COMPLAINT</span>, <span class="group">VS-AUDIO</span>, <span class="group">VS-UI</span></td><td>TV hum, 보고서 선택지, 전력 기록</td><td>정상/이상 판단 불안 체감.</td></tr>
+            <tr><td>7</td><td>정전 이벤트</td><td><code>PowerState=FloorOutage/EmergencyOnly</code></td><td><span class="group">VS-LIGHTING</span>, <span class="group">VS-AUDIO</span>, <span class="group">VS-QADEBUG</span></td><td>비상등, 손전등, 지하 목표</td><td>길찾기 유지와 지하 접근 목표 생성.</td></tr>
+            <tr><td>8</td><td><code>CMP_CH3_BasementPumpAlarm</code></td><td><code>LOC_BSMT_PUMP</code>, <code>AccessState=TemporaryUnlocked</code></td><td><span class="group">VS-BLOCKOUT</span>, <span class="group">VS-AUDIO</span>, <span class="group">VS-COMPLAINT</span></td><td>펌프 저주파, 지하 gate, breaker cue</td><td>지하가 공식 조사 구역으로 전환.</td></tr>
+            <tr><td>9</td><td><code>CMP_CH3_BasementPanelMislabel</code></td><td><code>LOC_BSMT_PANEL</code>, <code>Progression.Story.BasementPowerLinked</code></td><td><span class="group">VS-INTERACTION</span>, <span class="group">VS-UI</span>, <span class="group">VS-LIGHTING</span></td><td>배전반 라벨, 기록장, panel hum</td><td>전기 계통과 307 단서 연결.</td></tr>
+            <tr><td>10</td><td><code>CMP_CH4_307_PackageAtDoor</code></td><td><code>LOC_3F_307_DOOR</code>, <code>Room307Stage=DoorStay</code></td><td><span class="group">VS-BLOCKOUT</span>, <span class="group">VS-AUDIO</span>, <span class="group">VS-QADEBUG</span></td><td>택배/운송장, 문틈 정적, 307 문패</td><td>307호를 열지 않아도 다음 목표로 각인.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Smoke-Test Pass Criteria</h2>
+      <div class="grid">
+        <div class="card"><h3>Role</h3><p>5분 안에 보드, 도구, 보고 위치를 이해한다.</p></div>
+        <div class="card"><h3>Loop</h3><p>사운드 없이도 보드 -> 현장 -> 단서 -> 보고 루프가 성립한다.</p></div>
+        <div class="card"><h3>Contrast</h3><p>15~20분 안에 정상 민원과 이상 민원의 차이를 체감한다.</p></div>
+        <div class="card"><h3>Spaces</h3><p>관리실, 복도, 세대 문 앞, 지하실이 기능적으로 연결된다.</p></div>
+        <div class="card"><h3>Tension</h3><p>사운드와 조명을 켰을 때 긴장 상승이 분명하다.</p></div>
+        <div class="card"><h3>307</h3><p>데모 종료 시 307호 내부 확인을 다음 목표로 기억한다.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Static documentation. Master source: Planning, Development, Art documents in Document/.
+  </footer>
+</body>
+</html>

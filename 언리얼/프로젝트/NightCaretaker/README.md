@@ -7,9 +7,39 @@
 
 ## 현재 활성 문서
 
-- 기획 총합본: [NightCaretaker_Planning_Master.md](./NightCaretaker_Planning_Master.md)
+- 기획 총합본: [[NightCaretaker_Planning_Master.md]]
 - 개발 총합본: [NightCaretaker_Development_Master.md](./NightCaretaker_Development_Master.md)
 - 아트 총합본: [NightCaretaker_Art_Master.md](./NightCaretaker_Art_Master.md)
+
+## 보조 시각화 문서
+
+- 게임 플로우 다이어그램: [NightCaretaker_GameFlow_Diagrams.md](./NightCaretaker_GameFlow_Diagrams.md)
+- 게임 플로우 HTML 보드: [NightCaretaker_GameFlow_Visual.html](./NightCaretaker_GameFlow_Visual.html)
+- UI/UX 상세 문서: [NightCaretaker_UIUX_Detail.md](./NightCaretaker_UIUX_Detail.md)
+- UI/UX 다이어그램: [NightCaretaker_UIUX_Diagrams.md](./NightCaretaker_UIUX_Diagrams.md)
+- UI/UX HTML 와이어프레임: [NightCaretaker_UIUX_Wireframes.html](./NightCaretaker_UIUX_Wireframes.html)
+- 사운드 상세 문서: [NightCaretaker_Sound_Detail.md](./NightCaretaker_Sound_Detail.md)
+- 사운드 다이어그램: [NightCaretaker_Sound_Diagrams.md](./NightCaretaker_Sound_Diagrams.md)
+- 사운드 HTML 매트릭스: [NightCaretaker_Sound_Matrix.html](./NightCaretaker_Sound_Matrix.html)
+- 민원/이상 현상 상세 문서: [NightCaretaker_ComplaintAnomaly_Detail.md](./NightCaretaker_ComplaintAnomaly_Detail.md)
+- 민원/이상 현상 다이어그램: [NightCaretaker_ComplaintAnomaly_Diagrams.md](./NightCaretaker_ComplaintAnomaly_Diagrams.md)
+- 민원/이상 현상 HTML 매트릭스: [NightCaretaker_ComplaintAnomaly_Matrix.html](./NightCaretaker_ComplaintAnomaly_Matrix.html)
+- 레벨/공간 상세 문서: [NightCaretaker_LevelSpace_Detail.md](./NightCaretaker_LevelSpace_Detail.md)
+- 레벨/공간 다이어그램: [NightCaretaker_LevelSpace_Diagrams.md](./NightCaretaker_LevelSpace_Diagrams.md)
+- 레벨/공간 HTML 매트릭스: [NightCaretaker_LevelSpace_Matrix.html](./NightCaretaker_LevelSpace_Matrix.html)
+- 수직 슬라이스 상세 문서: [NightCaretaker_VerticalSlice_Detail.md](./NightCaretaker_VerticalSlice_Detail.md)
+- 수직 슬라이스 다이어그램: [NightCaretaker_VerticalSlice_Diagrams.md](./NightCaretaker_VerticalSlice_Diagrams.md)
+- 수직 슬라이스 HTML 체크리스트: [NightCaretaker_VerticalSlice_Checklist.html](./NightCaretaker_VerticalSlice_Checklist.html)
+- HTML 공통 CSS 템플릿: [NightCaretaker_DocTheme.css](./NightCaretaker_DocTheme.css)
+
+이 문서들은 Master 문서를 대체하지 않고, 특정 파트를 빠르게 검토하기 위한 companion 문서로 유지한다.
+HTML 시각화 문서는 어두운 저채도 계열의 공통 CSS 템플릿을 기준으로 작성해 문서 간 시각 톤을 맞춘다.
+
+## HTML 템플릿 정책
+
+- HTML companion 문서는 `NightCaretaker_DocTheme.css`를 참조하고 인라인 `<style>` 블록을 두지 않는다.
+- 공통 템플릿 표기는 `<meta name="nightcaretaker-doc-template" content="dark-low-saturation-v1">`를 사용한다.
+- 문서별 차이는 `body` class와 공통 CSS 안의 제한된 선택자로만 처리한다.
 
 ## 총합본 구성 원칙
 

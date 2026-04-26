@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NightCaretaker Sound Matrix</title>
+  <meta name="nightcaretaker-doc-template" content="dark-low-saturation-v1">
+  <link rel="stylesheet" href="./NightCaretaker_DocTheme.css">
+</head>
+<body class="doc-sound-matrix">
+  <header>
+    <h1>NightCaretaker Sound Matrix</h1>
+    <p>공간, 상태, 민원 도메인, UI 표면별 사운드 제작 기준을 한 화면에서 검토하기 위한 정적 companion 문서.</p>
+    <div class="meta" aria-label="sound category tags">
+      <span class="tag">AMB ambience loop</span>
+      <span class="tag">SFX one-shot</span>
+      <span class="tag">UI work sound</span>
+      <span class="tag">MS MetaSound layer</span>
+      <span class="tag">STG progress stinger</span>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Input Contract</h2>
+      <div class="grid">
+        <div class="card"><h3><code>ENCShiftPhase</code></h3><p>관리실, 조사, 보고, 정지 context를 바꾸는 입력.</p></div>
+        <div class="card"><h3><code>ENCComplaintRuntimeState</code></h3><p>민원 수락, 조사 시작, 보고 가능, 제출, 완료/재접수 cue를 결정.</p></div>
+        <div class="card"><h3><code>PowerState</code></h3><p>전기음, 정전 정적, 비상등 hum, 지하 저주파 레이어를 제어.</p></div>
+        <div class="card"><h3><code>TensionStage</code></h3><p>볼륨보다 방향감, 거리감, 잔향 꼬리, 침묵 길이를 오염.</p></div>
+        <div class="card"><h3><code>Room307Stage</code></h3><p>307호 전용 사운드의 노출 시점과 강도를 제한.</p></div>
+        <div class="card"><h3><code>DomainTags</code> / <code>Evidence.Audio</code></h3><p>도메인별 SFX 팔레트와 들은 단서 피드백을 선택.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Space Matrix</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>공간</th>
+              <th>기본 레이어</th>
+              <th>상태 반응</th>
+              <th>시각 포인트</th>
+              <th>금지</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>관리실</td>
+              <td><code>AMB_Office_Base_Loop</code>, 형광등, 환풍기, 종이</td>
+              <td>보고 후 짧은 정적, 실패 후 전기 톤 변화</td>
+              <td>민원 보드, 책상, 전화/인터폰, 서류함</td>
+              <td>안전한 메뉴 음악처럼 들리는 루프</td>
+            </tr>
+            <tr>
+              <td>복도</td>
+              <td><code>AMB_Hallway_Base_Loop</code>, 문틈 생활음, 배관, 긴 잔향</td>
+              <td><code>TensionStage</code> 상승 시 위치/거리 신뢰 오염</td>
+              <td>전등 간격, 우편함 그림자, 젖은 바닥 반사</td>
+              <td>출처를 특정 방 하나로 즉시 확정</td>
+            </tr>
+            <tr>
+              <td>계단실/엘리베이터 앞</td>
+              <td>콘크리트 반향, 모터 잔향, 금속 난간</td>
+              <td><code>PowerState</code> 악화 시 정적과 금속 반향 증가</td>
+              <td>층수 표기, 난간, 엘리베이터 문틈</td>
+              <td>정확한 층과 원인을 동시에 설명</td>
+            </tr>
+            <tr>
+              <td>세대 내부</td>
+              <td>냉장고 자리, 욕실 배관, 바닥 삐걱임, 낮은 TV</td>
+              <td>민원 <code>DomainTags</code>별 단서 소리 노출</td>
+              <td>신발장, 싱크대, 욕실 문, 생활 흔적</td>
+              <td>사람이나 실체를 직접 설명하는 소리</td>
+            </tr>
+            <tr>
+              <td>지하 전기실</td>
+              <td>펌프, 배전반, 습기 찬 저주파, 금속 진동</td>
+              <td><code>BasementIndependent</code>에서 좁은 대역 압박</td>
+              <td>배전반, 펌프, 경고등, 습기 표면</td>
+              <td>모든 저음을 설비 원인으로 완전히 설명</td>
+            </tr>
+            <tr>
+              <td>307호 앞</td>
+              <td>초반 일반 복도, 후반 문 안쪽 저활동 소리</td>
+              <td><code>Room307Stage</code>에 따라 도어락, 정적, 반사 지연 노출</td>
+              <td>문패, 도어락, 우편물, 복도 끝 암부</td>
+              <td>초반부터 전용 테마나 괴물음 사용</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>State Matrix</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>상태축</th>
+              <th>낮은 단계</th>
+              <th>중간 단계</th>
+              <th>높은 단계</th>
+              <th>오디오 규칙</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>PowerState</code></td>
+              <td><code>Normal</code>: 안정적 hum</td>
+              <td><code>PartialOutage</code>, <code>FloorOutage</code>: 끊김/정적</td>
+              <td><code>EmergencyOnly</code>, <code>BasementIndependent</code>: 좁은 대역 압박</td>
+              <td>조명 상태와 분리된 값을 오디오에 따로 저장하지 않는다.</td>
+            </tr>
+            <tr>
+              <td><code>TensionStage</code></td>
+              <td><code>Stage0_Normal</code>: 원인 추적 가능</td>
+              <td><code>Stage1_Discomfort</code>, <code>Stage2_RecordConflict</code>: 위치/기록 timing drift</td>
+              <td><code>Stage3_SpaceBreak</code>, <code>Stage4_Room307Focus</code>: 거리/잔향 오염</td>
+              <td>전체 볼륨보다 방향감과 침묵 길이를 바꾼다.</td>
+            </tr>
+            <tr>
+              <td><code>Room307Stage</code></td>
+              <td><code>Absent</code>, <code>NumberTrace</code>: 전용 소리 없음</td>
+              <td><code>RecordIntrusion</code>, <code>ThirdFloorUnstable</code>: 기록/3층 소리</td>
+              <td><code>DoorStay</code>, <code>Threshold</code>, <code>Interior</code>: 문 앞/문턱 노출</td>
+              <td>문보다 건물 전체가 먼저 이상하게 들려야 한다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Complaint Domain Matrix</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>도메인</th>
+              <th>대표 소리</th>
+              <th>단서 사용</th>
+              <th>주의</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Complaint.Domain.Lighting</code></td>
+              <td>형광등 buzz, 안정기, 스위치 접점</td>
+              <td><code>Evidence.Audio</code>로 고장음 확인</td>
+              <td>점멸음만 반복하지 않는다.</td>
+            </tr>
+            <tr>
+              <td><code>Complaint.Domain.Water</code></td>
+              <td>물방울, 배관 압력, 욕실 배수</td>
+              <td>누수 경로를 청각 단서로 제공</td>
+              <td>물의 경로를 전부 보여주지 않는다.</td>
+            </tr>
+            <tr>
+              <td><code>Complaint.Domain.Intercom</code></td>
+              <td>호출음, 통화 전 정적, 끊긴 발화</td>
+              <td>통신인지 생활 소음인지 의심하게 함</td>
+              <td>명확한 대사로 정체를 설명하지 않는다.</td>
+            </tr>
+            <tr>
+              <td><code>Complaint.Domain.LifeNoise</code></td>
+              <td>TV 저음, 가구 끌림, 발소리, 낮은 말소리</td>
+              <td>누가 있는지 없는지 판단하는 단서</td>
+              <td>괴물음처럼 들리면 안 된다.</td>
+            </tr>
+            <tr>
+              <td><code>Complaint.Domain.Record</code></td>
+              <td>종이, 스탬프, 프린터, 보드 갱신음</td>
+              <td>기록 충돌을 청각적으로 확인</td>
+              <td>기록이 스스로 움직이는 직접 연출 과용 금지.</td>
+            </tr>
+            <tr>
+              <td><code>Complaint.Domain.Space</code></td>
+              <td>반사 지연, 거리감 불일치, 복도 끝 저역</td>
+              <td>실제 거리와 들리는 거리의 불일치 단서</td>
+              <td>공간 붕괴를 음악처럼 처리하지 않는다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Room 307 Exposure Lane</h2>
+      <div class="lane">
+        <div class="step ok"><strong>Absent</strong><span>일반 복도 ambience만 사용. 307호 전용 사운드 없음.</span></div>
+        <div class="step ok"><strong>NumberTrace</strong><span>전기 톤 미세 변화, 종이 마찰 정도만 허용.</span></div>
+        <div class="step"><strong>RecordIntrusion</strong><span>보드 갱신음과 명부 페이지 소리의 timing offset.</span></div>
+        <div class="step"><strong>ThirdFloorUnstable</strong><span>복도 끝 저역, 위치가 애매한 TV/물소리.</span></div>
+        <div class="step"><strong>DoorStay</strong><span>도어락 근접음, 문 안쪽 저활동 소리.</span></div>
+        <div class="step warn"><strong>Threshold</strong><span>정적, 반사 지연, 호흡처럼 오해될 수 있는 공간음.</span></div>
+        <div class="step warn"><strong>Interior</strong><span>생활 흔적 잔향과 보고 이후 남는 정적. 해석을 닫지 않는다.</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>P0 Scope</h2>
+      <div class="grid">
+        <div class="card"><h3>Office</h3><p><code>AMB_Office_Base_Loop</code>, board/report UI, short report silence.</p></div>
+        <div class="card"><h3>Hallway</h3><p>Base loop, power variation layers, vague life noise distance.</p></div>
+        <div class="card"><h3>Basement</h3><p>Pump, panel, breaker one-shot, low-frequency pressure.</p></div>
+        <div class="card"><h3>Complaint SFX</h3><p>Lighting, water, intercom, life noise, record domains first.</p></div>
+        <div class="card"><h3>Failure</h3><p>2~3 pressure cues that avoid repetition and do not punish controls.</p></div>
+        <div class="card"><h3>Room 307</h3><p>Absent to Threshold exposure. No early dedicated theme.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Static documentation. Master source: Planning, Development, Art documents in Document/.
+  </footer>
+</body>
+</html>

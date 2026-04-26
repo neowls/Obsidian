@@ -25,9 +25,13 @@
   - 4. 범위 잠금
   - 5. 핵심 플레이 구조
   - 6. 핵심 시스템 정의
+    - UI/UX 구현 계약
+    - Audio/MetaSound 구현 계약
   - 7. 시스템-콘텐츠 분리 원칙
   - 8. Unreal 구현 방침
   - 9. 레벨 제작 전략
+    - 레벨/공간 구현 계약
+    - 수직 슬라이스 구현 티켓 구조
   - 10. 마일스톤 계획
   - 11. 우선순위 백로그
   - 12. 리스크와 대응
@@ -96,6 +100,7 @@
   - 4. Anomaly Definition Pack
   - 5. Chapter Row Mapping
   - 6. 구현 시 확인할 것
+  - 7. Complaint/Anomaly Production 저작 계약
 
 
 ## 중복 정리 기준
@@ -118,6 +123,7 @@
 
 - 민원 보드 / 보고 UI와 `ComplaintRuntimeSubsystem` 연결
 - 챕터 DataTable 자동 로드 및 순차 해금 로직
+- `ENCShiftPhase`, `ENCComplaintRuntimeState`, `PowerState`, `TensionStage`, `Room307Stage`를 한 흐름으로 묶는 상태 이벤트 계약
 - 월드 상호작용 액터와 민원 상태 브리지 연결
 - 저장/로드 연결
 - Steam 업적 adapter 연결
@@ -280,6 +286,36 @@
 - 챕터 4: 307호 관련 민원과 공간 붕괴가 하나의 목표로 수렴되어야 함
 - 결말: 마지막 보고 또는 마지막 진입이 플레이어 해석을 마감해야 함
 
+#### 5.7 게임 플로우 상태 모델과 이벤트 계약
+
+아래 상태축은 게임 플로우를 구현할 때의 최소 계약이다. UI, 사운드, 조명, 레벨 BP, 저장 로직은 이 상태를 각자 다시 계산하지 않고 같은 이벤트를 구독해야 한다.
+
+| 상태축 | 권장 소유자 | 현재 코드 기준 상태 | 전환 트리거 | 주요 소비자 |
+| --- | --- | --- | --- | --- |
+| `ENCShiftPhase` | `UNCShiftStateComponent` | `None`, `BoardReview`, `Investigating`, `Reporting`, `Suspended` | 챕터 시작, 민원 수락, 조사 시작, 보고 제출, 일시 정지/연출 정지 | UI, 사운드, 저장, 레벨 스크립트 |
+| `ENCComplaintRuntimeState` | `UNCComplaintRuntimeComponent` | `Available`, `Accepted`, `Investigating`, `AwaitingReport`, `Closed` | 보드 선택, 현장 진입, EvidenceTag 획득, 보고 제출, 닫기 | 민원 보드, 보고 UI, 사운드, 월드 액터 |
+| `PowerState` | `UNCShiftStateComponent` | `Normal`, `PartialOutage`, `FloorOutage`, `EmergencyOnly`, `BasementIndependent` | 전기 민원, 배전반 조작, 실패 압박, 챕터 3 게이트 | 조명 BP, 사운드, 문/구역 액터 |
+| `TensionStage` | `UNCShiftStateComponent` | `Stage0_Normal`, `Stage1_Discomfort`, `Stage2_RecordConflict`, `Stage3_SpaceBreak`, `Stage4_Room307Focus` | 오판, 정전 체류, 제한 구역, 307 단서, 반복 민원 | 사운드, 조명, 포스트 프로세스, 기록 UI |
+| `Room307Stage` | `ANCGameModeBase` 또는 전용 진행 컴포넌트 | `Absent`, `NumberTrace`, `RecordIntrusion`, `ThirdFloorUnstable`, `DoorStay`, `Threshold`, `Interior` | 307 관련 CompletionTag, 챕터 게이트, 최종 민원 | 문패/우편함, 보드, 307호 레벨 BP |
+| `AccessState` | 레벨 액터 + GameState 상태 | `Locked`, `Restricted`, `TemporaryUnlocked`, `Unlocked`, `Sealed` | 키 보유, 보고 결과, 전원 상태, 챕터 진행 | 문, 엘리베이터, 지하실, 세대 진입 |
+| `RecordIntegrity` | `UNCComplaintRuntimeComponent` 또는 기록 서브시스템 | `Clean`, `Typo`, `Conflict`, `Reprinted`, `Collapsed` | 기록형 민원, 반복 오판, 307 단계 상승 | 보드 UI, 명부, 로그, 문패 |
+
+권장 이벤트 경계:
+
+- `OnShiftPhaseChanged`: `ENCShiftPhase`가 바뀔 때 1회 발행한다.
+- `OnComplaintStateChanged`: `ENCComplaintRuntimeState`가 바뀔 때 발행한다.
+- `OnEvidenceDiscovered`: 단서 태그가 새로 등록될 때 발행한다.
+- `OnReportSubmitted`: 보고 결과가 저장되고 월드 상태 반영 직전에 발행한다.
+- `OnWorldStateChanged`: 조명, 출입, 기록, 긴장도, 307 단계 중 하나가 바뀐 뒤 발행한다.
+- `OnFailurePressureApplied`: 실패가 시간 손실이 아니라 월드 상태 악화로 환산될 때 발행한다.
+
+구현 원칙:
+
+- UI는 GameState 내부 배열을 직접 수정하지 않고 runtime subsystem 함수만 호출한다.
+- 사운드와 조명은 민원 내용을 직접 파싱하지 않고 상태축과 태그를 구독한다.
+- 저장은 모든 액터 상태를 저장하지 말고 위 상태축, 활성 민원, 완료 민원, 발견 단서, 해금 구역만 기록한다.
+- Blueprint 레벨 연출은 상태 이벤트를 받아 표현만 담당하고, 진행 판정은 C++/Subsystem 쪽에 둔다.
+
 ### 6. 핵심 시스템 정의
 
 #### 6.1 상호작용 시스템
@@ -325,6 +361,79 @@
 - 정적과 생활 소음의 대비를 활용해 "누가 있는지 없는지 확신할 수 없는 불안"을 만든다.
 - 사운드는 보이지 않는 존재를 설명하지 않고 암시해야 하며, 정면 노출보다 거리감과 방향감이 중요하다.
 - 사운드는 단순 배경음이 아니라 조명 상태, 민원 종류, 제한 구역, 긴장도 단계와 연결한다.
+
+##### Audio/MetaSound 구현 계약
+
+Audio는 별도 게임 진행 상태를 만들지 않는다. 구현은 기존 상태 이벤트와 민원 태그를 구독해 ambience, one-shot, UI sound, MetaSound layer를 갱신하는 표현 계층으로 둔다.
+
+상태 입력 계약:
+
+| 입력 | 사용 목적 | 금지 사항 |
+| --- | --- | --- |
+| `ENCShiftPhase` | 관리실/조사/보고/정지에 따른 UI sound와 ambience 전환 | 오디오 쪽에서 phase를 재계산하지 않음 |
+| `ENCComplaintRuntimeState` | 민원 수락, 조사 시작, 보고 가능, 제출, 완료/재접수 one-shot | 보드 UI 상태를 오디오가 직접 수정하지 않음 |
+| `PowerState` | 전기음, 비상등 hum, 정전 정적, 지하 저주파 레이어 | 조명 BP 상태와 다른 값을 오디오에 따로 저장하지 않음 |
+| `TensionStage` | 거리감, 방향감, 정적 구간, 잔향 꼬리 오염 | 단순 볼륨 상승으로 긴장도를 표현하지 않음 |
+| `Room307Stage` | 307호 전용 노출 단계, 문 앞 체류, 문턱 stinger | 초반 단계에서 307호 실체를 확정하는 소리 금지 |
+| `DomainTags` | 민원 도메인별 SFX 팔레트 선택 | 민원 제목 문자열 파싱 금지 |
+| `Evidence.Audio` | 들은 단서의 발견/보고 가능 피드백 | 단서 발견 판정을 오디오 cue 재생만으로 처리하지 않음 |
+
+오디오 이벤트 명명 규칙:
+
+| 접두어 | 용도 | 예시 |
+| --- | --- | --- |
+| `AMB_` | 공간 ambience loop | `AMB_Office_Base_Loop`, `AMB_Hallway_PowerPartial_Loop` |
+| `SFX_` | 월드/상호작용 one-shot | `SFX_Panel_BreakerToggle`, `SFX_Door_DoorLockClose` |
+| `UI_` | 화면/업무 조작 사운드 | `UI_Board_AcceptComplaint`, `UI_Report_SubmitStamp` |
+| `MS_` | MetaSound graph 또는 상태 레이어 | `MS_ElectricHum_StateLayer`, `MS_LifeNoise_DistanceLayer` |
+| `STG_` | 챕터/307호 단계 stinger | `STG_Room307_RecordIntrusion`, `STG_Report_FailurePressure` |
+
+Blueprint 트리거 경계:
+
+- 상호작용 액터는 자기 행동에 대한 짧은 `SFX_` one-shot만 직접 재생할 수 있다.
+- 공간 ambience와 MetaSound 레이어 전환은 상태 이벤트를 구독하는 Audio 담당 Blueprint 또는 컴포넌트에서 처리한다.
+- UI widget은 `UI_` one-shot 요청만 보낸다. 게임 상태 변경은 runtime subsystem 함수가 먼저 처리하고, 오디오 cue는 결과 이벤트를 따라간다.
+- Level Sequence는 `STG_`처럼 단발 진행 각인이 필요한 순간에만 사용한다.
+- 민원별 SFX 선택은 `DomainTags`와 `Evidence.Audio`를 기준으로 하며, 민원 표시명이나 설명 텍스트를 파싱하지 않는다.
+
+상태 구독 방식:
+
+- `OnShiftPhaseChanged`는 관리실/조사/보고 ambience와 UI sound context를 갱신한다.
+- `OnComplaintStateChanged`는 수락, 조사 시작, 보고 가능, 완료/재접수 cue를 발생시킨다.
+- `OnEvidenceDiscovered`는 `Evidence.Audio`가 포함될 때만 단서 확인 cue를 허용한다.
+- `OnReportSubmitted`는 보고 결과 저장 이후, 월드 상태 반영 직전에 짧은 정적 또는 보드 갱신음을 재생한다.
+- `OnWorldStateChanged`는 `PowerState`, `TensionStage`, `Room307Stage`의 MetaSound layer parameter를 갱신한다.
+- `OnFailurePressureApplied`는 실패 압박 cue와 ambience 오염을 시작하되, 같은 cue 반복을 피한다.
+
+MetaSound 파라미터 기준:
+
+| 파라미터 의도 | 입력 | 권장 처리 |
+| --- | --- | --- |
+| 전기 상태 | `PowerState` | 정상/부분 소등/층 정전/비상등/지하 독립 전원별 hum 대역과 정적량 조절 |
+| 긴장 단계 | `TensionStage` | 볼륨보다 거리감, 방향감, 랜덤 간격, 잔향 꼬리 조절 |
+| 307호 단계 | `Room307Stage` | `Absent`에서는 307 전용 레이어 0, `DoorStay` 이후 문 안쪽 저활동 소리 허용 |
+| 민원 도메인 | `DomainTags` | 전기/물/인터폰/생활 소음/기록/공간/보안 팔레트 선택 |
+| 오디오 단서 | `Evidence.Audio` | 단서 발견 cue와 보고 가능 피드백만 허용 |
+
+P0 구현 범위:
+
+| 항목 | 구현 기준 |
+| --- | --- |
+| 관리실 ambience | `AMB_Office_Base_Loop`, 보드/보고서 `UI_` cue |
+| 복도 ambience | 기본 복도 loop와 `PowerState` 기반 전기 레이어 |
+| 지하 전기실 | 펌프/배전반 저주파 loop와 breaker one-shot |
+| 민원 SFX | 전기, 물, 인터폰, 생활 소음, 기록 도메인 우선 |
+| 실패 압박 | `OnFailurePressureApplied`에서 2~3종 cue 순환 |
+| 307호 | `Absent`, `NumberTrace`, `RecordIntrusion`, `DoorStay`, `Threshold` 노출 기준만 우선 |
+| 접근성/설정 | Master, Ambience, SFX, UI 볼륨 분리와 Dynamic Range 옵션 고려 |
+
+P0에서 하지 않을 것:
+
+- 전용 오디오 진행 상태 머신 추가
+- 민원 설명 문자열 기반 cue 선택
+- 모든 방에 고유 MetaSound graph 제작
+- 큰 음악 stinger로 실패/공포를 처리
+- UI 클릭 실패, 입력 지연 같은 조작 방해형 사운드 연출
 
 #### 6.6 이상 판정 시스템
 
@@ -401,6 +510,60 @@
 - 공간 왜곡은 복도 길이 변화, 문 번호 불일치, 반사 오류, 닿지 않는 빛, 끝이 보이지 않는 암부로 표현한다.
 - 괴물의 실체를 직접 보여주기보다, 빈 공간의 깊이, 문 너머 인기척, 시야 밖 이동감을 통해 심연과 미지의 공포를 만든다.
 - 307호 관련 연출도 새 규칙을 추가하기보다 기존 공간 규칙이 무너지는 방식으로 강화한다.
+
+#### 6.10 UI/UX 구현 계약
+
+현재 C++ UI 구조는 `UNCUISubsystem`이 로컬 플레이어 HUD 생명주기와 `FNCHUDState`만 소유하는 단순 구조다. UI 확장은 이 구조를 유지한 채 필요한 메뉴 수명과 화면 상태만 추가한다. 이전의 generic widget source/listener 구조는 되살리지 않는다.
+
+##### 입력 정책
+
+| UI | `ENCWidgetInputPolicy` | 입력 모드 |
+| --- | --- | --- |
+| Runtime HUD | `GameOnly` | 이동/상호작용 유지 |
+| Interaction Prompt / Toast | `GameOnly` | 별도 focus 없음 |
+| Complaint Board | `GameAndUI` | 이동 정지, 마우스/키보드 UI 입력 |
+| Report Form | `GameAndUI` | 이동 정지, 제출/닫기 |
+| Notebook / Document Viewer | `GameAndUI` | 이동 정지, 닫기 입력 항상 우선 |
+| Pause / Settings | `UIOnly` | 게임 입력 정지 |
+
+##### 데이터 연결
+
+| UI | 읽는 데이터 | 쓰는 경로 |
+| --- | --- | --- |
+| Complaint Board | `UNCComplaintDefinition`, `FNCComplaintRuntimeData`, `ENCShiftPhase` | `UNCComplaintRuntimeSubsystem::AcceptComplaint` |
+| Report Form | `AllowedReportResults`, `DiscoveredEvidenceTags`, `MinEvidenceCountForReport` | `UNCComplaintRuntimeSubsystem::SubmitReport`, 이후 `CloseComplaint` |
+| Notebook | runtime complaint data, discovered evidence, focused complaint id | 직접 쓰기 없음 |
+| Document Viewer | 월드 문서 actor 또는 DataAsset 텍스트 | 필요 시 evidence tag 등록 |
+| HUD Prompt | interaction trace result, tool requirement, current focus | `FNCHUDState` 확장 또는 HUD child update |
+
+##### 권장 위젯 생명주기
+
+- `UNCUISubsystem`은 로컬 플레이어가 보는 runtime UI 인스턴스만 소유한다.
+- `WBP_NCPlayerHUD`는 항상 하나만 유지한다.
+- Board, Report, Notebook, Pause 같은 interactive menu는 한 번에 하나만 active로 둔다.
+- 새 메뉴를 열 때 Runtime HUD reticle/prompt는 숨긴다.
+- 메뉴가 닫히면 cached `FNCHUDState`를 다시 적용한다.
+- UI widget은 GameState component 배열을 직접 수정하지 않는다.
+- UI callback은 runtime subsystem 함수 또는 명시적 player controller wrapper를 통해서만 진행 상태를 바꾼다.
+
+##### P0 구현 범위
+
+| 항목 | 구현 기준 |
+| --- | --- |
+| `FNCHUDState` 확장 | prompt 표시 여부, prompt text, tool feedback 정도만 추가 검토 |
+| `UNCUISubsystem` 확장 | HUD 외 interactive menu show/hide API 추가 |
+| Complaint Board | DataAsset + runtime data를 읽어 목록/상세 표시 |
+| Report Form | `AllowedReportResults`만 버튼으로 생성 |
+| Notebook | 현재 민원과 발견 단서 읽기 전용 |
+| Settings | 텍스트 크기, 깜빡임 완화, 오디오 볼륨, 카메라 흔들림 옵션 |
+
+P0에서 하지 않을 것:
+
+- 미니맵
+- 복잡한 퀘스트 추적 HUD
+- UI용 별도 이벤트 버스
+- 모든 gameplay state를 UI subsystem에 복제 저장
+- UI 오염을 입력 지연/클릭 실패로 표현하는 방식
 
 ### 7. 시스템-콘텐츠 분리 원칙
 
@@ -570,6 +733,84 @@
 - 같은 경로를 다시 지날 때는 최소 1개 이상 상태를 바꾼다.
 - 복도 길이, 조명, 문 열림, 사운드, 표지판, 우편함 정보 중 하나는 달라져야 한다.
 - 관리실과 지하실 이벤트로 루프 감정을 재설정한다.
+
+#### 9.3 레벨/공간 구현 계약
+
+레벨은 진행 상태를 판정하지 않고, 상태 이벤트를 받아 표현과 접근성을 바꾸는 소비자로 둔다. 민원 진행, 보고 결과, 챕터 전환은 runtime subsystem과 상태 소유자가 결정한다.
+
+| 계약 항목 | 기준 | 소비자 |
+| --- | --- | --- |
+| `LocationId` | 민원, 단서, UI 목표, 레벨 actor를 연결하는 고정 id | 민원 runtime, 상호작용 actor, 지도 없는 목표 문구 |
+| `AccessState` | 문, 엘리베이터, 지하, 307호 접근 가능 여부 | 문/엘리베이터 BP, 구역 trigger, HUD prompt |
+| `PowerState` | 조명 preset, 전기 sound layer, 일부 문/설비 활성 | 조명 BP, Audio BP, 배전반 actor |
+| `TensionStage` | 복도 변주, 기록 오염, 사운드 거리감, 포스트 프로세스 | 레벨 BP, UI, Audio, PostProcess |
+| `Room307Stage` | 307호 문 앞 흔적, 문턱 연출, 내부 접근 | 307호 문/문패/우편물/반사 actor |
+| `Progression.*` | 챕터 row, 구역 해금, 다음 민원 표시 조건 | runtime subsystem, chapter data, debug command |
+
+구현 경계:
+
+- Level Blueprint는 `OnWorldStateChanged`, `OnShiftPhaseChanged`, `OnComplaintStateChanged` 같은 상태 이벤트를 받아 표시만 바꾼다.
+- 문, 엘리베이터, 지하문, 307호 문은 `AccessState`와 progression tag를 읽어 prompt와 개폐 가능 여부를 결정한다.
+- 조명 actor는 `PowerState`를 직접 저장하지 않는다. 현재 상태를 받아 preset을 적용한다.
+- 민원 actor는 `ComplaintId`나 `LocationId` 문자열을 파싱하지 않고 Data Asset 또는 명시된 id 비교만 사용한다.
+- 수직 슬라이스 route는 디버그 명령으로 각 단계 시작 상태를 재현할 수 있어야 한다.
+
+#### 9.4 수직 슬라이스 레벨 검증 경로
+
+| Route Step | Required state | Level validation |
+| --- | --- | --- |
+| 관리실 인수인계 | `ENCShiftPhase::BoardReview` | 보드, 공구함, 손전등, 보고 위치가 5분 안에 이해된다 |
+| 관리실 조명 조치 | `CMP_PRO_OfficeLightBuzz` active | 형광등 actor, 스위치, 안정기 cue가 한 공간 안에서 닫힌다 |
+| 203호 조사 | `CMP_PRO_203_WaterAtDoor` active | 2층 복도와 203호 문 앞이 공식 조사 구역으로 읽힌다 |
+| 인터폰 수리 | `CMP_CH1_2F_IntercomStatic` active | 패널, 배선, 테스트 호출, 오디오 evidence가 연결된다 |
+| 3층 비상등 | `Room307Stage=ThirdFloorUnstable` | 3층 복도 기준점이 2층과 다르게 느껴진다 |
+| 302호 TV 소리 | `TensionStage=Stage2_RecordConflict` | 문 앞 청취, 전력 기록, 보고 판정이 연결된다 |
+| 정전 이벤트 | `PowerState=FloorOutage` 또는 `EmergencyOnly` | 손전등/비상등만으로 길을 잃지 않고 지하 목표를 이해한다 |
+| 지하 펌프 | `AccessState=TemporaryUnlocked` | 지하 진입, 펌프, 배전반까지의 동선이 짧고 압박감 있다 |
+| 지하 라벨 대조 | `Progression.Story.SpaceDepthShift` | 배전반 라벨과 307 계통 단서가 시각적으로 연결된다 |
+| 307호 앞 맛보기 | `Room307Stage=DoorStay` | 문을 열지 않아도 307호를 다음 목표로 기억한다 |
+
+#### 9.5 수직 슬라이스 구현 티켓 구조
+
+수직 슬라이스 구현 티켓은 아래 7개 그룹으로만 나눈다. 새 상태축을 만들지 않고 기존 runtime state와 tag를 연결하는 방식으로 작성한다.
+
+| Ticket Group | 책임 | 대표 산출물 | 완료 기준 |
+| --- | --- | --- | --- |
+| `VS-BLOCKOUT` | 관리실, 2층 복도, 3층 복도, 지하, 307호 앞 route 구성 | P0 blockout map, `LocationId` marker, 접근 gate | 10단계 route가 끊기지 않는다 |
+| `VS-INTERACTION` | 보드, 도구, 문, 인터폰, 형광등, 배전반, 택배 상호작용 | focus prompt, interaction actor setup | 각 단계에 최소 1개 이상 조작/조사 interaction 존재 |
+| `VS-COMPLAINT` | 10개 민원 runtime row와 evidence/report loop 연결 | active complaint flow, evidence threshold, report result | `Accepted -> Investigating -> AwaitingReport -> Closed` 루프 확인 |
+| `VS-UI` | HUD prompt, board, report, notebook, document viewer 연결 | P0 widgets and text data | 다음 행동은 보이지만 공포 원인은 설명하지 않음 |
+| `VS-AUDIO` | ambience, SFX, UI sound, MetaSound layer 연결 | office/hallway/basement/307 cue set | `Evidence.Audio`와 상태 layer가 report loop와 맞음 |
+| `VS-LIGHTING` | `PowerState`별 조명 preset과 정전 이벤트 | normal/partial/outage/emergency lighting | 길찾기 유지와 긴장 상승이 동시에 성립 |
+| `VS-QADEBUG` | 단계별 시작/검증 debug와 smoke-test pass | debug commands, checklist, test route | 각 route step을 독립 재현 가능 |
+
+#### 9.6 수직 슬라이스 구현 티켓 목록
+
+| TicketId | Group | 내용 | 의존성 |
+| --- | --- | --- | --- |
+| `VS-BLOCKOUT-01` | `VS-BLOCKOUT` | 관리실, 2층 복도, 3층 복도, 지하 전기실, 307호 앞 연결 route blockout | 없음 |
+| `VS-BLOCKOUT-02` | `VS-BLOCKOUT` | `LocationId` marker와 접근 gate 배치 | `VS-BLOCKOUT-01` |
+| `VS-INTERACTION-01` | `VS-INTERACTION` | 민원 보드, 공구함, 손전등, 보고 위치 interaction 연결 | `VS-BLOCKOUT-01` |
+| `VS-INTERACTION-02` | `VS-INTERACTION` | 형광등, 203호 문 앞, 인터폰, 배전반, 택배 조사 interaction 연결 | `VS-INTERACTION-01` |
+| `VS-COMPLAINT-01` | `VS-COMPLAINT` | 수직 슬라이스 10단계 민원 row와 progression chain 검증 | `VS-BLOCKOUT-02` |
+| `VS-COMPLAINT-02` | `VS-COMPLAINT` | evidence threshold와 report result 처리 연결 | `VS-COMPLAINT-01` |
+| `VS-UI-01` | `VS-UI` | Board, Report, Notebook P0 화면 연결 | `VS-COMPLAINT-01` |
+| `VS-UI-02` | `VS-UI` | route별 HUD prompt와 document viewer text 연결 | `VS-UI-01` |
+| `VS-AUDIO-01` | `VS-AUDIO` | 관리실, 2층/3층 복도, 지하 ambience 기본 layer 연결 | `VS-BLOCKOUT-01` |
+| `VS-AUDIO-02` | `VS-AUDIO` | 인터폰, TV hum, 펌프, 307 문틈 cue와 `Evidence.Audio` 연결 | `VS-COMPLAINT-02` |
+| `VS-LIGHTING-01` | `VS-LIGHTING` | 관리실/복도/지하 `PowerState` preset 연결 | `VS-BLOCKOUT-01` |
+| `VS-LIGHTING-02` | `VS-LIGHTING` | 정전 이벤트와 비상등 route 검증 | `VS-LIGHTING-01` |
+| `VS-QADEBUG-01` | `VS-QADEBUG` | 10단계 시작 상태 재현 debug command/checklist 정리 | `VS-COMPLAINT-01` |
+| `VS-QADEBUG-02` | `VS-QADEBUG` | smoke-test pass/fail 기록표 작성 | 모든 P0 ticket |
+
+#### 9.7 수직 슬라이스 Smoke-Test 기준
+
+- 5분 안에 플레이어가 보드, 도구, 보고 위치를 이해한다.
+- 15~20분 안에 정상 민원과 이상 민원의 차이를 체감한다.
+- 관리실, 복도, 세대 문 앞, 지하실이 기능적으로 연결된다.
+- 사운드 없이도 보드 -> 현장 -> 단서 -> 보고 루프가 성립한다.
+- 사운드/조명 활성 시 긴장 상승이 분명해진다.
+- 데모 종료 시 307호 내부 확인 욕구가 남는다.
 
 ### 10. 마일스톤 계획
 
@@ -3289,3 +3530,60 @@ GameplayTag는 "확장될 수 있는 분류나 조건"에 쓴다.
 - `CH_PRO`, `CH_01`, `CH_02`, `CH_03`, `CH_04`는 `NCSetChapter` 디버그 워크플로와 맞는 실제 챕터 id 자산/테이블 명명 규칙으로 통일한다.
 - `Title`, `BoardSummary`, `InternalNote`는 이후 로컬라이징 대상이다.
 - `CompletionTags`와 `RequiredProgressionTags`는 선형 해금이므로, 런타임 브리지 연결 전 디버그 치트로 deadlock 여부를 반드시 검증한다.
+
+### 7. Complaint/Anomaly Production 저작 계약
+
+이 섹션은 20개 민원과 연결 이상 현상을 실제 Data Asset, UI, Audio, Level Blueprint에 옮길 때의 문서 계약이다. 새 런타임 enum이나 새 상태축을 만들지 않고 기존 필드를 확장 해석한다.
+
+#### 7.1 필드 해석 기준
+
+| 필드 | 저작 의미 | 구현 경계 |
+| --- | --- | --- |
+| `LinkedAnomalies` | 민원 중 발견 가능하거나 보고 판단에 영향을 주는 이상 현상 목록 | 이상 현상 actor를 직접 spawn한다는 뜻이 아니라, 민원 context에서 활성 후보가 된다는 뜻 |
+| `RequiredEvidenceTags` | `AwaitingReport` 진입 전 확보해야 하는 단서 분류 | UI는 부족한 단서 수만 알려주고 정답 위치를 직접 노출하지 않음 |
+| `EvidenceTagsGranted` | 이상 현상이 발견될 때 기록장/보고서에 추가되는 단서 | 사운드/시각 cue 재생만으로 단서 등록을 대신하지 않음 |
+| `AllowedReportResults` | 보고서에서 노출할 선택지 | `Resolved`, `NoAnomaly`, `NeedsFollowUp`만 P0에서 사용 |
+| `DefaultCanonicalResult` | 제작자가 의도한 정답 또는 권장 판정 | 플레이어 선택을 강제하지 않고 결과/압박 차이에 사용 |
+| `ActivationTags` | 민원 표시 가능 조건 | Chapter Row의 `RequiredProgressionTags`와 충돌하면 Chapter Row를 우선 확인 |
+| `CompletionTags` | 민원 완료 후 해금/서사 진행 태그 | 다음 민원 deadlock 검증의 기준 |
+| `ConsequenceTags` | 긴장도, 307호 단서, 공간 상태 변화 | UI/Audio/Art는 이 값을 직접 쓰기보다 상태 이벤트 반영 이후 소비 |
+
+#### 7.2 런타임 연결 매트릭스
+
+| Complaint | UI surface | Primary evidence | Audio | World / state result | Validation |
+| --- | --- | --- | --- | --- | --- |
+| `CMP_PRO_OfficeLightBuzz` | Board, prompt, tool feedback | `Evidence.Visual` | lighting buzz, board accept | board active, `Progression.Story.Room307Clue` | 안정기 조치 후 보고 가능 |
+| `CMP_PRO_203_WaterAtDoor` | Board, notebook | `Evidence.Visual`, `Evidence.Environmental` | water drip, faint TV noise | CH1 unlock | 천장/벽/문틈 3점 대조 가능 |
+| `CMP_CH1_2F_IntercomStatic` | Board, document viewer | `Evidence.Audio`, `Evidence.Visual` | intercom static voice | intercom reuse, `Progression.Story.IntercomStaticObserved` | audio evidence 없이 보고 불가 |
+| `CMP_CH1_1F_MailboxMisdelivery` | Board, notebook, document viewer | `Evidence.Document`, `Evidence.Records` | paper, mailbox metal | `Progression.Story.RecordMismatchNoted` | 명부와 우편함 대조 완료 |
+| `CMP_CH1_3F_EmergencyLight` | Board, prompt | `Evidence.Visual`, `Evidence.Environmental` | emergency hum | `Progression.Story.ThreeFloorUnstable` | 3층 비상등 상태 확인 |
+| `CMP_CH1_205_OdorAtDoor` | Board, notebook | `Evidence.Environmental`, `Evidence.Visual` | vent, damp floor | room 307 clue reinforcement | 문틈/환기구/바닥 대조 |
+| `CMP_CH1_StairAutoLightDelay` | Board, prompt | `Evidence.Visual`, `Evidence.Audio` | relay delay, stair reverb | CH2 unlock | 센서 지연과 반사 지연 모두 확인 |
+| `CMP_CH2_302_TVHum` | Board, report form | `Evidence.Audio`, `Evidence.Environmental` | TV hum, life noise | `Progression.Tension.Stage2` | 전력 기록과 청각 단서 충돌 |
+| `CMP_CH2_204_NameplateMismatch` | Board, notebook, document viewer | `Evidence.Document`, `Evidence.Records`, `Evidence.Visual` | nameplate metal, paper | record conflict progression | 문패/우편함/명부 3점 대조 |
+| `CMP_CH2_4F_CCTVBlank` | Board, document viewer | `Evidence.Visual`, `Evidence.Document`, `Evidence.Records` | monitor buzz, static dropout | room 307 clue reinforcement | CCTV 시간 gap과 현장 대조 |
+| `CMP_CH2_ElevatorFloorError` | Board, report form | `Evidence.Visual`, `Evidence.Audio` | elevator floor mismatch | three floor unstable | 실제 층과 표시 층 불일치 확인 |
+| `CMP_CH2_ReopenedLightCase` | Board, report form | `Evidence.Document`, `Evidence.Records`, `Evidence.Visual` | board reprint, known buzz variant | `Progression.Story.ComplaintLoopObserved` | 닫힌 민원 재접수 확인 |
+| `CMP_CH3_BasementPumpAlarm` | Board, prompt, restricted access notice | `Evidence.Audio`, `Evidence.Environmental` | pump alarm, breaker | basement unlock | 지하 접근/펌프/배전반 확인 |
+| `CMP_CH3_306_OpenDoorAlarm` | Board, notebook | `Evidence.Visual`, `Evidence.Records` | door relay, alarm cut | room 307 door reached | 문 상태와 센서 로그 불일치 |
+| `CMP_CH3_ExitSignDepth` | Board, report form | `Evidence.Visual`, `Evidence.Environmental` | hallway low-end, reflection delay | `Progression.Story.SpaceDepthShift` | 기준점/거리감/반사 확인 |
+| `CMP_CH3_BasementPanelMislabel` | Board, notebook, document viewer | `Evidence.Document`, `Evidence.Environmental`, `Evidence.Records` | panel hum, label paper | `Progression.Story.BasementPowerLinked` | 라벨과 실제 breaker 라인 대조 |
+| `CMP_CH4_307_PackageAtDoor` | Board, notebook | `Evidence.Document`, `Evidence.Visual`, `Evidence.Records` | wet package paper, door gap | `Progression.Story.Room307PackageSeen` | 택배/운송장/명부 대조 |
+| `CMP_CH4_307_LifeNoise` | Board, report form | `Evidence.Audio`, `Evidence.Visual`, `Evidence.Records` | 307 life noise, intercom static | `Progression.Story.Room307LifeNoise` | 응답 없음과 생활음 충돌 |
+| `CMP_CH4_RecordResident307` | Board, notebook, document viewer | `Evidence.Document`, `Evidence.Records`, `Evidence.Visual` | record timing offset | `Progression.Story.Room307RecordConflict` | 명부/정비로그/필체 대조 |
+| `CMP_CH4_FinalCheck307` | Board, final report, prompt | `Evidence.Document`, `Evidence.Records`, `Evidence.Visual`, `Evidence.Audio`, `Evidence.Environmental` | threshold silence, reflection delay | ending route / final report | 문턱, 내부, 기록, 소리 종합 확인 |
+
+#### 7.3 구현 금지 사항
+
+- `ComplaintId`, `AnomalyId`, `LocationId` 문자열을 Blueprint에서 직접 파싱해 분기하지 않는다.
+- UI가 `LinkedAnomalies`를 정답 목록처럼 노출하지 않는다.
+- Audio cue 재생 성공을 단서 등록 성공으로 취급하지 않는다.
+- Level Blueprint가 `CompletionTags`를 임의로 추가하지 않는다. 진행 태그는 runtime subsystem 또는 명시된 상태 소유자를 통해 변경한다.
+- 실패 압박은 보고 결과 이벤트 이후 적용하고, 민원 조사 중 플레이어 입력을 방해하는 방식으로 적용하지 않는다.
+
+#### 7.4 빠른 검증 절차
+
+- 각 `CMP_...` row가 `LinkedAnomalies` 중 최소 1개 이상을 가진다.
+- 각 `LinkedAnomalies` 항목의 `EvidenceTagsGranted`가 민원의 `RequiredEvidenceTags` 중 하나 이상과 교차한다.
+- 각 챕터 row의 `RequiredProgressionTags`가 이전 row의 `CompletionTags` 또는 챕터 시작 태그로 도달 가능하다.
+- `AllowedReportResults`는 P0에서 `Resolved`, `NoAnomaly`, `NeedsFollowUp` 외 값을 쓰지 않는다.

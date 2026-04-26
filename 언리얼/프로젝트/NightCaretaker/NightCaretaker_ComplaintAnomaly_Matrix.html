@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NightCaretaker Complaint Anomaly Matrix</title>
+  <meta name="nightcaretaker-doc-template" content="dark-low-saturation-v1">
+  <link rel="stylesheet" href="./NightCaretaker_DocTheme.css">
+</head>
+<body class="doc-complaint-anomaly-matrix">
+  <header>
+    <h1>NightCaretaker Complaint Anomaly Matrix</h1>
+    <p>20개 민원과 연결 이상 현상의 UI, 증거, 사운드, 상태 변화, 검증 기준을 한 화면에서 검토하기 위한 정적 companion 문서.</p>
+    <div class="tags">
+      <span class="tag">20 Complaints</span>
+      <span class="tag">Linked Anomalies</span>
+      <span class="tag">Evidence Tags</span>
+      <span class="tag">UI / Sound Hooks</span>
+      <span class="tag">Room 307 Escalation</span>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Authoring Contract</h2>
+      <div class="grid">
+        <div class="card"><h3>UI</h3><p>Board, Report, Notebook, Document Viewer, Prompt 중 하나 이상에 노출.</p></div>
+        <div class="card"><h3>Evidence</h3><p><code>RequiredEvidenceTags</code>와 <code>EvidenceTagsGranted</code>가 제작 의도상 교차해야 함.</p></div>
+        <div class="card"><h3>Audio</h3><p>사운드는 단서 확인과 불안 조성 역할을 하며 단서 등록 자체를 대체하지 않음.</p></div>
+        <div class="card"><h3>Failure</h3><p>재시작이나 입력 방해가 아니라 다음 민원/공간/기록 신뢰 하락으로 처리.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Complaint Matrix</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Chapter</th>
+              <th>ComplaintId</th>
+              <th>Template</th>
+              <th>Location</th>
+              <th>LinkedAnomalies</th>
+              <th>Evidence</th>
+              <th>UI</th>
+              <th>Sound</th>
+              <th>State Change</th>
+              <th>Validation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="chapter">PRO</td><td><code>CMP_PRO_OfficeLightBuzz</code></td><td>Repair</td><td><code>LOC_OFFICE_MAIN</code></td><td><code>ANM_OFFICE_3F07_NOTE</code></td><td><code>Evidence.Visual</code></td><td>Board, prompt, tool feedback</td><td>fluorescent buzz, board accept</td><td><code>Progression.Story.Room307Clue</code></td><td>안정기 조치와 3F 07 흔적 확인.</td></tr>
+            <tr><td class="chapter">PRO</td><td><code>CMP_PRO_203_WaterAtDoor</code></td><td>Inspection</td><td><code>LOC_2F_203_DOOR</code></td><td><code>ANM_203_WATER_WITHOUT_SOURCE</code></td><td><code>Evidence.Visual</code>, <code>Evidence.Environmental</code></td><td>Board, notebook</td><td>water drip, faint TV noise</td><td><code>Progression.Chapter.One</code></td><td>천장/벽/문틈 대조 가능.</td></tr>
+            <tr><td class="chapter">CH1</td><td><code>CMP_CH1_2F_IntercomStatic</code></td><td>Repair</td><td><code>LOC_2F_INTERCOM</code></td><td><code>ANM_INTERCOM_VOICE</code></td><td><code>Evidence.Audio</code>, <code>Evidence.Visual</code></td><td>Board, document viewer</td><td>intercom static voice</td><td><code>Progression.Story.IntercomStaticObserved</code></td><td>오디오 단서 없이 보고 불가.</td></tr>
+            <tr><td class="chapter">CH1</td><td><code>CMP_CH1_1F_MailboxMisdelivery</code></td><td>Inspection</td><td><code>LOC_1F_MAILBOX</code></td><td><code>ANM_MAILBOX_RECORD_CONFLICT</code></td><td><code>Evidence.Document</code>, <code>Evidence.Records</code></td><td>Board, notebook, document viewer</td><td>paper, mailbox metal</td><td><code>Progression.Story.RecordMismatchNoted</code></td><td>우편함/명부 2개 이상 충돌.</td></tr>
+            <tr><td class="chapter">CH1</td><td><code>CMP_CH1_3F_EmergencyLight</code></td><td>Repair</td><td><code>LOC_3F_EMERGENCY_LIGHT</code></td><td><code>ANM_3F_PERSISTENT_EMERGENCY_LIGHT</code></td><td><code>Evidence.Visual</code>, <code>Evidence.Environmental</code></td><td>Board, prompt</td><td>emergency hum, electric layer</td><td><code>Progression.Story.ThreeFloorUnstable</code></td><td>3층 전체가 불안하게 읽힘.</td></tr>
+            <tr><td class="chapter">CH1</td><td><code>CMP_CH1_205_OdorAtDoor</code></td><td>Inspection</td><td><code>LOC_2F_205_DOOR</code></td><td><code>ANM_205_WATER_WITHOUT_SOURCE</code></td><td><code>Evidence.Environmental</code>, <code>Evidence.Visual</code></td><td>Board, notebook</td><td>vent, damp floor</td><td><code>Progression.Story.Room307Clue</code></td><td>냄새/습기 단서가 과하지 않음.</td></tr>
+            <tr><td class="chapter">CH1</td><td><code>CMP_CH1_StairAutoLightDelay</code></td><td>Repair</td><td><code>LOC_STAIR_1F_2F</code></td><td><code>ANM_STAIR_REFLECTION_DELAY</code></td><td><code>Evidence.Visual</code>, <code>Evidence.Audio</code></td><td>Board, prompt</td><td>relay delay, stair reverb</td><td><code>Progression.Chapter.Two</code></td><td>센서 지연과 반사 지연 확인.</td></tr>
+            <tr><td class="chapter">CH2</td><td><code>CMP_CH2_302_TVHum</code></td><td>AnomalyJudgement</td><td><code>LOC_3F_302_DOOR</code></td><td><code>ANM_302_TV_ON_IN_DARK</code>, <code>ANM_LIFE_NOISE_IN_VACANT_UNIT</code></td><td><code>Evidence.Audio</code>, <code>Evidence.Environmental</code></td><td>Board, report form</td><td>TV hum, life noise</td><td><code>Progression.Tension.Stage2</code></td><td>소리 주체를 보여주지 않음.</td></tr>
+            <tr><td class="chapter">CH2</td><td><code>CMP_CH2_204_NameplateMismatch</code></td><td>Inspection</td><td><code>LOC_2F_204_DOOR</code></td><td><code>ANM_204_NAMEPLATE_MISMATCH</code>, <code>ANM_RECORD_CONFLICT</code></td><td><code>Evidence.Document</code>, <code>Evidence.Records</code>, <code>Evidence.Visual</code></td><td>Board, notebook, document viewer</td><td>nameplate metal, paper</td><td><code>Progression.Story.RecordMismatchNoted</code></td><td>문패/우편함/명부 3점 대조.</td></tr>
+            <tr><td class="chapter">CH2</td><td><code>CMP_CH2_4F_CCTVBlank</code></td><td>Inspection</td><td><code>LOC_4F_CCTV</code></td><td><code>ANM_4F_CCTV_TIME_GAP</code></td><td><code>Evidence.Visual</code>, <code>Evidence.Document</code>, <code>Evidence.Records</code></td><td>CCTV viewer, document viewer</td><td>monitor buzz, static dropout</td><td><code>Progression.Story.Room307Clue</code></td><td>영상/로그/현장 불일치.</td></tr>
+            <tr><td class="chapter">CH2</td><td><code>CMP_CH2_ElevatorFloorError</code></td><td>AnomalyJudgement</td><td><code>LOC_ELEVATOR_MAIN</code></td><td><code>ANM_ELEVATOR_FLOOR_MISMATCH</code></td><td><code>Evidence.Visual</code>, <code>Evidence.Audio</code></td><td>Board, report form</td><td>floor ding mismatch</td><td><code>Progression.Story.ThreeFloorUnstable</code></td><td>길찾기 불가능보다 의심만 제공.</td></tr>
+            <tr><td class="chapter">CH2</td><td><code>CMP_CH2_ReopenedLightCase</code></td><td>Inspection</td><td><code>LOC_OFFICE_BOARD_3F_LIGHT</code></td><td><code>ANM_COMPLAINT_REPEATS</code>, <code>ANM_RECORD_CONFLICT</code></td><td><code>Evidence.Document</code>, <code>Evidence.Records</code>, <code>Evidence.Visual</code></td><td>Board, report form</td><td>board reprint, buzz variant</td><td><code>Progression.Story.ComplaintLoopObserved</code></td><td>반복이 버그처럼 보이지 않음.</td></tr>
+            <tr><td class="chapter">CH3</td><td><code>CMP_CH3_BasementPumpAlarm</code></td><td>Repair</td><td><code>LOC_BSMT_PUMP</code></td><td><code>ANM_BSMT_PANEL_LABEL_CHANGED</code></td><td><code>Evidence.Audio</code>, <code>Evidence.Environmental</code></td><td>Board, restricted notice</td><td>pump alarm, breaker</td><td><code>Progression.Area.BasementUnlocked</code></td><td>지하 접근/펌프/배전반 확인.</td></tr>
+            <tr><td class="chapter">CH3</td><td><code>CMP_CH3_306_OpenDoorAlarm</code></td><td>Inspection</td><td><code>LOC_3F_306_DOOR</code></td><td><code>ANM_306_DOOR_SENSOR_MISMATCH</code></td><td><code>Evidence.Visual</code>, <code>Evidence.Records</code></td><td>Board, notebook</td><td>door relay, alarm cut</td><td><code>Progression.Story.Room307DoorReached</code></td><td>문 상태와 센서 로그 불일치.</td></tr>
+            <tr><td class="chapter">CH3</td><td><code>CMP_CH3_ExitSignDepth</code></td><td>AnomalyJudgement</td><td><code>LOC_2F_EXIT_HALL</code></td><td><code>ANM_HALLWAY_STRETCH</code>, <code>ANM_REFLECTION_DELAY</code></td><td><code>Evidence.Visual</code>, <code>Evidence.Environmental</code></td><td>Board, report form</td><td>hallway low-end, reflection delay</td><td><code>Progression.Story.SpaceDepthShift</code></td><td>기준점/거리감/반사 확인.</td></tr>
+            <tr><td class="chapter">CH3</td><td><code>CMP_CH3_BasementPanelMislabel</code></td><td>Repair</td><td><code>LOC_BSMT_PANEL</code></td><td><code>ANM_BSMT_PANEL_LABEL_CHANGED</code>, <code>ANM_RECORD_CONFLICT</code></td><td><code>Evidence.Document</code>, <code>Evidence.Environmental</code>, <code>Evidence.Records</code></td><td>Board, notebook, document viewer</td><td>panel hum, label paper</td><td><code>Progression.Story.BasementPowerLinked</code></td><td>라벨과 실제 breaker 라인 대조.</td></tr>
+            <tr><td class="chapter">CH4</td><td><code>CMP_CH4_307_PackageAtDoor</code></td><td>Inspection</td><td><code>LOC_3F_307_DOOR</code></td><td><code>ANM_307_PACKAGE_AT_MISSING_UNIT</code></td><td><code>Evidence.Document</code>, <code>Evidence.Visual</code>, <code>Evidence.Records</code></td><td>Board, notebook</td><td>wet package paper, door gap</td><td><code>Progression.Story.Room307PackageSeen</code></td><td>307호는 아직 열리지 않음.</td></tr>
+            <tr><td class="chapter">CH4</td><td><code>CMP_CH4_307_LifeNoise</code></td><td>AnomalyJudgement</td><td><code>LOC_3F_307_DOOR</code></td><td><code>ANM_307_LIFE_NOISE_IN_VACANT_UNIT</code></td><td><code>Evidence.Audio</code>, <code>Evidence.Visual</code>, <code>Evidence.Records</code></td><td>Board, report form</td><td>307 life noise, intercom static</td><td><code>Progression.Story.Room307LifeNoise</code></td><td>명확한 대화나 실체음 금지.</td></tr>
+            <tr><td class="chapter">CH4</td><td><code>CMP_CH4_RecordResident307</code></td><td>Inspection</td><td><code>LOC_OFFICE_307_RECORDS</code></td><td><code>ANM_307_RECORD_CONFLICT</code></td><td><code>Evidence.Document</code>, <code>Evidence.Records</code>, <code>Evidence.Visual</code></td><td>Board, notebook, document viewer</td><td>record timing offset</td><td><code>Progression.Story.Room307RecordConflict</code></td><td>기록 정리가 더 큰 의심을 만듦.</td></tr>
+            <tr><td class="chapter">CH4</td><td><code>CMP_CH4_FinalCheck307</code></td><td>Inspection</td><td><code>LOC_3F_307_INTERIOR</code></td><td><code>ANM_307_RECORD_CONFLICT</code>, <code>ANM_307_REFLECTION_DELAY</code>, <code>ANM_HALLWAY_STRETCH</code></td><td><code>Evidence.Document</code>, <code>Evidence.Records</code>, <code>Evidence.Visual</code>, <code>Evidence.Audio</code>, <code>Evidence.Environmental</code></td><td>Board, final report, prompt</td><td>threshold silence, reflection delay</td><td>Ending route / final report</td><td>실체를 닫아 설명하지 않음.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Static documentation. Master source: Planning, Development, Art documents in Document/.
+  </footer>
+</body>
+</html>
