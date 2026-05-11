@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>어빌리티 시스템 컴포넌트의 입력 처리</title>
+  <title>환경 쿼리 시스템(EQS)</title>
   <style>
 :root {
   color-scheme: dark;
@@ -3555,9 +3555,10 @@ code {
     <div class="site-shell topbar-inner">
       <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
       <nav aria-label="문서 이동">
-        <a href="#concept">개념</a>
-        <a href="#flow">흐름</a>
-        <a href="#patterns">패턴</a>
+        <a href="#visual">시각화</a>
+        <a href="#runtime">런타임</a>
+        <a href="#parts">구성요소</a>
+        <a href="#bt">BT 연결</a>
         <a href="#review">복습</a>
       </nav>
     </div>
@@ -3565,292 +3566,533 @@ code {
 
   <main class="site-shell">
     <section class="hero">
-      <p class="eyebrow">Gameplay Ability System</p>
-      <h1>어빌리티 시스템 컴포넌트의 입력 처리</h1>
+      <p class="eyebrow">AI Query / Scoring</p>
+      <h1>환경 쿼리 시스템(EQS)</h1>
       <p class="lead">
-        ASC 입력 처리는 키보드나 패드 입력을 직접 읽는 시스템이 아니라, 이미 들어온 입력을 어떤 Ability Spec에 전달할지 결정하는 라우팅 단계입니다.
-        InputID, AbilitySpec, Pressed/Released 신호, TryActivateAbility의 관계를 분리해 보면 구조가 명확해집니다.
+        EQS는 기억을 저장하는 시스템이 아니라, 실행 시점의 후보를 만들고 테스트로 걸러 점수를 매긴 뒤
+        RunMode에 맞는 결과를 돌려주는 환경 질의 계층입니다.
       </p>
       <div class="meta-row">
-        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/어빌리티 시스템 컴포넌트의 입력 처리.md</span>
-        <span class="pill">난이도: ASC 입력 흐름</span>
-        <span class="pill">핵심: InputID, AbilitySpecInputPressed, TryActivateAbility</span>
-        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+        <span class="pill">원본: 환경 쿼리 시스템(EQS).md</span>
+        <span class="pill">핵심: Generator, Test, Context, ItemType</span>
+        <span class="pill">주의: 시간 분할 실행과 BT 비동기 완료</span>
       </div>
     </section>
 
     <div class="layout">
       <article class="content">
-        <section id="concept" class="panel">
-          <h2>한 줄 정의</h2>
+        <section id="visual" class="panel">
+          <h2>EQS 후보 평가 실험판</h2>
           <p>
-            <strong>ASC 입력 처리는 플레이어 입력을 Ability Spec의 InputID와 연결해 GA를 활성화하거나, 이미 활성화된 GA에 입력 상태 변화를 전달하는 흐름</strong>입니다.
-            원본 노트의 <code>InputID</code>, <code>AbilitySpecInputPressed</code>, <code>AbilitySpecInputReleased</code>, <code>TryActivateAbility</code> 연결이 핵심입니다.
+            EQS는 후보를 만든 뒤 테스트로 필터링하고 점수화합니다.
+            아래 랩에서 generator, 비싼 테스트, run mode를 바꾸면 살아남은 item과 Blackboard에 들어갈 결과가 즉시 달라집니다.
           </p>
 
-          <div class="callout">
-            <p class="callout-title">입력 시스템과 GAS 입력은 다른 층입니다</p>
-            <p>
-              Enhanced Input 또는 기존 Input System은 물리 입력을 게임 이벤트로 바꿉니다.
-              ASC는 그 결과를 받아 “이 입력에 묶인 Ability Spec이 있는가”, “이미 실행 중인가”, “새로 활성화해야 하는가”를 판단합니다.
-              따라서 키 설정은 Input System에서, 어빌리티 실행 가능 여부는 GAS에서 다룹니다.
-            </p>
-          </div>
+          <div class="interactive-lab eqs-query-lab" data-eqs-lab>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="control-group">
+                <span class="control-label">Case</span>
+                <div class="segmented-control" role="group" aria-label="EQS case">
+                  <button type="button" class="mini-button is-selected" data-eqs-case="cover">Find Cover Spot</button>
+                  <button type="button" class="mini-button" data-eqs-case="vantage">Attack Vantage</button>
+                  <button type="button" class="mini-button" data-eqs-case="target">Perceived Target</button>
+                </div>
+              </div>
+              <button type="button" class="primary-button" data-eqs-run>Replay</button>
+            </div>
 
-          <div class="term-grid">
-            <div class="study-card">
-              <h3>InputID</h3>
-              <p><code>FGameplayAbilitySpec</code>에 저장되는 숫자 입력 슬롯입니다. 같은 InputID에 여러 어빌리티가 묶일 수도 있습니다.</p>
+            <div class="eqs-lab-board">
+              <div class="eqs-topview-wrap">
+                <svg class="eqs-topview" viewBox="0 0 720 420" role="img" aria-labelledby="eqs-map-title eqs-map-desc" data-eqs-scene>
+                  <title id="eqs-map-title">EQS top view candidate map</title>
+                  <desc id="eqs-map-desc">Querier 주변 후보 spot이 필터와 점수에 따라 선택되거나 제거되는 모습을 탑뷰로 보여줍니다.</desc>
+                  <defs>
+                    <marker id="eqs-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                      <path d="M 0 0 L 10 5 L 0 10 z"></path>
+                    </marker>
+                  </defs>
+                  <rect class="topview-floor" x="24" y="24" width="672" height="372" rx="12"></rect>
+                  <path class="topview-navmesh" d="M74 80 L286 58 L426 72 L650 118 L634 340 L390 356 L220 330 L78 284 Z"></path>
+                  <rect class="topview-wall" x="332" y="52" width="48" height="168" rx="6"></rect>
+                  <rect class="topview-wall" x="504" y="224" width="44" height="126" rx="6"></rect>
+                  <rect class="topview-cover" x="210" y="64" width="84" height="30" rx="5"></rect>
+                  <rect class="topview-cover" x="430" y="246" width="88" height="30" rx="5"></rect>
+                  <circle class="eqs-query-radius" cx="92" cy="214" r="248"></circle>
+                  <g class="eqs-trace-layer">
+                    <line data-eqs-link="p1" x1="92" y1="214" x2="150" y2="110"></line>
+                    <line data-eqs-link="p2" x1="92" y1="214" x2="250" y2="80"></line>
+                    <line data-eqs-link="p3" x1="92" y1="214" x2="360" y2="96"></line>
+                    <line data-eqs-link="p4" x1="92" y1="214" x2="500" y2="122"></line>
+                    <line data-eqs-link="p5" x1="92" y1="214" x2="180" y2="230"></line>
+                    <line data-eqs-link="p6" x1="92" y1="214" x2="335" y2="252"></line>
+                    <line data-eqs-link="p7" x1="92" y1="214" x2="470" y2="270"></line>
+                    <line data-eqs-link="p8" x1="92" y1="214" x2="580" y2="210"></line>
+                    <line data-eqs-link="p9" x1="92" y1="214" x2="620" y2="330"></line>
+                    <line data-eqs-link="a1" x1="92" y1="214" x2="318" y2="154"></line>
+                    <line data-eqs-link="a2" x1="92" y1="214" x2="520" y2="92"></line>
+                    <line data-eqs-link="a3" x1="92" y1="214" x2="230" y2="306"></line>
+                  </g>
+                  <polyline class="eqs-result-path" data-eqs-result-path points=""></polyline>
+                  <g class="eqs-querier" transform="translate(92 214)">
+                    <circle r="18"></circle>
+                    <path d="M18 0 L36 -10 L36 10 Z"></path>
+                    <text x="0" y="42" text-anchor="middle">Querier</text>
+                  </g>
+                  <circle class="eqs-probe" data-eqs-probe cx="92" cy="214" r="7"></circle>
+                  <g class="eqs-spot" data-eqs-spot="p1" tabindex="0" transform="translate(240 110)"><circle r="10"></circle><text y="-18">P1</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p2" tabindex="0" transform="translate(360 110)"><circle r="10"></circle><text y="-18">P2</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p3" tabindex="0" transform="translate(480 110)"><circle r="10"></circle><text y="-18">P3</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p4" tabindex="0" transform="translate(240 210)"><circle r="10"></circle><text y="-18">P4</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p5" tabindex="0" transform="translate(360 210)"><circle r="10"></circle><text y="-18">P5</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p6" tabindex="0" transform="translate(480 210)"><circle r="10"></circle><text y="-18">P6</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p7" tabindex="0" transform="translate(240 310)"><circle r="10"></circle><text y="-18">P7</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p8" tabindex="0" transform="translate(360 310)"><circle r="10"></circle><text y="-18">P8</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p9" tabindex="0" transform="translate(480 310)"><circle r="10"></circle><text y="-18">P9</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot actor" data-eqs-spot="a1" tabindex="0" transform="translate(300 150)"><rect x="-13" y="-13" width="26" height="26" rx="7"></rect><text y="-22">Enemy A</text><text class="eqs-score-label" y="35" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot actor" data-eqs-spot="a2" tabindex="0" transform="translate(430 220)"><rect x="-13" y="-13" width="26" height="26" rx="7"></rect><text y="-22">Enemy B</text><text class="eqs-score-label" y="35" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot actor" data-eqs-spot="a3" tabindex="0" transform="translate(260 290)"><rect x="-13" y="-13" width="26" height="26" rx="7"></rect><text y="-22">Noise</text><text class="eqs-score-label" y="35" data-eqs-spot-score>0</text></g>
+                </svg>
+                <div class="topview-legend" aria-label="EQS map legend">
+                  <span><i class="legend-dot valid"></i>Valid</span>
+                  <span><i class="legend-dot selected"></i>Selected</span>
+                  <span><i class="legend-dot blocked"></i>Filtered</span>
+                  <span><i class="legend-line"></i>Trace / Path</span>
+                </div>
+              </div>
+
+              <div class="lab-side-panel">
+                <div class="lab-summary-grid">
+                  <div class="lab-summary-card">
+                    <span>Case</span>
+                    <strong data-eqs-case-title>Find Cover Spot</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Step</span>
+                    <strong data-eqs-step-label>Finalize</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Selected</span>
+                    <strong data-eqs-selected>P8</strong>
+                  </div>
+                </div>
+                <div class="lab-detail-panel" data-eqs-detail-panel role="status" aria-live="polite">
+                  <span class="detail-kicker">Hover / Tap Detail</span>
+                  <strong data-eqs-detail-title>Querier</strong>
+                  <p data-eqs-detail-body>Generator가 Querier 주변의 후보 spot을 만들고 테스트 순서대로 걸러냅니다.</p>
+                  <dl>
+                    <div><dt>Type</dt><dd data-eqs-detail-type>UEnvQueryContext_Querier</dd></div>
+                    <div><dt>Result</dt><dd data-eqs-detail-result>candidate origin</dd></div>
+                  </dl>
+                </div>
+              </div>
             </div>
-            <div class="study-card">
-              <h3>Pressed</h3>
-              <p>입력이 눌렸음을 Spec과 활성 GA에 전달합니다. 미활성 상태라면 활성화 요청으로 이어질 수 있습니다.</p>
+
+            <div class="process-track eqs-process-track" aria-label="EQS execution process">
+              <div class="process-step is-active" data-eqs-step="generator"><span>1</span><strong>Generator</strong><small>후보 item 생성</small></div>
+              <div class="process-step is-active" data-eqs-step="distance"><span>2</span><strong>Distance</strong><small>cheap filter/score</small></div>
+              <div class="process-step is-active" data-eqs-step="trace"><span>3</span><strong>Trace</strong><small>visibility high cost</small></div>
+              <div class="process-step is-active" data-eqs-step="path"><span>4</span><strong>Path</strong><small>pathfinding high cost</small></div>
+              <div class="process-step is-active" data-eqs-step="score"><span>5</span><strong>Score</strong><small>정렬과 정규화</small></div>
+              <div class="process-step is-active" data-eqs-step="finalize"><span>6</span><strong>Finalize</strong><small>RunMode 적용</small></div>
             </div>
-            <div class="study-card">
-              <h3>Released</h3>
-              <p>입력이 떨어졌음을 활성 GA에 전달합니다. 차징, 홀드, 채널링 어빌리티에서 중요합니다.</p>
+
+            <div class="lab-state-row" aria-live="polite">
+              <span class="state-chip is-hot">ItemType <strong data-eqs-item-type>Point</strong></span>
+              <span class="state-chip">RunMode <strong data-eqs-run-mode-label>SingleResult</strong></span>
+              <span class="state-chip">Blackboard <strong data-eqs-bb>Vector Key</strong></span>
             </div>
-            <div class="study-card">
-              <h3>Confirm / Cancel</h3>
-              <p>Target Actor나 Ability Task가 대기 중일 때 확인/취소 입력을 별도 신호로 보낼 수 있습니다.</p>
+            <div class="event-log" data-eqs-log>
+              <p>SimpleGrid 후보를 생성하고 Distance, Trace, Pathfinding 테스트 후 SingleResult를 고릅니다.</p>
             </div>
           </div>
         </section>
 
-        <section id="flow" class="panel">
-          <h2>입력 Pressed 흐름</h2>
-          <p>
-            입력이 들어왔을 때 ASC는 먼저 해당 InputID에 연결된 Spec을 찾습니다.
-            이후 활성 중인 어빌리티에는 입력 신호를 전달하고, 아직 활성화되지 않은 어빌리티는 실행 요청을 시도합니다.
-          </p>
-
-          <div class="flow" aria-label="ASC 입력 Pressed 처리 흐름">
-            <div class="flow-step">
-              <span class="flow-kicker">1. Input</span>
-              <strong>입력 발생</strong>
-              <span>Input Action 또는 키 바인딩에서 Ability InputID를 결정합니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">2. Find</span>
-              <strong>Spec 검색</strong>
-              <span>ASC에서 해당 InputID를 가진 Ability Spec을 찾습니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">3. Press</span>
-              <strong>Pressed 전달</strong>
-              <span><code>AbilitySpecInputPressed</code> 같은 경로로 Spec의 입력 상태를 갱신합니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">4. Active?</span>
-              <strong>활성 여부 판단</strong>
-              <span>이미 활성화된 GA라면 입력 이벤트를 기다리던 Task나 로직이 반응합니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">5. Activate</span>
-              <strong>새 실행 요청</strong>
-              <span>미활성 상태라면 <code>TryActivateAbility</code>로 발동을 시도합니다.</span>
-            </div>
+        <section id="runtime" class="panel">
+          <h2>런타임 처리 흐름</h2>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>Request</strong><span><code>FEnvQueryRequest</code>가 template, owner, named params를 묶음</span></div>
+            <div class="pipeline-step" data-step="2"><strong>Manager</strong><span><code>UEnvQueryManager::RunQuery()</code>가 instance 준비</span></div>
+            <div class="pipeline-step" data-step="3"><strong>Instance</strong><span><code>FEnvQueryInstance</code>가 items, context cache, tests 상태 보관</span></div>
+            <div class="pipeline-step" data-step="4"><strong>ExecuteOneStep</strong><span>Generator 이후 Test를 시간 분할로 진행할 수 있음</span></div>
+            <div class="pipeline-step" data-step="5"><strong>Finalize</strong><span>RunMode에 따라 Single, RandomBest, AllMatching 결과 확정</span></div>
           </div>
-
           <div class="callout warning">
-            <p class="callout-title">입력은 발동 조건을 우회하지 않습니다</p>
-            <p>
-              입력이 들어와도 GA의 태그 요구 조건, 쿨다운, 비용, Net Execution Policy를 통과하지 못하면 활성화되지 않습니다.
-              입력 처리는 “요청”이고, 실제 실행 가능 여부는 GAS의 활성화 검사에서 결정됩니다.
-            </p>
+            <p class="callout-title">즉시 함수로만 보면 위험합니다</p>
+            <p><code>MaxAllowedTestingTime</code> 안에서 여러 프레임에 나눠 실행될 수 있으므로, 완료 delegate와 BT message 흐름까지 같이 설계해야 합니다.</p>
           </div>
         </section>
 
-        <section class="panel">
-          <h2>Released와 홀드형 어빌리티</h2>
-          <p>
-            입력이 떨어졌을 때도 같은 InputID에 묶인 Spec을 찾아 Released 신호를 전달합니다.
-            이 흐름은 차징 공격, 조준 유지, 채널링 스킬처럼 “누르고 있는 동안” 상태가 중요한 어빌리티에서 핵심입니다.
-          </p>
-
+        <section id="parts" class="panel">
+          <h2>Generator / Test / Context / ItemType</h2>
+          <div class="lane-grid">
+            <div class="lane-card key"><span class="layer-kicker">Generator</span><strong>후보 생성</strong><span><code>SimpleGrid</code>는 point, <code>PerceivedActors</code>는 actor 후보를 만듭니다.</span></div>
+            <div class="lane-card"><span class="layer-kicker">Test</span><strong>필터와 점수</strong><span><code>Distance</code>, <code>Trace</code>처럼 후보를 줄이거나 점수를 부여합니다.</span></div>
+            <div class="lane-card"><span class="layer-kicker">Context</span><strong>비교 기준</strong><span>Querier, Target 같은 기준점은 <code>ContextCache</code>에 저장됩니다.</span></div>
+            <div class="lane-card"><span class="layer-kicker">ItemType</span><strong>결과 해석</strong><span>Point인지 Actor인지에 따라 결과와 Blackboard 저장 방식이 달라집니다.</span></div>
+          </div>
           <div class="table-wrap">
             <table class="matrix">
-              <thead>
-                <tr>
-                  <th>상황</th>
-                  <th>Pressed에서 할 일</th>
-                  <th>Released에서 할 일</th>
-                </tr>
-              </thead>
+              <thead><tr><th>RunMode</th><th>의미</th><th>주의점</th></tr></thead>
               <tbody>
-                <tr>
-                  <td><strong>즉발 스킬</strong></td>
-                  <td>미활성 GA를 바로 <code>TryActivateAbility</code></td>
-                  <td>대개 별도 처리 없음</td>
-                </tr>
-                <tr>
-                  <td><strong>차징 공격</strong></td>
-                  <td>GA 활성화 후 차징 시작 시간 기록</td>
-                  <td>차징 종료, SetByCaller 값 계산, GE 적용</td>
-                </tr>
-                <tr>
-                  <td><strong>조준 후 발사</strong></td>
-                  <td>Target Actor/Reticle 시작</td>
-                  <td>타겟 확정 또는 발사 입력으로 해석</td>
-                </tr>
-                <tr>
-                  <td><strong>채널링</strong></td>
-                  <td>지속 GE 또는 반복 Task 시작</td>
-                  <td>GA 취소 또는 EndAbility로 정리</td>
-                </tr>
+                <tr><td><code>SingleResult</code></td><td>최상위 결과 하나</td><td>BT에서 가장 흔한 목적지/대상 선택</td></tr>
+                <tr><td><code>RandomBest5Pct</code></td><td>상위 5% 안 랜덤</td><td>같은 위치만 반복 선택하는 문제 완화</td></tr>
+                <tr><td><code>RandomBest25Pct</code></td><td>상위 25% 안 랜덤</td><td>더 넓은 변동성</td></tr>
+                <tr><td><code>AllMatching</code></td><td>살아남은 모든 결과</td><td>BT Blackboard 저장 단계에서는 단일 값으로 축약될 수 있음</td></tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        <section id="patterns" class="panel">
-          <h2>구현 패턴</h2>
-          <p>
-            5.7 기준으로도 InputID 방식은 여전히 이해할 가치가 있지만, 프로젝트에 따라 GameplayTag 기반 입력 라우팅이나 Enhanced Input Action과 직접 연결하는 구조를 선택할 수 있습니다.
-          </p>
-
-          <div class="table-wrap">
-            <table class="matrix">
-              <thead>
-                <tr>
-                  <th>패턴</th>
-                  <th>장점</th>
-                  <th>주의점</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>InputID 기반</strong></td>
-                  <td>원본 GAS 예제와 <code>FGameplayAbilitySpec</code> 구조를 이해하기 쉽습니다.</td>
-                  <td>숫자 ID만으로는 의미가 드러나지 않아 enum/테이블로 관리해야 합니다.</td>
-                </tr>
-                <tr>
-                  <td><strong>GameplayTag 기반</strong></td>
-                  <td><code>Input.Ability.Fire</code>처럼 의미가 명확하고 데이터 주도 설계와 잘 맞습니다.</td>
-                  <td>프로젝트 전용 매핑 계층을 직접 만들어야 합니다.</td>
-                </tr>
-                <tr>
-                  <td><strong>Enhanced Input Action 직접 연결</strong></td>
-                  <td>입력 값, Triggered/Started/Completed 상태를 세밀하게 다룰 수 있습니다.</td>
-                  <td>ASC로 전달할 Pressed/Released/Confirm/Cancel 규칙을 명확히 분리해야 합니다.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <pre class="code"><code>// 개념 예시: InputID로 연결된 Spec을 찾아 입력을 전달하는 형태
-void UProjectASC::AbilityInputPressed(int32 InputID)
-{
-    TArray&lt;FGameplayAbilitySpecHandle&gt; Handles;
-    FindAllAbilitiesWithInputID(InputID, Handles);
-
-    for (const FGameplayAbilitySpecHandle&amp; Handle : Handles)
-    {
-        if (FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle))
-        {
-            AbilitySpecInputPressed(*Spec);
-
-            if (!Spec-&gt;IsActive())
-            {
-                TryActivateAbility(Spec-&gt;Handle);
-            }
-        }
-    }
-}</code></pre>
-
-          <div class="callout">
-            <p class="callout-title">5.7 공식 API에서 확인할 점</p>
-            <p>
-              <code>AbilitySystemComponent</code>에는 InputID로 어빌리티를 찾는 함수와 활성화 요청 함수가 제공됩니다.
-              <code>GameplayAbilityInputBinds</code>는 예제용 enum에 가깝고, 실제 키와 액션 매핑은 프로젝트의 입력 시스템에서 결정합니다.
-            </p>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>입력 차단과 게임플레이 차단</h2>
-          <p>
-            ASC에는 로컬 유저의 입력 기반 활성화를 막는 기능이 있지만, 이것을 침묵, 기절, 무장 해제 같은 게임플레이 상태 차단과 혼동하면 안 됩니다.
-          </p>
-
-          <div class="split">
-            <div class="callout">
-              <p class="callout-title">입력/UI 차단</p>
-              <p>
-                메뉴가 열렸거나 UI가 입력을 소비하는 상황처럼, 로컬 플레이어 입력을 잠시 막을 때 사용합니다.
-                공식 API도 이 기능을 게임플레이 침묵/디스에이블 용도로 쓰지 말라고 구분합니다.
-              </p>
-            </div>
-            <div class="callout warning">
-              <p class="callout-title">게임플레이 차단</p>
-              <p>
-                기절, 침묵, 쿨다운, 무장 해제는 Gameplay Effect와 Gameplay Tag를 통해 막는 편이 맞습니다.
-                그래야 서버 권한, 복제, UI 표시, 디버깅이 같은 기준으로 움직입니다.
-              </p>
-            </div>
+        <section id="bt" class="panel">
+          <h2>Behavior Tree와의 연결</h2>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-kicker">BT Task</span><strong>Run EQS Query</strong><span><code>FEQSParametrizedQueryExecutionRequest</code> 실행</span></div>
+            <div class="flow-step"><span class="flow-kicker">Async</span><strong>WaitForMessage</strong><span><code>AIMessage_QueryFinished</code>를 기다림</span></div>
+            <div class="flow-step"><span class="flow-kicker">Result</span><strong>Item 해석</strong><span>ItemType CDO로 actor/vector/object 값을 읽음</span></div>
+            <div class="flow-step"><span class="flow-kicker">Blackboard</span><strong>Key 저장</strong><span>결과를 목적지, 대상, object 키에 기록</span></div>
           </div>
         </section>
 
         <section id="review" class="panel">
           <h2>복습 질문</h2>
           <div class="term-grid">
-            <div class="quiz">
-              <strong>1. InputID는 어디에 저장되는가?</strong>
-              <p class="answer">정답: <code>FGameplayAbilitySpec</code>에 저장됩니다. ASC는 이 값을 기준으로 입력에 맞는 Spec을 찾을 수 있습니다.</p>
-            </div>
-            <div class="quiz">
-              <strong>2. 입력이 눌렸는데 GA가 아직 활성화되지 않았다면?</strong>
-              <p class="answer">정답: 보통 Pressed 신호를 기록한 뒤 <code>TryActivateAbility</code>로 활성화를 시도합니다.</p>
-            </div>
-            <div class="quiz">
-              <strong>3. Released 신호가 중요한 어빌리티는?</strong>
-              <p class="answer">정답: 차징, 조준 유지, 채널링처럼 누르고 있는 시간이 의미 있는 어빌리티입니다.</p>
-            </div>
-            <div class="quiz">
-              <strong>4. 입력 차단과 기절 상태 차단은 무엇으로 구분하는가?</strong>
-              <p class="answer">정답: UI/로컬 입력 차단은 입력 억제 기능으로, 기절/침묵 같은 게임플레이 차단은 GE와 Tag 조건으로 처리합니다.</p>
-            </div>
+            <div class="quiz"><strong>Q1. EQS와 Perception의 차이는?</strong><p class="answer">Perception은 자극 기억을 유지하고, EQS는 현재 후보를 평가해 결과를 뽑는 질의 시스템입니다.</p></div>
+            <div class="quiz"><strong>Q2. 비싼 테스트를 뒤로 미루는 이유는?</strong><p class="answer">값싼 필터로 후보 수를 먼저 줄이면 Trace/Pathfinding 같은 고비용 테스트 호출량을 줄일 수 있습니다.</p></div>
           </div>
         </section>
-
-        <section class="panel">
-          <h2>관련 노트</h2>
-          <ul class="relation-list">
-            <li><a href="어빌리티 시스템 컴포넌트(ASC).html">어빌리티 시스템 컴포넌트(ASC)</a>: 입력을 받는 GAS 중심 컴포넌트</li>
-            <li><a href="게임플레이 어빌리티 스펙(Spec).html">게임플레이 어빌리티 스펙(Spec)</a>: InputID를 보유하는 등록 단위</li>
-            <li><a href="게임플레이 어빌리티(GA).html">게임플레이 어빌리티(GA)</a>: 입력으로 활성화되는 실행 흐름</li>
-            <li><a href="게임플레이 어빌리티 타겟 액터(TA).html">게임플레이 어빌리티 타겟 액터(TA)</a>: Confirm/Cancel 입력과 TargetData 흐름</li>
-            <li><a href="게임플레이 태그(Tag).html">게임플레이 태그(Tag)</a>: 입력이 아니라 상태 조건으로 어빌리티를 차단하는 방식</li>
-          </ul>
-        </section>
-
-        <section class="panel">
-          <h2>참고 자료</h2>
-          <ul class="source-list">
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/AbilitySystemComponent?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: AbilitySystemComponent Python API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAbilitySystemComponent/AbilitySpecInputPressed" target="_blank" rel="noreferrer">Epic Developer Community: UAbilitySystemComponent::AbilitySpecInputPressed API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAbilitySystemComponent/AbilitySpecInputReleased" target="_blank" rel="noreferrer">Epic Developer Community: UAbilitySystemComponent::AbilitySpecInputReleased API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayAbilityInputBinds.html?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayAbilityInputBinds Python API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/input-in-unreal-engine?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: Input in Unreal Engine 5.7</a></li>
-            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\어빌리티 시스템 컴포넌트의 입력 처리.md</code></li>
-          </ul>
-        </section>
       </article>
-
-      <aside class="toc" aria-label="목차">
+      <aside class="toc">
         <p class="toc-title">목차</p>
-        <a href="#concept">한 줄 정의</a>
-        <a href="#flow">Pressed 흐름</a>
-        <a href="#patterns">구현 패턴</a>
-        <a href="#review">복습 질문</a>
-        <a href="../index.html">목록으로</a>
+        <a href="#visual">후보 평가판</a>
+        <a href="#runtime">런타임 흐름</a>
+        <a href="#parts">구성요소</a>
+        <a href="#bt">BT 연결</a>
+        <a href="#review">복습</a>
       </aside>
     </div>
   </main>
 
   <footer class="footer">
-    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+    <div class="site-shell">EQS Markdown을 반응형 시각 자료로 재구성했습니다.</div>
   </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-eqs-lab]');
+      if (!lab) return;
+
+      const origin = { x: 92, y: 214 };
+      const candidates = {
+        p1: { id: 'p1', label: 'Spot A1', kind: 'point', x: 240, y: 110, detail: '거리 테스트는 통과하지만 엄폐 보너스가 없습니다.' },
+        p2: { id: 'p2', label: 'Spot A2', kind: 'point', x: 360, y: 110, detail: '벽 너머라 Trace 테스트에서 제거됩니다.' },
+        p3: { id: 'p3', label: 'Spot A3', kind: 'point', x: 480, y: 110, detail: '공격 각도는 좋지만 경로 비용이 높습니다.' },
+        p4: { id: 'p4', label: 'Spot B1', kind: 'point', x: 240, y: 210, detail: 'Querier와 가까운 중립 후보입니다.' },
+        p5: { id: 'p5', label: 'Spot B2', kind: 'point', x: 360, y: 210, detail: '중앙 후보라 점수는 안정적이지만 최종 선택은 아닙니다.' },
+        p6: { id: 'p6', label: 'Spot B3', kind: 'point', x: 480, y: 210, detail: '목표 시야가 열려 공격 위치 후보가 됩니다.' },
+        p7: { id: 'p7', label: 'Spot C1', kind: 'point', x: 240, y: 310, detail: '엄폐물 근처이지만 목표와 너무 멉니다.' },
+        p8: { id: 'p8', label: 'Spot C2', kind: 'point', x: 360, y: 310, detail: 'Trace와 Pathfinding을 모두 통과하고 엄폐 보너스를 받아 선택됩니다.' },
+        p9: { id: 'p9', label: 'Spot C3', kind: 'point', x: 480, y: 310, detail: 'NavMesh 끝에 가까워 path cost가 큽니다.' },
+        a1: { id: 'a1', label: 'Enemy A', kind: 'actor', x: 300, y: 150, detail: 'Perception memory에 있고 현재 sight가 유효한 actor입니다.' },
+        a2: { id: 'a2', label: 'Enemy B', kind: 'actor', x: 430, y: 220, detail: 'known actor지만 시야가 막혀 이번 쿼리에서는 탈락합니다.' },
+        a3: { id: 'a3', label: 'Noise Actor', kind: 'actor', x: 260, y: 290, detail: '청각 이벤트 위치와 연결된 actor 후보입니다.' }
+      };
+      const cases = {
+        cover: {
+          title: 'Find Cover Spot',
+          step: 'Score',
+          selected: 'p8',
+          itemType: 'Point',
+          runMode: 'SingleResult',
+          bb: 'Vector Key',
+          ids: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'],
+          valid: ['p1', 'p4', 'p5', 'p7', 'p8', 'p9'],
+          filtered: { p2: 'Trace fail', p3: 'Path cost', p6: 'No cover' },
+          highlighted: ['p7', 'p8'],
+          line: 'SimpleGrid 후보 중 Trace/Pathfinding을 통과하고 엄폐 보너스가 가장 높은 Spot C2를 고릅니다.'
+        },
+        vantage: {
+          title: 'Attack Vantage',
+          step: 'Select',
+          selected: 'p6',
+          itemType: 'Point',
+          runMode: 'SingleResult',
+          bb: 'Vector Key',
+          ids: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'],
+          valid: ['p3', 'p5', 'p6', 'p8'],
+          filtered: { p1: 'Too far', p2: 'Trace fail', p4: 'Poor angle', p7: 'Too far', p9: 'Path cost' },
+          highlighted: ['p3', 'p6'],
+          line: '공격 가능한 위치만 남긴 뒤 목표를 향한 시야와 path cost가 좋은 Spot B3를 선택합니다.'
+        },
+        target: {
+          title: 'Perceived Target',
+          step: 'Finalize',
+          selected: 'a1',
+          itemType: 'Actor',
+          runMode: 'SingleResult',
+          bb: 'Object Key',
+          ids: ['a1', 'a2', 'a3'],
+          valid: ['a1', 'a3'],
+          filtered: { a2: 'Sight blocked' },
+          highlighted: ['a1'],
+          line: 'PerceivedActors generator가 현재 감지된 actor 후보를 만들고 Enemy A를 Blackboard 대상 actor로 저장합니다.'
+        }
+      };
+
+      let activeCase = 'cover';
+      const caseButtons = [...lab.querySelectorAll('[data-eqs-case]')];
+      const scene = lab.querySelector('[data-eqs-scene]');
+      const spots = new Map([...lab.querySelectorAll('[data-eqs-spot]')].map((spot) => [spot.dataset.eqsSpot, spot]));
+      const traceLinks = new Map([...lab.querySelectorAll('[data-eqs-link]')].map((line) => [line.dataset.eqsLink, line]));
+      const resultPath = lab.querySelector('[data-eqs-result-path]');
+      const probe = lab.querySelector('[data-eqs-probe]');
+      const caseTitle = lab.querySelector('[data-eqs-case-title]');
+      const stepLabel = lab.querySelector('[data-eqs-step-label]');
+      const selectedLabel = lab.querySelector('[data-eqs-selected]');
+      const itemType = lab.querySelector('[data-eqs-item-type]');
+      const runModeLabel = lab.querySelector('[data-eqs-run-mode-label]');
+      const bbLabel = lab.querySelector('[data-eqs-bb]');
+      const runButton = lab.querySelector('[data-eqs-run]');
+      const log = lab.querySelector('[data-eqs-log]');
+      const steps = [...lab.querySelectorAll('[data-eqs-step]')];
+      let processTimer = 0;
+      let probeFrame = 0;
+      const detailPanel = {
+        title: lab.querySelector('[data-eqs-detail-title]'),
+        body: lab.querySelector('[data-eqs-detail-body]'),
+        type: lab.querySelector('[data-eqs-detail-type]'),
+        result: lab.querySelector('[data-eqs-detail-result]')
+      };
+
+      function setPressed(caseName) {
+        caseButtons.forEach((button) => {
+          const selected = button.dataset.eqsCase === caseName;
+          button.classList.toggle('is-selected', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+      }
+
+      function routePoints(candidate) {
+        const bendX = Math.round((origin.x + candidate.x) * 0.5);
+        const bendY = candidate.y < origin.y ? candidate.y + 48 : candidate.y - 42;
+        return [
+          { x: origin.x, y: origin.y },
+          { x: bendX, y: bendY },
+          { x: candidate.x, y: candidate.y }
+        ];
+      }
+
+      function pointsToString(points) {
+        return points.map((point) => `${point.x},${point.y}`).join(' ');
+      }
+
+      function setDetail(id) {
+        if (id === 'querier') {
+          detailPanel.title.textContent = 'Querier';
+          detailPanel.body.textContent = 'EQS는 Querier 기준으로 context를 만들고 generator/test를 실행합니다.';
+          detailPanel.type.textContent = 'Context';
+          detailPanel.result.textContent = 'UEnvQueryContext_Querier';
+          return;
+        }
+        if (id === 'path') {
+          const data = cases[activeCase];
+          detailPanel.title.textContent = 'Selected Path';
+          detailPanel.body.textContent = '선택된 결과까지 도달 가능성을 확인하는 pathfinding 테스트 결과입니다.';
+          detailPanel.type.textContent = data.itemType;
+          detailPanel.result.textContent = candidates[data.selected].label;
+          return;
+        }
+        const data = cases[activeCase];
+        const candidate = candidates[id];
+        if (!candidate) return;
+        const isSelected = data.selected === id;
+        const isValid = data.valid.includes(id);
+        detailPanel.title.textContent = candidate.label;
+        detailPanel.body.textContent = candidate.detail;
+        detailPanel.type.textContent = candidate.kind === 'actor' ? 'Actor item' : 'Point item';
+        detailPanel.result.textContent = isSelected ? 'Selected' : isValid ? 'Valid candidate' : data.filtered[id] || 'Not generated';
+      }
+
+      function updateProcess() {
+        const data = cases[activeCase];
+        steps.forEach((step) => {
+          const id = step.dataset.eqsStep;
+          const skipped = data.itemType === 'Actor' && id === 'path';
+          step.classList.toggle('is-skipped', skipped);
+          step.classList.toggle('is-success', !skipped);
+          step.classList.remove('is-failed');
+        });
+      }
+
+      function render() {
+        const data = cases[activeCase];
+        const activeIds = new Set(data.ids);
+        const validIds = new Set(data.valid);
+        const selectedCandidate = candidates[data.selected];
+
+        spots.forEach((spot, id) => {
+          const candidate = candidates[id];
+          const hidden = !activeIds.has(id);
+          const link = traceLinks.get(id);
+          spot.setAttribute('transform', `translate(${candidate.x} ${candidate.y})`);
+          spot.classList.toggle('is-hidden', hidden);
+          if (link) {
+            link.setAttribute('x1', String(origin.x));
+            link.setAttribute('y1', String(origin.y));
+            link.setAttribute('x2', String(candidate.x));
+            link.setAttribute('y2', String(candidate.y));
+            link.classList.toggle('is-hidden', hidden);
+            link.classList.toggle('is-visible', !hidden);
+            link.classList.toggle('is-blocked', !hidden && !validIds.has(id));
+            link.classList.toggle('is-pass', !hidden && validIds.has(id));
+          }
+          spot.classList.toggle('is-valid', !hidden && validIds.has(id));
+          spot.classList.toggle('is-filtered', !hidden && !validIds.has(id));
+          spot.classList.toggle('is-selected', data.selected === id);
+          spot.classList.toggle('is-cover', data.highlighted.includes(id));
+          spot.querySelector('[data-eqs-spot-score]').textContent = '';
+        });
+
+        const route = routePoints(selectedCandidate);
+        resultPath.setAttribute('points', pointsToString(route));
+        resultPath.classList.add('is-active');
+        resultPath.classList.toggle('is-direct', data.itemType === 'Actor');
+        probe.setAttribute('cx', String(origin.x));
+        probe.setAttribute('cy', String(origin.y));
+        caseTitle.textContent = data.title;
+        stepLabel.textContent = data.step;
+        selectedLabel.textContent = selectedCandidate.label;
+        itemType.textContent = data.itemType;
+        runModeLabel.textContent = data.runMode;
+        bbLabel.textContent = data.bb;
+        log.innerHTML = `<p>${data.line}</p>`;
+        scene.classList.toggle('is-actor-query', data.itemType === 'Actor');
+        setPressed(activeCase);
+        updateProcess();
+      }
+
+      function animateProcess() {
+        if (processTimer) window.clearTimeout(processTimer);
+        const timeline = ['generator', 'distance', 'trace', 'path', 'score', 'finalize']
+          .filter((id) => !(id === 'path' && cases[activeCase].itemType === 'Actor'));
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        steps.forEach((step) => step.classList.remove('is-active'));
+        timeline.forEach((id, index) => {
+          window.setTimeout(() => {
+            steps.forEach((step) => step.classList.toggle('is-active', step.dataset.eqsStep === id));
+          }, index * 150);
+        });
+        processTimer = window.setTimeout(() => {
+          steps.forEach((step) => step.classList.add('is-active'));
+          updateProcess();
+        }, timeline.length * 150 + 180);
+      }
+
+      function animateProbe() {
+        if (probeFrame) cancelAnimationFrame(probeFrame);
+        const route = routePoints(candidates[cases[activeCase].selected]);
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const start = performance.now();
+        const duration = 820;
+        function step(now) {
+          const t = Math.min((now - start) / duration, 1);
+          const segment = t < 0.55 ? 0 : 1;
+          const localT = segment === 0 ? t / 0.55 : (t - 0.55) / 0.45;
+          const a = route[segment];
+          const b = route[segment + 1];
+          probe.setAttribute('cx', String(a.x + (b.x - a.x) * localT));
+          probe.setAttribute('cy', String(a.y + (b.y - a.y) * localT));
+          if (t < 1) probeFrame = requestAnimationFrame(step);
+        }
+        probeFrame = requestAnimationFrame(step);
+      }
+
+      function replay() {
+        scene.classList.remove('is-running');
+        render();
+        scene.getBoundingClientRect();
+        scene.classList.add('is-running');
+        animateProcess();
+        animateProbe();
+      }
+
+      caseButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          activeCase = button.dataset.eqsCase;
+          replay();
+        });
+      });
+      runButton.addEventListener('click', () => {
+        replay();
+      });
+      spots.forEach((spot, id) => {
+        spot.addEventListener('mouseenter', () => setDetail(id));
+        spot.addEventListener('focus', () => setDetail(id));
+        spot.addEventListener('click', () => setDetail(id));
+      });
+      resultPath.addEventListener('mouseenter', () => setDetail('path'));
+      resultPath.addEventListener('focus', () => setDetail('path'));
+      resultPath.addEventListener('click', () => setDetail('path'));
+      resultPath.setAttribute('tabindex', '0');
+
+      setDetail('querier');
+      render();
+    })();
+  </script>
+  <script>
+(() => {
+  const labs = [...document.querySelectorAll('.interactive-lab')];
+  if (!labs.length) return;
+
+  function syncPressedStates(root = document) {
+    root.querySelectorAll('.segmented-control, .preset-row').forEach((group) => {
+      const buttons = [...group.querySelectorAll('button.mini-button')];
+      if (!buttons.length) return;
+      const hasSelected = buttons.some((button) => button.classList.contains('is-selected'));
+      buttons.forEach((button) => {
+        button.setAttribute('aria-pressed', String(hasSelected && button.classList.contains('is-selected')));
+      });
+    });
+  }
+
+  function syncRangeText(input) {
+    const value = input.value;
+    const suffix = input.id && input.id.toLowerCase().includes('angle') ? '도' : '';
+    input.setAttribute('aria-valuetext', `${value}${suffix}`);
+  }
+
+  labs.forEach((lab) => {
+    const title = lab.closest('section')?.querySelector('h2')?.textContent?.trim();
+    if (!lab.hasAttribute('role')) lab.setAttribute('role', 'region');
+    if (title && !lab.hasAttribute('aria-label')) lab.setAttribute('aria-label', `${title} 조작 패널`);
+
+    lab.querySelectorAll('.event-log').forEach((log) => {
+      log.setAttribute('role', 'status');
+      log.setAttribute('aria-live', 'polite');
+      log.setAttribute('aria-atomic', 'false');
+      const observer = new MutationObserver(() => {
+        log.classList.remove('is-updated');
+        window.requestAnimationFrame(() => log.classList.add('is-updated'));
+      });
+      observer.observe(log, { childList: true, subtree: true, characterData: true });
+    });
+
+    lab.querySelectorAll('input[type="range"]').forEach((input) => {
+      syncRangeText(input);
+      input.addEventListener('input', () => syncRangeText(input));
+      input.addEventListener('change', () => syncRangeText(input));
+    });
+  });
+
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('.segmented-control button, .preset-row button')) {
+      window.setTimeout(() => syncPressedStates(), 0);
+    }
+  });
+
+  document.addEventListener('change', () => window.setTimeout(() => syncPressedStates(), 0));
+  syncPressedStates();
+})();
+
+  </script>
 </body>
 </html>
 

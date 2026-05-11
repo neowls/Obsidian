@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>어빌리티 시스템 컴포넌트의 입력 처리</title>
+  <title>AI 지각(AI Perception)</title>
   <style>
 :root {
   color-scheme: dark;
@@ -3555,9 +3555,10 @@ code {
     <div class="site-shell topbar-inner">
       <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
       <nav aria-label="문서 이동">
-        <a href="#concept">개념</a>
-        <a href="#flow">흐름</a>
-        <a href="#patterns">패턴</a>
+        <a href="#visual">시각화</a>
+        <a href="#runtime">런타임</a>
+        <a href="#memory">기억</a>
+        <a href="#bt">BT 연결</a>
         <a href="#review">복습</a>
       </nav>
     </div>
@@ -3565,292 +3566,449 @@ code {
 
   <main class="site-shell">
     <section class="hero">
-      <p class="eyebrow">Gameplay Ability System</p>
-      <h1>어빌리티 시스템 컴포넌트의 입력 처리</h1>
+      <p class="eyebrow">Artificial Intelligence</p>
+      <h1>AI 지각(AI Perception)</h1>
       <p class="lead">
-        ASC 입력 처리는 키보드나 패드 입력을 직접 읽는 시스템이 아니라, 이미 들어온 입력을 어떤 Ability Spec에 전달할지 결정하는 라우팅 단계입니다.
-        InputID, AbilitySpec, Pressed/Released 신호, TryActivateAbility의 관계를 분리해 보면 구조가 명확해집니다.
+        AI Perception은 즉시 액션을 실행하는 노드가 아니라, Sense가 만든 자극을 Listener의 기억에 저장하고
+        gameplay 코드가 그 결과를 소비하도록 만드는 런타임 입력 계층입니다.
       </p>
       <div class="meta-row">
-        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/어빌리티 시스템 컴포넌트의 입력 처리.md</span>
-        <span class="pill">난이도: ASC 입력 흐름</span>
-        <span class="pill">핵심: InputID, AbilitySpecInputPressed, TryActivateAbility</span>
-        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+        <span class="pill">원본: AI 지각(AI Perception).md</span>
+        <span class="pill">핵심: System, Sense, Stimulus, Listener Memory</span>
+        <span class="pill">연결: Blackboard, Behavior Tree, EQS</span>
       </div>
     </section>
 
     <div class="layout">
       <article class="content">
-        <section id="concept" class="panel">
-          <h2>한 줄 정의</h2>
+        <section id="visual" class="panel">
+          <h2>Perception 기억 실험판</h2>
           <p>
-            <strong>ASC 입력 처리는 플레이어 입력을 Ability Spec의 InputID와 연결해 GA를 활성화하거나, 이미 활성화된 GA에 입력 상태 변화를 전달하는 흐름</strong>입니다.
-            원본 노트의 <code>InputID</code>, <code>AbilitySpecInputPressed</code>, <code>AbilitySpecInputReleased</code>, <code>TryActivateAbility</code> 연결이 핵심입니다.
+            중심 틱은 <code>UAIPerceptionComponent</code>가 아니라 <code>UAIPerceptionSystem</code>입니다.
+            아래 랩은 Sense가 만든 <code>FAIStimulus</code>가 Listener memory에 저장되고, gameplay 코드가 그 결과를 Blackboard로 옮기는 흐름을 조작형으로 보여줍니다.
           </p>
 
+          <div class="interactive-lab ai-perception-lab" data-ai-perception-lab>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="control-group">
+                <span class="control-label">Case</span>
+                <div class="segmented-control" role="group" aria-label="Perception case">
+                  <button type="button" class="mini-button is-selected" data-ai-case="sight">Sight Acquire</button>
+                  <button type="button" class="mini-button" data-ai-case="lost">Lose Sight</button>
+                  <button type="button" class="mini-button" data-ai-case="hearing">Hear Noise</button>
+                  <button type="button" class="mini-button" data-ai-case="forget">Forget Stale</button>
+                </div>
+              </div>
+              <button type="button" class="primary-button" data-ai-run>Replay</button>
+            </div>
+
+            <div class="ai-lab-board">
+              <div class="ai-stage" data-ai-stage aria-label="AI Perception scene">
+                <div class="ai-sight-cone" data-ai-cone></div>
+                <div class="ai-flow-dot" data-ai-flow-dot></div>
+                <div class="ai-agent-token" data-ai-detail="listener" tabindex="0">
+                  <strong>AI Listener</strong>
+                  <span>UAIPerceptionComponent</span>
+                </div>
+                <div class="ai-target-token" data-ai-target data-ai-detail="target" tabindex="0">
+                  <strong>Target Pawn</strong>
+                  <span data-ai-target-label>Visible source</span>
+                </div>
+                <div class="ai-noise-token" data-ai-noise data-ai-detail="noise" tabindex="0">
+                  <strong>Noise</strong>
+                  <span>ReportNoiseEvent</span>
+                </div>
+                <div class="ai-last-location" data-ai-last-location data-ai-detail="memory" tabindex="0">
+                  <strong>LastKnownLocation</strong>
+                  <span>stored stimulus location</span>
+                </div>
+              </div>
+
+              <div class="lab-side-panel">
+                <div class="lab-summary-grid">
+                  <div class="lab-summary-card">
+                    <span>Case</span>
+                    <strong data-ai-case-title>Sight Acquire</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Step</span>
+                    <strong data-ai-step-label>ProcessStimuli</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Result</span>
+                    <strong data-ai-result>TargetActor</strong>
+                  </div>
+                </div>
+                <div class="lab-detail-panel" data-ai-detail-panel role="status" aria-live="polite">
+                  <span class="detail-kicker">Hover / Tap Detail</span>
+                  <strong data-ai-detail-title>AI Listener</strong>
+                  <p data-ai-detail-body>AI Perception Component는 Sense가 만든 stimulus를 listener memory에 저장하고 delegate로 gameplay 코드에 전달합니다.</p>
+                  <dl>
+                    <div><dt>State</dt><dd data-ai-detail-state>Current + Known</dd></div>
+                    <div><dt>Engine</dt><dd data-ai-detail-engine>UAIPerceptionComponent</dd></div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+
+            <div class="process-track ai-process-track" aria-label="Perception process state">
+              <div class="process-step is-active" data-ai-step="source"><span>1</span><strong>Source</strong><small>source 등록/이벤트 발생</small></div>
+              <div class="process-step is-active" data-ai-step="sense"><span>2</span><strong>Sense</strong><small>감지 성공 또는 실패 stimulus 생성</small></div>
+              <div class="process-step is-active" data-ai-step="memory"><span>3</span><strong>Memory</strong><small>FActorPerceptionInfo 갱신</small></div>
+              <div class="process-step is-active" data-ai-step="delegate"><span>4</span><strong>Delegate</strong><small>OnTargetPerceptionUpdated</small></div>
+              <div class="process-step is-active" data-ai-step="blackboard"><span>5</span><strong>Blackboard</strong><small>Target/Location 키 갱신</small></div>
+            </div>
+
+            <div class="lab-state-row" aria-live="polite">
+              <span class="state-chip is-hot">Memory <strong data-ai-memory-state>Current + Known</strong></span>
+              <span class="state-chip">Blackboard <strong data-ai-blackboard-state>TargetActor</strong></span>
+              <span class="state-chip">Delegate <strong data-ai-delegate>OnTargetPerceptionUpdated</strong></span>
+            </div>
+            <div class="event-log" data-ai-log>
+              <p>Sight 성공 stimulus가 저장되어 TargetActor Blackboard 키로 소비됩니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="runtime" class="panel">
+          <h2>런타임 처리 흐름</h2>
+          <div class="diagram">
+            <p class="diagram-title">시스템이 한 틱에서 하는 일</p>
+            <div class="node-chain wide">
+              <div class="v-node"><strong>SourcesToRegister</strong><span>다음 틱에 등록할 자극 source를 처리합니다.</span></div>
+              <div class="v-node"><strong>AgeStimuli</strong><span>활성 자극의 나이를 올리고 stale 여부를 판단합니다.</span></div>
+              <div class="v-node highlight"><strong>UAISense::Tick</strong><span>업데이트가 필요한 sense만 실제 감지 규칙을 수행합니다.</span></div>
+              <div class="v-node"><strong>DeliverDelayedStimuli</strong><span>지연된 청각 이벤트 같은 자극을 listener에게 전달합니다.</span></div>
+              <div class="v-node"><strong>ProcessStimuli</strong><span>Listener memory 갱신 후 delegate를 브로드캐스트합니다.</span></div>
+            </div>
+          </div>
           <div class="callout">
-            <p class="callout-title">입력 시스템과 GAS 입력은 다른 층입니다</p>
-            <p>
-              Enhanced Input 또는 기존 Input System은 물리 입력을 게임 이벤트로 바꿉니다.
-              ASC는 그 결과를 받아 “이 입력에 묶인 Ability Spec이 있는가”, “이미 실행 중인가”, “새로 활성화해야 하는가”를 판단합니다.
-              따라서 키 설정은 Input System에서, 어빌리티 실행 가능 여부는 GAS에서 다룹니다.
-            </p>
+            <p class="callout-title">Sense마다 비용이 다르게 흐릅니다</p>
+            <p><code>ProgressTime()</code>과 <code>Update()</code>가 sense별 업데이트 타이밍을 나누므로, 모든 감각이 매 프레임 같은 비용으로 도는 모델로 보면 안 됩니다.</p>
           </div>
+        </section>
 
-          <div class="term-grid">
-            <div class="study-card">
-              <h3>InputID</h3>
-              <p><code>FGameplayAbilitySpec</code>에 저장되는 숫자 입력 슬롯입니다. 같은 InputID에 여러 어빌리티가 묶일 수도 있습니다.</p>
+        <section id="memory" class="panel">
+          <h2>Stimulus와 타깃 기억</h2>
+          <div class="memory-board">
+            <div class="memory-list">
+              <div class="memory-slot key"><span class="layer-kicker">Unit</span><strong>FAIStimulus</strong><span>Age, ExpirationAge, Strength, Location, Type, bSuccessfullySensed를 가진 한 번의 감지 결과</span></div>
+              <div class="memory-slot"><span class="layer-kicker">Target</span><strong>FActorPerceptionInfo</strong><span>Target actor에 대해 sense ID별 마지막 stimulus 배열을 보관</span></div>
+              <div class="memory-slot"><span class="layer-kicker">Location</span><strong>DominantSense</strong><span>여러 sense가 있을 때 마지막 위치 해석 우선순위를 결정</span></div>
             </div>
-            <div class="study-card">
-              <h3>Pressed</h3>
-              <p>입력이 눌렸음을 Spec과 활성 GA에 전달합니다. 미활성 상태라면 활성화 요청으로 이어질 수 있습니다.</p>
-            </div>
-            <div class="study-card">
-              <h3>Released</h3>
-              <p>입력이 떨어졌음을 활성 GA에 전달합니다. 차징, 홀드, 채널링 어빌리티에서 중요합니다.</p>
-            </div>
-            <div class="study-card">
-              <h3>Confirm / Cancel</h3>
-              <p>Target Actor나 Ability Task가 대기 중일 때 확인/취소 입력을 별도 신호로 보낼 수 있습니다.</p>
+            <div class="visual-board">
+              <div class="layer-card"><strong>현재 감지</strong><span><code>HasAnyCurrentStimulus()</code>는 아직 active한 자극을 봅니다.</span></div>
+              <div class="layer-card"><strong>알고 있는 대상</strong><span><code>HasAnyKnownStimulus()</code>는 현재 놓쳤어도 기억이 남은 대상을 포함합니다.</span></div>
+              <div class="layer-card danger"><strong>완전 망각</strong><span><code>bForgetStaleActors</code>가 꺼져 있으면 stale actor가 자동으로 완전히 지워지지 않을 수 있습니다.</span></div>
             </div>
           </div>
         </section>
 
-        <section id="flow" class="panel">
-          <h2>입력 Pressed 흐름</h2>
-          <p>
-            입력이 들어왔을 때 ASC는 먼저 해당 InputID에 연결된 Spec을 찾습니다.
-            이후 활성 중인 어빌리티에는 입력 신호를 전달하고, 아직 활성화되지 않은 어빌리티는 실행 요청을 시도합니다.
-          </p>
-
-          <div class="flow" aria-label="ASC 입력 Pressed 처리 흐름">
-            <div class="flow-step">
-              <span class="flow-kicker">1. Input</span>
-              <strong>입력 발생</strong>
-              <span>Input Action 또는 키 바인딩에서 Ability InputID를 결정합니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">2. Find</span>
-              <strong>Spec 검색</strong>
-              <span>ASC에서 해당 InputID를 가진 Ability Spec을 찾습니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">3. Press</span>
-              <strong>Pressed 전달</strong>
-              <span><code>AbilitySpecInputPressed</code> 같은 경로로 Spec의 입력 상태를 갱신합니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">4. Active?</span>
-              <strong>활성 여부 판단</strong>
-              <span>이미 활성화된 GA라면 입력 이벤트를 기다리던 Task나 로직이 반응합니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">5. Activate</span>
-              <strong>새 실행 요청</strong>
-              <span>미활성 상태라면 <code>TryActivateAbility</code>로 발동을 시도합니다.</span>
-            </div>
+        <section id="bt" class="panel">
+          <h2>Blackboard / Behavior Tree 연결</h2>
+          <p>Perception은 블랙보드를 직접 바꾸지 않습니다. 보통 delegate를 받은 gameplay 코드가 감지 결과를 의사결정용 키로 옮깁니다.</p>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-kicker">Perception</span><strong>자극 수신</strong><span>Sight 성공, Hearing 이벤트, 감지 실패/만료</span></div>
+            <div class="flow-step"><span class="flow-kicker">Code</span><strong>결과 해석</strong><span><code>GetActorsPerception()</code> 또는 stimulus 상태 확인</span></div>
+            <div class="flow-step"><span class="flow-kicker">Blackboard</span><strong>키 갱신</strong><span><code>TargetActor</code>, <code>LastKnownLocation</code>, <code>InvestigateLocation</code></span></div>
+            <div class="flow-step"><span class="flow-kicker">Behavior Tree</span><strong>재평가</strong><span>Decorator observer abort나 Service 갱신으로 분기 변경</span></div>
           </div>
-
-          <div class="callout warning">
-            <p class="callout-title">입력은 발동 조건을 우회하지 않습니다</p>
-            <p>
-              입력이 들어와도 GA의 태그 요구 조건, 쿨다운, 비용, Net Execution Policy를 통과하지 못하면 활성화되지 않습니다.
-              입력 처리는 “요청”이고, 실제 실행 가능 여부는 GAS의 활성화 검사에서 결정됩니다.
-            </p>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>Released와 홀드형 어빌리티</h2>
-          <p>
-            입력이 떨어졌을 때도 같은 InputID에 묶인 Spec을 찾아 Released 신호를 전달합니다.
-            이 흐름은 차징 공격, 조준 유지, 채널링 스킬처럼 “누르고 있는 동안” 상태가 중요한 어빌리티에서 핵심입니다.
-          </p>
-
           <div class="table-wrap">
             <table class="matrix">
-              <thead>
-                <tr>
-                  <th>상황</th>
-                  <th>Pressed에서 할 일</th>
-                  <th>Released에서 할 일</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Delegate</th><th>사용 감각</th></tr></thead>
               <tbody>
-                <tr>
-                  <td><strong>즉발 스킬</strong></td>
-                  <td>미활성 GA를 바로 <code>TryActivateAbility</code></td>
-                  <td>대개 별도 처리 없음</td>
-                </tr>
-                <tr>
-                  <td><strong>차징 공격</strong></td>
-                  <td>GA 활성화 후 차징 시작 시간 기록</td>
-                  <td>차징 종료, SetByCaller 값 계산, GE 적용</td>
-                </tr>
-                <tr>
-                  <td><strong>조준 후 발사</strong></td>
-                  <td>Target Actor/Reticle 시작</td>
-                  <td>타겟 확정 또는 발사 입력으로 해석</td>
-                </tr>
-                <tr>
-                  <td><strong>채널링</strong></td>
-                  <td>지속 GE 또는 반복 Task 시작</td>
-                  <td>GA 취소 또는 EndAbility로 정리</td>
-                </tr>
+                <tr><td><code>OnPerceptionUpdated</code></td><td>여러 액터를 한 번에 받은 배치 이벤트가 필요할 때</td></tr>
+                <tr><td><code>OnTargetPerceptionUpdated</code></td><td>액터와 stimulus 단위로 즉시 반응할 때</td></tr>
+                <tr><td><code>OnTargetPerceptionInfoUpdated</code></td><td>source actor가 무효화될 수 있어 TargetId 기반 bookkeeping이 필요할 때</td></tr>
+                <tr><td><code>OnTargetPerceptionForgotten</code></td><td>완전히 잊은 대상에 대한 정리가 필요할 때</td></tr>
               </tbody>
             </table>
-          </div>
-        </section>
-
-        <section id="patterns" class="panel">
-          <h2>구현 패턴</h2>
-          <p>
-            5.7 기준으로도 InputID 방식은 여전히 이해할 가치가 있지만, 프로젝트에 따라 GameplayTag 기반 입력 라우팅이나 Enhanced Input Action과 직접 연결하는 구조를 선택할 수 있습니다.
-          </p>
-
-          <div class="table-wrap">
-            <table class="matrix">
-              <thead>
-                <tr>
-                  <th>패턴</th>
-                  <th>장점</th>
-                  <th>주의점</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>InputID 기반</strong></td>
-                  <td>원본 GAS 예제와 <code>FGameplayAbilitySpec</code> 구조를 이해하기 쉽습니다.</td>
-                  <td>숫자 ID만으로는 의미가 드러나지 않아 enum/테이블로 관리해야 합니다.</td>
-                </tr>
-                <tr>
-                  <td><strong>GameplayTag 기반</strong></td>
-                  <td><code>Input.Ability.Fire</code>처럼 의미가 명확하고 데이터 주도 설계와 잘 맞습니다.</td>
-                  <td>프로젝트 전용 매핑 계층을 직접 만들어야 합니다.</td>
-                </tr>
-                <tr>
-                  <td><strong>Enhanced Input Action 직접 연결</strong></td>
-                  <td>입력 값, Triggered/Started/Completed 상태를 세밀하게 다룰 수 있습니다.</td>
-                  <td>ASC로 전달할 Pressed/Released/Confirm/Cancel 규칙을 명확히 분리해야 합니다.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <pre class="code"><code>// 개념 예시: InputID로 연결된 Spec을 찾아 입력을 전달하는 형태
-void UProjectASC::AbilityInputPressed(int32 InputID)
-{
-    TArray&lt;FGameplayAbilitySpecHandle&gt; Handles;
-    FindAllAbilitiesWithInputID(InputID, Handles);
-
-    for (const FGameplayAbilitySpecHandle&amp; Handle : Handles)
-    {
-        if (FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle))
-        {
-            AbilitySpecInputPressed(*Spec);
-
-            if (!Spec-&gt;IsActive())
-            {
-                TryActivateAbility(Spec-&gt;Handle);
-            }
-        }
-    }
-}</code></pre>
-
-          <div class="callout">
-            <p class="callout-title">5.7 공식 API에서 확인할 점</p>
-            <p>
-              <code>AbilitySystemComponent</code>에는 InputID로 어빌리티를 찾는 함수와 활성화 요청 함수가 제공됩니다.
-              <code>GameplayAbilityInputBinds</code>는 예제용 enum에 가깝고, 실제 키와 액션 매핑은 프로젝트의 입력 시스템에서 결정합니다.
-            </p>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>입력 차단과 게임플레이 차단</h2>
-          <p>
-            ASC에는 로컬 유저의 입력 기반 활성화를 막는 기능이 있지만, 이것을 침묵, 기절, 무장 해제 같은 게임플레이 상태 차단과 혼동하면 안 됩니다.
-          </p>
-
-          <div class="split">
-            <div class="callout">
-              <p class="callout-title">입력/UI 차단</p>
-              <p>
-                메뉴가 열렸거나 UI가 입력을 소비하는 상황처럼, 로컬 플레이어 입력을 잠시 막을 때 사용합니다.
-                공식 API도 이 기능을 게임플레이 침묵/디스에이블 용도로 쓰지 말라고 구분합니다.
-              </p>
-            </div>
-            <div class="callout warning">
-              <p class="callout-title">게임플레이 차단</p>
-              <p>
-                기절, 침묵, 쿨다운, 무장 해제는 Gameplay Effect와 Gameplay Tag를 통해 막는 편이 맞습니다.
-                그래야 서버 권한, 복제, UI 표시, 디버깅이 같은 기준으로 움직입니다.
-              </p>
-            </div>
           </div>
         </section>
 
         <section id="review" class="panel">
           <h2>복습 질문</h2>
           <div class="term-grid">
-            <div class="quiz">
-              <strong>1. InputID는 어디에 저장되는가?</strong>
-              <p class="answer">정답: <code>FGameplayAbilitySpec</code>에 저장됩니다. ASC는 이 값을 기준으로 입력에 맞는 Spec을 찾을 수 있습니다.</p>
-            </div>
-            <div class="quiz">
-              <strong>2. 입력이 눌렸는데 GA가 아직 활성화되지 않았다면?</strong>
-              <p class="answer">정답: 보통 Pressed 신호를 기록한 뒤 <code>TryActivateAbility</code>로 활성화를 시도합니다.</p>
-            </div>
-            <div class="quiz">
-              <strong>3. Released 신호가 중요한 어빌리티는?</strong>
-              <p class="answer">정답: 차징, 조준 유지, 채널링처럼 누르고 있는 시간이 의미 있는 어빌리티입니다.</p>
-            </div>
-            <div class="quiz">
-              <strong>4. 입력 차단과 기절 상태 차단은 무엇으로 구분하는가?</strong>
-              <p class="answer">정답: UI/로컬 입력 차단은 입력 억제 기능으로, 기절/침묵 같은 게임플레이 차단은 GE와 Tag 조건으로 처리합니다.</p>
-            </div>
+            <div class="quiz"><strong>Q1. Perception의 중심 틱은 어느 객체가 담당하는가?</strong><p class="answer"><code>UAIPerceptionSystem</code>이 listener, source, sense를 관리하고 업데이트가 필요한 sense를 틱합니다.</p></div>
+            <div class="quiz"><strong>Q2. <code>DominantSense</code>는 무엇을 바꾸는가?</strong><p class="answer">감지 가능 여부가 아니라 여러 sense 자극 중 마지막 위치를 해석할 때의 우선순위를 바꿉니다.</p></div>
           </div>
         </section>
-
-        <section class="panel">
-          <h2>관련 노트</h2>
-          <ul class="relation-list">
-            <li><a href="어빌리티 시스템 컴포넌트(ASC).html">어빌리티 시스템 컴포넌트(ASC)</a>: 입력을 받는 GAS 중심 컴포넌트</li>
-            <li><a href="게임플레이 어빌리티 스펙(Spec).html">게임플레이 어빌리티 스펙(Spec)</a>: InputID를 보유하는 등록 단위</li>
-            <li><a href="게임플레이 어빌리티(GA).html">게임플레이 어빌리티(GA)</a>: 입력으로 활성화되는 실행 흐름</li>
-            <li><a href="게임플레이 어빌리티 타겟 액터(TA).html">게임플레이 어빌리티 타겟 액터(TA)</a>: Confirm/Cancel 입력과 TargetData 흐름</li>
-            <li><a href="게임플레이 태그(Tag).html">게임플레이 태그(Tag)</a>: 입력이 아니라 상태 조건으로 어빌리티를 차단하는 방식</li>
-          </ul>
-        </section>
-
-        <section class="panel">
-          <h2>참고 자료</h2>
-          <ul class="source-list">
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/AbilitySystemComponent?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: AbilitySystemComponent Python API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAbilitySystemComponent/AbilitySpecInputPressed" target="_blank" rel="noreferrer">Epic Developer Community: UAbilitySystemComponent::AbilitySpecInputPressed API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAbilitySystemComponent/AbilitySpecInputReleased" target="_blank" rel="noreferrer">Epic Developer Community: UAbilitySystemComponent::AbilitySpecInputReleased API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayAbilityInputBinds.html?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayAbilityInputBinds Python API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/input-in-unreal-engine?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: Input in Unreal Engine 5.7</a></li>
-            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\어빌리티 시스템 컴포넌트의 입력 처리.md</code></li>
-          </ul>
-        </section>
       </article>
-
-      <aside class="toc" aria-label="목차">
+      <aside class="toc">
         <p class="toc-title">목차</p>
-        <a href="#concept">한 줄 정의</a>
-        <a href="#flow">Pressed 흐름</a>
-        <a href="#patterns">구현 패턴</a>
-        <a href="#review">복습 질문</a>
-        <a href="../index.html">목록으로</a>
+        <a href="#visual">입력 파이프라인</a>
+        <a href="#runtime">런타임 처리</a>
+        <a href="#memory">Stimulus 기억</a>
+        <a href="#bt">BT 연결</a>
+        <a href="#review">복습</a>
       </aside>
     </div>
   </main>
 
   <footer class="footer">
-    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+    <div class="site-shell">AI Perception Markdown을 반응형 시각 자료로 재구성했습니다.</div>
   </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-ai-perception-lab]');
+      if (!lab) return;
+
+      const cases = {
+        sight: {
+          title: 'Sight Acquire',
+          step: 'ProcessStimuli',
+          result: 'TargetActor',
+          memory: 'Current + Known',
+          blackboard: 'TargetActor',
+          delegate: 'OnTargetPerceptionUpdated',
+          line: 'Sight stimulus가 성공 상태로 저장되고 TargetActor Blackboard 키로 소비됩니다.',
+          detail: 'Sight Sense가 Target Pawn을 감지해 FAIStimulus를 만들고 listener memory에 저장합니다.',
+          classes: ['has-sight'],
+          targetLabel: 'Visible source',
+          activeSteps: ['source', 'sense', 'memory', 'delegate', 'blackboard'],
+          flow: 'target'
+        },
+        lost: {
+          title: 'Lose Sight',
+          step: 'MarkNoLongerSensed',
+          result: 'LastKnownLocation',
+          memory: 'Known only',
+          blackboard: 'LastKnownLocation',
+          delegate: 'OnTargetPerceptionUpdated',
+          line: 'Sight는 실패했지만 actor 기억은 남아 LastKnownLocation으로 추적을 이어갑니다.',
+          detail: '현재 stimulus는 사라졌지만 FActorPerceptionInfo가 남아 known actor로 취급됩니다.',
+          classes: ['is-stale'],
+          targetLabel: 'remembered actor',
+          activeSteps: ['sense', 'memory', 'delegate', 'blackboard'],
+          flow: 'memory'
+        },
+        hearing: {
+          title: 'Hear Noise',
+          step: 'DeliverDelayedStimuli',
+          result: 'InvestigateLocation',
+          memory: 'Hearing current',
+          blackboard: 'InvestigateLocation',
+          delegate: 'OnTargetPerceptionUpdated',
+          line: 'Noise 위치가 Hearing stimulus로 전달되어 조사 목적지 키에 기록됩니다.',
+          detail: 'ReportNoiseEvent가 만든 청각 stimulus는 target actor보다 위치 기반 의사결정에 자주 쓰입니다.',
+          classes: ['has-hearing'],
+          targetLabel: 'not visible',
+          activeSteps: ['source', 'sense', 'memory', 'delegate', 'blackboard'],
+          flow: 'noise'
+        },
+        forget: {
+          title: 'Forget Stale',
+          step: 'ForgetActor',
+          result: 'Clear Keys',
+          memory: 'Forgotten',
+          blackboard: 'Clear Target Keys',
+          delegate: 'OnTargetPerceptionForgotten',
+          line: 'stale actor가 완전히 정리되어 TargetActor와 LastKnownLocation을 clear해야 합니다.',
+          detail: 'bForgetStaleActors가 켜져 있으면 오래된 actor memory가 제거되고 forget 이벤트를 기준으로 정리합니다.',
+          classes: ['is-forgotten'],
+          targetLabel: 'not in memory',
+          activeSteps: ['memory', 'delegate', 'blackboard'],
+          flow: 'forget'
+        }
+      };
+
+      let activeCase = 'sight';
+      const buttons = [...lab.querySelectorAll('[data-ai-case]')];
+      const runButton = lab.querySelector('[data-ai-run]');
+      const stage = lab.querySelector('[data-ai-stage]');
+      const listener = lab.querySelector('.ai-agent-token');
+      const target = lab.querySelector('[data-ai-target]');
+      const targetLabel = lab.querySelector('[data-ai-target-label]');
+      const noise = lab.querySelector('[data-ai-noise]');
+      const lastLocation = lab.querySelector('[data-ai-last-location]');
+      const flowDot = lab.querySelector('[data-ai-flow-dot]');
+      const caseTitle = lab.querySelector('[data-ai-case-title]');
+      const stepLabel = lab.querySelector('[data-ai-step-label]');
+      const resultLabel = lab.querySelector('[data-ai-result]');
+      const delegate = lab.querySelector('[data-ai-delegate]');
+      const memoryState = lab.querySelector('[data-ai-memory-state]');
+      const blackboardState = lab.querySelector('[data-ai-blackboard-state]');
+      const log = lab.querySelector('[data-ai-log]');
+      const steps = [...lab.querySelectorAll('[data-ai-step]')];
+      const detailPanel = {
+        title: lab.querySelector('[data-ai-detail-title]'),
+        body: lab.querySelector('[data-ai-detail-body]'),
+        state: lab.querySelector('[data-ai-detail-state]'),
+        engine: lab.querySelector('[data-ai-detail-engine]')
+      };
+      const detailContent = {
+        listener: ['AI Listener', 'UAIPerceptionComponent가 listener로 등록되고 StimuliToProcess를 처리합니다.', 'listener memory', 'UAIPerceptionComponent'],
+        target: ['Target Pawn', 'Sight source로 등록된 pawn입니다. 성공 stimulus가 들어오면 TargetActor 후보가 됩니다.', 'source actor', 'UAISense_Sight'],
+        noise: ['Noise Event', 'Hearing은 위치 중심 stimulus를 만들어 InvestigateLocation 같은 키로 소비됩니다.', 'location stimulus', 'UAISense_Hearing'],
+        memory: ['LastKnownLocation', '현재 보이지 않아도 known memory가 남아 있으면 마지막 위치를 의사결정에 사용할 수 있습니다.', 'known stimulus', 'FActorPerceptionInfo']
+      };
+      const flowColors = {
+        target: ['var(--accent-2)', '0 0 18px rgba(255, 180, 84, 0.42)'],
+        memory: ['var(--accent-2)', '0 0 18px rgba(255, 180, 84, 0.42)'],
+        noise: ['#7893bd', '0 0 18px rgba(120, 147, 189, 0.46)'],
+        forget: ['var(--danger)', '0 0 18px rgba(211, 107, 95, 0.42)']
+      };
+
+      function setSelected(caseName) {
+        buttons.forEach((button) => {
+          const selected = button.dataset.aiCase === caseName;
+          button.classList.toggle('is-selected', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+      }
+
+      function setDetail(key) {
+        const detail = detailContent[key] || detailContent.listener;
+        detailPanel.title.textContent = detail[0];
+        detailPanel.body.textContent = detail[1];
+        detailPanel.state.textContent = detail[2];
+        detailPanel.engine.textContent = detail[3];
+      }
+
+      function getCenter(element) {
+        const stageRect = stage.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        return {
+          x: Math.round(rect.left - stageRect.left + rect.width / 2),
+          y: Math.round(rect.top - stageRect.top + rect.height / 2)
+        };
+      }
+
+      function setFlowPosition(flow) {
+        const routes = {
+          target: [target, listener],
+          memory: [target, lastLocation],
+          noise: [noise, lastLocation],
+          forget: [lastLocation, listener]
+        };
+        const [from, to] = routes[flow] || routes.target;
+        const start = getCenter(from);
+        const end = getCenter(to);
+        const [color, shadow] = flowColors[flow] || flowColors.target;
+        flowDot.style.setProperty('--flow-start-x', `${start.x}px`);
+        flowDot.style.setProperty('--flow-start-y', `${start.y}px`);
+        flowDot.style.setProperty('--flow-end-x', `${end.x}px`);
+        flowDot.style.setProperty('--flow-end-y', `${end.y}px`);
+        flowDot.style.setProperty('--flow-color', color);
+        flowDot.style.setProperty('--flow-shadow', shadow);
+      }
+
+      function render() {
+        const data = cases[activeCase];
+        const activeSteps = new Set(data.activeSteps);
+        ['has-sight', 'has-hearing', 'is-stale', 'is-forgotten', 'is-running'].forEach((className) => stage.classList.remove(className));
+        data.classes.forEach((className) => stage.classList.add(className));
+        target.classList.toggle('is-active', activeCase === 'sight');
+        target.classList.toggle('is-stale', activeCase === 'lost');
+        target.classList.toggle('is-forgotten', activeCase === 'forget');
+        noise.classList.toggle('is-active', activeCase === 'hearing');
+        lastLocation.classList.toggle('is-visible', activeCase === 'lost' || activeCase === 'hearing');
+        lastLocation.classList.toggle('is-noise', activeCase === 'hearing');
+        flowDot.dataset.aiFlow = data.flow;
+        targetLabel.textContent = data.targetLabel;
+        setFlowPosition(data.flow);
+        caseTitle.textContent = data.title;
+        stepLabel.textContent = data.step;
+        resultLabel.textContent = data.result;
+        memoryState.textContent = data.memory;
+        blackboardState.textContent = data.blackboard;
+        delegate.textContent = data.delegate;
+
+        steps.forEach((step) => {
+          const active = activeSteps.has(step.dataset.aiStep);
+          step.classList.toggle('is-active', active);
+          step.classList.toggle('is-success', active);
+          step.classList.toggle('is-failed', activeCase === 'forget' && step.dataset.aiStep === 'memory');
+        });
+
+        log.innerHTML = `<p>${data.line}</p>`;
+        setSelected(activeCase);
+      }
+
+      function replay() {
+        stage.classList.remove('is-running');
+        render();
+        stage.getBoundingClientRect();
+        stage.classList.add('is-running');
+      }
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+          activeCase = button.dataset.aiCase;
+          replay();
+        });
+      });
+      runButton.addEventListener('click', replay);
+      window.addEventListener('resize', () => {
+        setFlowPosition(cases[activeCase].flow);
+      });
+      lab.querySelectorAll('[data-ai-detail]').forEach((element) => {
+        const key = element.dataset.aiDetail;
+        element.addEventListener('mouseenter', () => setDetail(key));
+        element.addEventListener('focus', () => setDetail(key));
+        element.addEventListener('click', () => setDetail(key));
+      });
+
+      setDetail('listener');
+      render();
+    })();
+  </script>
+  <script>
+(() => {
+  const labs = [...document.querySelectorAll('.interactive-lab')];
+  if (!labs.length) return;
+
+  function syncPressedStates(root = document) {
+    root.querySelectorAll('.segmented-control, .preset-row').forEach((group) => {
+      const buttons = [...group.querySelectorAll('button.mini-button')];
+      if (!buttons.length) return;
+      const hasSelected = buttons.some((button) => button.classList.contains('is-selected'));
+      buttons.forEach((button) => {
+        button.setAttribute('aria-pressed', String(hasSelected && button.classList.contains('is-selected')));
+      });
+    });
+  }
+
+  function syncRangeText(input) {
+    const value = input.value;
+    const suffix = input.id && input.id.toLowerCase().includes('angle') ? '도' : '';
+    input.setAttribute('aria-valuetext', `${value}${suffix}`);
+  }
+
+  labs.forEach((lab) => {
+    const title = lab.closest('section')?.querySelector('h2')?.textContent?.trim();
+    if (!lab.hasAttribute('role')) lab.setAttribute('role', 'region');
+    if (title && !lab.hasAttribute('aria-label')) lab.setAttribute('aria-label', `${title} 조작 패널`);
+
+    lab.querySelectorAll('.event-log').forEach((log) => {
+      log.setAttribute('role', 'status');
+      log.setAttribute('aria-live', 'polite');
+      log.setAttribute('aria-atomic', 'false');
+      const observer = new MutationObserver(() => {
+        log.classList.remove('is-updated');
+        window.requestAnimationFrame(() => log.classList.add('is-updated'));
+      });
+      observer.observe(log, { childList: true, subtree: true, characterData: true });
+    });
+
+    lab.querySelectorAll('input[type="range"]').forEach((input) => {
+      syncRangeText(input);
+      input.addEventListener('input', () => syncRangeText(input));
+      input.addEventListener('change', () => syncRangeText(input));
+    });
+  });
+
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('.segmented-control button, .preset-row button')) {
+      window.setTimeout(() => syncPressedStates(), 0);
+    }
+  });
+
+  document.addEventListener('change', () => window.setTimeout(() => syncPressedStates(), 0));
+  syncPressedStates();
+})();
+
+  </script>
 </body>
 </html>
 

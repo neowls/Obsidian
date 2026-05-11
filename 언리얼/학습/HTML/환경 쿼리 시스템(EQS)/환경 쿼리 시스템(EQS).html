@@ -38,17 +38,127 @@
     <div class="layout">
       <article class="content">
         <section id="visual" class="panel">
-          <h2>EQS 후보 평가판</h2>
-          <p>아래 격자는 후보 point가 generator에서 만들어지고, cheap filter와 expensive test를 거쳐 최종 결과로 압축되는 감각을 보여줍니다.</p>
-          <div class="visual-board two-col">
-            <div class="tile-map" aria-label="EQS 후보 격자">
-              <div class="tile">P1</div><div class="tile path">P2</div><div class="tile path">P3</div><div class="tile blocked">Wall</div><div class="tile">P4</div><div class="tile hot">Best</div>
-              <div class="tile">P5</div><div class="tile path">P6</div><div class="tile blocked">Trace fail</div><div class="tile path">P7</div><div class="tile hot">P8</div><div class="tile">P9</div>
+          <h2>EQS 후보 평가 실험판</h2>
+          <p>
+            EQS는 후보를 만든 뒤 테스트로 필터링하고 점수화합니다.
+            아래 랩에서 generator, 비싼 테스트, run mode를 바꾸면 살아남은 item과 Blackboard에 들어갈 결과가 즉시 달라집니다.
+          </p>
+
+          <div class="interactive-lab eqs-query-lab" data-eqs-lab>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="control-group">
+                <span class="control-label">Case</span>
+                <div class="segmented-control" role="group" aria-label="EQS case">
+                  <button type="button" class="mini-button is-selected" data-eqs-case="cover">Find Cover Spot</button>
+                  <button type="button" class="mini-button" data-eqs-case="vantage">Attack Vantage</button>
+                  <button type="button" class="mini-button" data-eqs-case="target">Perceived Target</button>
+                </div>
+              </div>
+              <button type="button" class="primary-button" data-eqs-run>Replay</button>
             </div>
-            <div class="memory-list">
-              <div class="memory-slot key"><strong>Generator</strong><span>Querier 주변의 point 또는 perception 기반 actor 후보를 만듭니다.</span></div>
-              <div class="memory-slot"><strong>Filter</strong><span>거리, trace, pathfinding 같은 조건으로 후보를 줄입니다.</span></div>
-              <div class="memory-slot"><strong>Score</strong><span>남은 후보를 정규화하고 RunMode에 맞춰 결과를 고릅니다.</span></div>
+
+            <div class="eqs-lab-board">
+              <div class="eqs-topview-wrap">
+                <svg class="eqs-topview" viewBox="0 0 720 420" role="img" aria-labelledby="eqs-map-title eqs-map-desc" data-eqs-scene>
+                  <title id="eqs-map-title">EQS top view candidate map</title>
+                  <desc id="eqs-map-desc">Querier 주변 후보 spot이 필터와 점수에 따라 선택되거나 제거되는 모습을 탑뷰로 보여줍니다.</desc>
+                  <defs>
+                    <marker id="eqs-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                      <path d="M 0 0 L 10 5 L 0 10 z"></path>
+                    </marker>
+                  </defs>
+                  <rect class="topview-floor" x="24" y="24" width="672" height="372" rx="12"></rect>
+                  <path class="topview-navmesh" d="M74 80 L286 58 L426 72 L650 118 L634 340 L390 356 L220 330 L78 284 Z"></path>
+                  <rect class="topview-wall" x="332" y="52" width="48" height="168" rx="6"></rect>
+                  <rect class="topview-wall" x="504" y="224" width="44" height="126" rx="6"></rect>
+                  <rect class="topview-cover" x="210" y="64" width="84" height="30" rx="5"></rect>
+                  <rect class="topview-cover" x="430" y="246" width="88" height="30" rx="5"></rect>
+                  <circle class="eqs-query-radius" cx="92" cy="214" r="248"></circle>
+                  <g class="eqs-trace-layer">
+                    <line data-eqs-link="p1" x1="92" y1="214" x2="150" y2="110"></line>
+                    <line data-eqs-link="p2" x1="92" y1="214" x2="250" y2="80"></line>
+                    <line data-eqs-link="p3" x1="92" y1="214" x2="360" y2="96"></line>
+                    <line data-eqs-link="p4" x1="92" y1="214" x2="500" y2="122"></line>
+                    <line data-eqs-link="p5" x1="92" y1="214" x2="180" y2="230"></line>
+                    <line data-eqs-link="p6" x1="92" y1="214" x2="335" y2="252"></line>
+                    <line data-eqs-link="p7" x1="92" y1="214" x2="470" y2="270"></line>
+                    <line data-eqs-link="p8" x1="92" y1="214" x2="580" y2="210"></line>
+                    <line data-eqs-link="p9" x1="92" y1="214" x2="620" y2="330"></line>
+                    <line data-eqs-link="a1" x1="92" y1="214" x2="318" y2="154"></line>
+                    <line data-eqs-link="a2" x1="92" y1="214" x2="520" y2="92"></line>
+                    <line data-eqs-link="a3" x1="92" y1="214" x2="230" y2="306"></line>
+                  </g>
+                  <polyline class="eqs-result-path" data-eqs-result-path points=""></polyline>
+                  <g class="eqs-querier" transform="translate(92 214)">
+                    <circle r="18"></circle>
+                    <path d="M18 0 L36 -10 L36 10 Z"></path>
+                    <text x="0" y="42" text-anchor="middle">Querier</text>
+                  </g>
+                  <circle class="eqs-probe" data-eqs-probe cx="92" cy="214" r="7"></circle>
+                  <g class="eqs-spot" data-eqs-spot="p1" tabindex="0" transform="translate(240 110)"><circle r="10"></circle><text y="-18">P1</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p2" tabindex="0" transform="translate(360 110)"><circle r="10"></circle><text y="-18">P2</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p3" tabindex="0" transform="translate(480 110)"><circle r="10"></circle><text y="-18">P3</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p4" tabindex="0" transform="translate(240 210)"><circle r="10"></circle><text y="-18">P4</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p5" tabindex="0" transform="translate(360 210)"><circle r="10"></circle><text y="-18">P5</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p6" tabindex="0" transform="translate(480 210)"><circle r="10"></circle><text y="-18">P6</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p7" tabindex="0" transform="translate(240 310)"><circle r="10"></circle><text y="-18">P7</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p8" tabindex="0" transform="translate(360 310)"><circle r="10"></circle><text y="-18">P8</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot" data-eqs-spot="p9" tabindex="0" transform="translate(480 310)"><circle r="10"></circle><text y="-18">P9</text><text class="eqs-score-label" y="31" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot actor" data-eqs-spot="a1" tabindex="0" transform="translate(300 150)"><rect x="-13" y="-13" width="26" height="26" rx="7"></rect><text y="-22">Enemy A</text><text class="eqs-score-label" y="35" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot actor" data-eqs-spot="a2" tabindex="0" transform="translate(430 220)"><rect x="-13" y="-13" width="26" height="26" rx="7"></rect><text y="-22">Enemy B</text><text class="eqs-score-label" y="35" data-eqs-spot-score>0</text></g>
+                  <g class="eqs-spot actor" data-eqs-spot="a3" tabindex="0" transform="translate(260 290)"><rect x="-13" y="-13" width="26" height="26" rx="7"></rect><text y="-22">Noise</text><text class="eqs-score-label" y="35" data-eqs-spot-score>0</text></g>
+                </svg>
+                <div class="topview-legend" aria-label="EQS map legend">
+                  <span><i class="legend-dot valid"></i>Valid</span>
+                  <span><i class="legend-dot selected"></i>Selected</span>
+                  <span><i class="legend-dot blocked"></i>Filtered</span>
+                  <span><i class="legend-line"></i>Trace / Path</span>
+                </div>
+              </div>
+
+              <div class="lab-side-panel">
+                <div class="lab-summary-grid">
+                  <div class="lab-summary-card">
+                    <span>Case</span>
+                    <strong data-eqs-case-title>Find Cover Spot</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Step</span>
+                    <strong data-eqs-step-label>Finalize</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Selected</span>
+                    <strong data-eqs-selected>P8</strong>
+                  </div>
+                </div>
+                <div class="lab-detail-panel" data-eqs-detail-panel role="status" aria-live="polite">
+                  <span class="detail-kicker">Hover / Tap Detail</span>
+                  <strong data-eqs-detail-title>Querier</strong>
+                  <p data-eqs-detail-body>Generator가 Querier 주변의 후보 spot을 만들고 테스트 순서대로 걸러냅니다.</p>
+                  <dl>
+                    <div><dt>Type</dt><dd data-eqs-detail-type>UEnvQueryContext_Querier</dd></div>
+                    <div><dt>Result</dt><dd data-eqs-detail-result>candidate origin</dd></div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+
+            <div class="process-track eqs-process-track" aria-label="EQS execution process">
+              <div class="process-step is-active" data-eqs-step="generator"><span>1</span><strong>Generator</strong><small>후보 item 생성</small></div>
+              <div class="process-step is-active" data-eqs-step="distance"><span>2</span><strong>Distance</strong><small>cheap filter/score</small></div>
+              <div class="process-step is-active" data-eqs-step="trace"><span>3</span><strong>Trace</strong><small>visibility high cost</small></div>
+              <div class="process-step is-active" data-eqs-step="path"><span>4</span><strong>Path</strong><small>pathfinding high cost</small></div>
+              <div class="process-step is-active" data-eqs-step="score"><span>5</span><strong>Score</strong><small>정렬과 정규화</small></div>
+              <div class="process-step is-active" data-eqs-step="finalize"><span>6</span><strong>Finalize</strong><small>RunMode 적용</small></div>
+            </div>
+
+            <div class="lab-state-row" aria-live="polite">
+              <span class="state-chip is-hot">ItemType <strong data-eqs-item-type>Point</strong></span>
+              <span class="state-chip">RunMode <strong data-eqs-run-mode-label>SingleResult</strong></span>
+              <span class="state-chip">Blackboard <strong data-eqs-bb>Vector Key</strong></span>
+            </div>
+            <div class="event-log" data-eqs-log>
+              <p>SimpleGrid 후보를 생성하고 Distance, Trace, Pathfinding 테스트 후 SingleResult를 고릅니다.</p>
             </div>
           </div>
         </section>
@@ -121,5 +231,268 @@
   <footer class="footer">
     <div class="site-shell">EQS Markdown을 반응형 시각 자료로 재구성했습니다.</div>
   </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-eqs-lab]');
+      if (!lab) return;
+
+      const origin = { x: 92, y: 214 };
+      const candidates = {
+        p1: { id: 'p1', label: 'Spot A1', kind: 'point', x: 240, y: 110, detail: '거리 테스트는 통과하지만 엄폐 보너스가 없습니다.' },
+        p2: { id: 'p2', label: 'Spot A2', kind: 'point', x: 360, y: 110, detail: '벽 너머라 Trace 테스트에서 제거됩니다.' },
+        p3: { id: 'p3', label: 'Spot A3', kind: 'point', x: 480, y: 110, detail: '공격 각도는 좋지만 경로 비용이 높습니다.' },
+        p4: { id: 'p4', label: 'Spot B1', kind: 'point', x: 240, y: 210, detail: 'Querier와 가까운 중립 후보입니다.' },
+        p5: { id: 'p5', label: 'Spot B2', kind: 'point', x: 360, y: 210, detail: '중앙 후보라 점수는 안정적이지만 최종 선택은 아닙니다.' },
+        p6: { id: 'p6', label: 'Spot B3', kind: 'point', x: 480, y: 210, detail: '목표 시야가 열려 공격 위치 후보가 됩니다.' },
+        p7: { id: 'p7', label: 'Spot C1', kind: 'point', x: 240, y: 310, detail: '엄폐물 근처이지만 목표와 너무 멉니다.' },
+        p8: { id: 'p8', label: 'Spot C2', kind: 'point', x: 360, y: 310, detail: 'Trace와 Pathfinding을 모두 통과하고 엄폐 보너스를 받아 선택됩니다.' },
+        p9: { id: 'p9', label: 'Spot C3', kind: 'point', x: 480, y: 310, detail: 'NavMesh 끝에 가까워 path cost가 큽니다.' },
+        a1: { id: 'a1', label: 'Enemy A', kind: 'actor', x: 300, y: 150, detail: 'Perception memory에 있고 현재 sight가 유효한 actor입니다.' },
+        a2: { id: 'a2', label: 'Enemy B', kind: 'actor', x: 430, y: 220, detail: 'known actor지만 시야가 막혀 이번 쿼리에서는 탈락합니다.' },
+        a3: { id: 'a3', label: 'Noise Actor', kind: 'actor', x: 260, y: 290, detail: '청각 이벤트 위치와 연결된 actor 후보입니다.' }
+      };
+      const cases = {
+        cover: {
+          title: 'Find Cover Spot',
+          step: 'Score',
+          selected: 'p8',
+          itemType: 'Point',
+          runMode: 'SingleResult',
+          bb: 'Vector Key',
+          ids: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'],
+          valid: ['p1', 'p4', 'p5', 'p7', 'p8', 'p9'],
+          filtered: { p2: 'Trace fail', p3: 'Path cost', p6: 'No cover' },
+          highlighted: ['p7', 'p8'],
+          line: 'SimpleGrid 후보 중 Trace/Pathfinding을 통과하고 엄폐 보너스가 가장 높은 Spot C2를 고릅니다.'
+        },
+        vantage: {
+          title: 'Attack Vantage',
+          step: 'Select',
+          selected: 'p6',
+          itemType: 'Point',
+          runMode: 'SingleResult',
+          bb: 'Vector Key',
+          ids: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9'],
+          valid: ['p3', 'p5', 'p6', 'p8'],
+          filtered: { p1: 'Too far', p2: 'Trace fail', p4: 'Poor angle', p7: 'Too far', p9: 'Path cost' },
+          highlighted: ['p3', 'p6'],
+          line: '공격 가능한 위치만 남긴 뒤 목표를 향한 시야와 path cost가 좋은 Spot B3를 선택합니다.'
+        },
+        target: {
+          title: 'Perceived Target',
+          step: 'Finalize',
+          selected: 'a1',
+          itemType: 'Actor',
+          runMode: 'SingleResult',
+          bb: 'Object Key',
+          ids: ['a1', 'a2', 'a3'],
+          valid: ['a1', 'a3'],
+          filtered: { a2: 'Sight blocked' },
+          highlighted: ['a1'],
+          line: 'PerceivedActors generator가 현재 감지된 actor 후보를 만들고 Enemy A를 Blackboard 대상 actor로 저장합니다.'
+        }
+      };
+
+      let activeCase = 'cover';
+      const caseButtons = [...lab.querySelectorAll('[data-eqs-case]')];
+      const scene = lab.querySelector('[data-eqs-scene]');
+      const spots = new Map([...lab.querySelectorAll('[data-eqs-spot]')].map((spot) => [spot.dataset.eqsSpot, spot]));
+      const traceLinks = new Map([...lab.querySelectorAll('[data-eqs-link]')].map((line) => [line.dataset.eqsLink, line]));
+      const resultPath = lab.querySelector('[data-eqs-result-path]');
+      const probe = lab.querySelector('[data-eqs-probe]');
+      const caseTitle = lab.querySelector('[data-eqs-case-title]');
+      const stepLabel = lab.querySelector('[data-eqs-step-label]');
+      const selectedLabel = lab.querySelector('[data-eqs-selected]');
+      const itemType = lab.querySelector('[data-eqs-item-type]');
+      const runModeLabel = lab.querySelector('[data-eqs-run-mode-label]');
+      const bbLabel = lab.querySelector('[data-eqs-bb]');
+      const runButton = lab.querySelector('[data-eqs-run]');
+      const log = lab.querySelector('[data-eqs-log]');
+      const steps = [...lab.querySelectorAll('[data-eqs-step]')];
+      let processTimer = 0;
+      let probeFrame = 0;
+      const detailPanel = {
+        title: lab.querySelector('[data-eqs-detail-title]'),
+        body: lab.querySelector('[data-eqs-detail-body]'),
+        type: lab.querySelector('[data-eqs-detail-type]'),
+        result: lab.querySelector('[data-eqs-detail-result]')
+      };
+
+      function setPressed(caseName) {
+        caseButtons.forEach((button) => {
+          const selected = button.dataset.eqsCase === caseName;
+          button.classList.toggle('is-selected', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+      }
+
+      function routePoints(candidate) {
+        const bendX = Math.round((origin.x + candidate.x) * 0.5);
+        const bendY = candidate.y < origin.y ? candidate.y + 48 : candidate.y - 42;
+        return [
+          { x: origin.x, y: origin.y },
+          { x: bendX, y: bendY },
+          { x: candidate.x, y: candidate.y }
+        ];
+      }
+
+      function pointsToString(points) {
+        return points.map((point) => `${point.x},${point.y}`).join(' ');
+      }
+
+      function setDetail(id) {
+        if (id === 'querier') {
+          detailPanel.title.textContent = 'Querier';
+          detailPanel.body.textContent = 'EQS는 Querier 기준으로 context를 만들고 generator/test를 실행합니다.';
+          detailPanel.type.textContent = 'Context';
+          detailPanel.result.textContent = 'UEnvQueryContext_Querier';
+          return;
+        }
+        if (id === 'path') {
+          const data = cases[activeCase];
+          detailPanel.title.textContent = 'Selected Path';
+          detailPanel.body.textContent = '선택된 결과까지 도달 가능성을 확인하는 pathfinding 테스트 결과입니다.';
+          detailPanel.type.textContent = data.itemType;
+          detailPanel.result.textContent = candidates[data.selected].label;
+          return;
+        }
+        const data = cases[activeCase];
+        const candidate = candidates[id];
+        if (!candidate) return;
+        const isSelected = data.selected === id;
+        const isValid = data.valid.includes(id);
+        detailPanel.title.textContent = candidate.label;
+        detailPanel.body.textContent = candidate.detail;
+        detailPanel.type.textContent = candidate.kind === 'actor' ? 'Actor item' : 'Point item';
+        detailPanel.result.textContent = isSelected ? 'Selected' : isValid ? 'Valid candidate' : data.filtered[id] || 'Not generated';
+      }
+
+      function updateProcess() {
+        const data = cases[activeCase];
+        steps.forEach((step) => {
+          const id = step.dataset.eqsStep;
+          const skipped = data.itemType === 'Actor' && id === 'path';
+          step.classList.toggle('is-skipped', skipped);
+          step.classList.toggle('is-success', !skipped);
+          step.classList.remove('is-failed');
+        });
+      }
+
+      function render() {
+        const data = cases[activeCase];
+        const activeIds = new Set(data.ids);
+        const validIds = new Set(data.valid);
+        const selectedCandidate = candidates[data.selected];
+
+        spots.forEach((spot, id) => {
+          const candidate = candidates[id];
+          const hidden = !activeIds.has(id);
+          const link = traceLinks.get(id);
+          spot.setAttribute('transform', `translate(${candidate.x} ${candidate.y})`);
+          spot.classList.toggle('is-hidden', hidden);
+          if (link) {
+            link.setAttribute('x1', String(origin.x));
+            link.setAttribute('y1', String(origin.y));
+            link.setAttribute('x2', String(candidate.x));
+            link.setAttribute('y2', String(candidate.y));
+            link.classList.toggle('is-hidden', hidden);
+            link.classList.toggle('is-visible', !hidden);
+            link.classList.toggle('is-blocked', !hidden && !validIds.has(id));
+            link.classList.toggle('is-pass', !hidden && validIds.has(id));
+          }
+          spot.classList.toggle('is-valid', !hidden && validIds.has(id));
+          spot.classList.toggle('is-filtered', !hidden && !validIds.has(id));
+          spot.classList.toggle('is-selected', data.selected === id);
+          spot.classList.toggle('is-cover', data.highlighted.includes(id));
+          spot.querySelector('[data-eqs-spot-score]').textContent = '';
+        });
+
+        const route = routePoints(selectedCandidate);
+        resultPath.setAttribute('points', pointsToString(route));
+        resultPath.classList.add('is-active');
+        resultPath.classList.toggle('is-direct', data.itemType === 'Actor');
+        probe.setAttribute('cx', String(origin.x));
+        probe.setAttribute('cy', String(origin.y));
+        caseTitle.textContent = data.title;
+        stepLabel.textContent = data.step;
+        selectedLabel.textContent = selectedCandidate.label;
+        itemType.textContent = data.itemType;
+        runModeLabel.textContent = data.runMode;
+        bbLabel.textContent = data.bb;
+        log.innerHTML = `<p>${data.line}</p>`;
+        scene.classList.toggle('is-actor-query', data.itemType === 'Actor');
+        setPressed(activeCase);
+        updateProcess();
+      }
+
+      function animateProcess() {
+        if (processTimer) window.clearTimeout(processTimer);
+        const timeline = ['generator', 'distance', 'trace', 'path', 'score', 'finalize']
+          .filter((id) => !(id === 'path' && cases[activeCase].itemType === 'Actor'));
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        steps.forEach((step) => step.classList.remove('is-active'));
+        timeline.forEach((id, index) => {
+          window.setTimeout(() => {
+            steps.forEach((step) => step.classList.toggle('is-active', step.dataset.eqsStep === id));
+          }, index * 150);
+        });
+        processTimer = window.setTimeout(() => {
+          steps.forEach((step) => step.classList.add('is-active'));
+          updateProcess();
+        }, timeline.length * 150 + 180);
+      }
+
+      function animateProbe() {
+        if (probeFrame) cancelAnimationFrame(probeFrame);
+        const route = routePoints(candidates[cases[activeCase].selected]);
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const start = performance.now();
+        const duration = 820;
+        function step(now) {
+          const t = Math.min((now - start) / duration, 1);
+          const segment = t < 0.55 ? 0 : 1;
+          const localT = segment === 0 ? t / 0.55 : (t - 0.55) / 0.45;
+          const a = route[segment];
+          const b = route[segment + 1];
+          probe.setAttribute('cx', String(a.x + (b.x - a.x) * localT));
+          probe.setAttribute('cy', String(a.y + (b.y - a.y) * localT));
+          if (t < 1) probeFrame = requestAnimationFrame(step);
+        }
+        probeFrame = requestAnimationFrame(step);
+      }
+
+      function replay() {
+        scene.classList.remove('is-running');
+        render();
+        scene.getBoundingClientRect();
+        scene.classList.add('is-running');
+        animateProcess();
+        animateProbe();
+      }
+
+      caseButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          activeCase = button.dataset.eqsCase;
+          replay();
+        });
+      });
+      runButton.addEventListener('click', () => {
+        replay();
+      });
+      spots.forEach((spot, id) => {
+        spot.addEventListener('mouseenter', () => setDetail(id));
+        spot.addEventListener('focus', () => setDetail(id));
+        spot.addEventListener('click', () => setDetail(id));
+      });
+      resultPath.addEventListener('mouseenter', () => setDetail('path'));
+      resultPath.addEventListener('focus', () => setDetail('path'));
+      resultPath.addEventListener('click', () => setDetail('path'));
+      resultPath.setAttribute('tabindex', '0');
+
+      setDetail('querier');
+      render();
+    })();
+  </script>
+  <script src="../interactive-enhancements.js"></script>
 </body>
 </html>

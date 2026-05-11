@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>어빌리티 시스템 컴포넌트의 입력 처리</title>
+  <title>NavLink와 Smart Link</title>
   <style>
 :root {
   color-scheme: dark;
@@ -3555,9 +3555,10 @@ code {
     <div class="site-shell topbar-inner">
       <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
       <nav aria-label="문서 이동">
-        <a href="#concept">개념</a>
+        <a href="#visual">시각화</a>
         <a href="#flow">흐름</a>
-        <a href="#patterns">패턴</a>
+        <a href="#smart">Smart Link</a>
+        <a href="#proxy">Proxy</a>
         <a href="#review">복습</a>
       </nav>
     </div>
@@ -3565,291 +3566,90 @@ code {
 
   <main class="site-shell">
     <section class="hero">
-      <p class="eyebrow">Gameplay Ability System</p>
-      <h1>어빌리티 시스템 컴포넌트의 입력 처리</h1>
+      <p class="eyebrow">Off-mesh Navigation</p>
+      <h1>NavLink와 Smart Link</h1>
       <p class="lead">
-        ASC 입력 처리는 키보드나 패드 입력을 직접 읽는 시스템이 아니라, 이미 들어온 입력을 어떤 Ability Spec에 전달할지 결정하는 라우팅 단계입니다.
-        InputID, AbilitySpec, Pressed/Released 신호, TryActivateAbility의 관계를 분리해 보면 구조가 명확해집니다.
+        NavLink는 끊어진 NavMesh 구간을 pathfinding에 연결하고, Smart Link는 그 구간을 런타임에서 enable/disable하거나
+        점프, 사다리, 문 통과 같은 custom movement로 전환합니다.
       </p>
       <div class="meta-row">
-        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/어빌리티 시스템 컴포넌트의 입력 처리.md</span>
-        <span class="pill">난이도: ASC 입력 흐름</span>
-        <span class="pill">핵심: InputID, AbilitySpecInputPressed, TryActivateAbility</span>
-        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+        <span class="pill">원본: NavLink와 Smart Link.md</span>
+        <span class="pill">핵심: Simple Link, Smart Link, StartUsingCustomLink</span>
       </div>
     </section>
 
     <div class="layout">
       <article class="content">
-        <section id="concept" class="panel">
-          <h2>한 줄 정의</h2>
-          <p>
-            <strong>ASC 입력 처리는 플레이어 입력을 Ability Spec의 InputID와 연결해 GA를 활성화하거나, 이미 활성화된 GA에 입력 상태 변화를 전달하는 흐름</strong>입니다.
-            원본 노트의 <code>InputID</code>, <code>AbilitySpecInputPressed</code>, <code>AbilitySpecInputReleased</code>, <code>TryActivateAbility</code> 연결이 핵심입니다.
-          </p>
-
-          <div class="callout">
-            <p class="callout-title">입력 시스템과 GAS 입력은 다른 층입니다</p>
-            <p>
-              Enhanced Input 또는 기존 Input System은 물리 입력을 게임 이벤트로 바꿉니다.
-              ASC는 그 결과를 받아 “이 입력에 묶인 Ability Spec이 있는가”, “이미 실행 중인가”, “새로 활성화해야 하는가”를 판단합니다.
-              따라서 키 설정은 Input System에서, 어빌리티 실행 가능 여부는 GAS에서 다룹니다.
-            </p>
+        <section id="visual" class="panel">
+          <h2>경로 중간의 특수 세그먼트</h2>
+          <div class="visual-board">
+            <div class="tile-map" aria-label="NavLink path">
+              <div class="tile path">Start</div><div class="tile path">PathPt0</div><div class="tile link">Link Start</div><div class="tile blocked">Gap</div><div class="tile link">Link End</div><div class="tile hot">Goal</div>
+              <div class="tile">Walk</div><div class="tile">Reach</div><div class="tile hot">Jump</div><div class="tile">Custom</div><div class="tile path">Resume</div><div class="tile">Move</div>
+            </div>
           </div>
-
-          <div class="term-grid">
-            <div class="study-card">
-              <h3>InputID</h3>
-              <p><code>FGameplayAbilitySpec</code>에 저장되는 숫자 입력 슬롯입니다. 같은 InputID에 여러 어빌리티가 묶일 수도 있습니다.</p>
-            </div>
-            <div class="study-card">
-              <h3>Pressed</h3>
-              <p>입력이 눌렸음을 Spec과 활성 GA에 전달합니다. 미활성 상태라면 활성화 요청으로 이어질 수 있습니다.</p>
-            </div>
-            <div class="study-card">
-              <h3>Released</h3>
-              <p>입력이 떨어졌음을 활성 GA에 전달합니다. 차징, 홀드, 채널링 어빌리티에서 중요합니다.</p>
-            </div>
-            <div class="study-card">
-              <h3>Confirm / Cancel</h3>
-              <p>Target Actor나 Ability Task가 대기 중일 때 확인/취소 입력을 별도 신호로 보낼 수 있습니다.</p>
-            </div>
+          <div class="visual-board two-col">
+            <div class="layer-card"><strong>Simple Link</strong><span>정적 경로 연결 데이터입니다. 프록시 하나에 여러 개 둘 수 있습니다.</span></div>
+            <div class="layer-card key"><strong>Smart Link</strong><span>동적 enable/disable, area 변경, custom move callback을 가진 런타임 링크입니다.</span></div>
           </div>
         </section>
 
         <section id="flow" class="panel">
-          <h2>입력 Pressed 흐름</h2>
-          <p>
-            입력이 들어왔을 때 ASC는 먼저 해당 InputID에 연결된 Spec을 찾습니다.
-            이후 활성 중인 어빌리티에는 입력 신호를 전달하고, 아직 활성화되지 않은 어빌리티는 실행 요청을 시도합니다.
-          </p>
-
-          <div class="flow" aria-label="ASC 입력 Pressed 처리 흐름">
-            <div class="flow-step">
-              <span class="flow-kicker">1. Input</span>
-              <strong>입력 발생</strong>
-              <span>Input Action 또는 키 바인딩에서 Ability InputID를 결정합니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">2. Find</span>
-              <strong>Spec 검색</strong>
-              <span>ASC에서 해당 InputID를 가진 Ability Spec을 찾습니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">3. Press</span>
-              <strong>Pressed 전달</strong>
-              <span><code>AbilitySpecInputPressed</code> 같은 경로로 Spec의 입력 상태를 갱신합니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">4. Active?</span>
-              <strong>활성 여부 판단</strong>
-              <span>이미 활성화된 GA라면 입력 이벤트를 기다리던 Task나 로직이 반응합니다.</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-kicker">5. Activate</span>
-              <strong>새 실행 요청</strong>
-              <span>미활성 상태라면 <code>TryActivateAbility</code>로 발동을 시도합니다.</span>
-            </div>
+          <h2>PathFollowing에서 NavLink 처리</h2>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>SetMoveSegment</strong><span>현재 start/end path point를 잡습니다.</span></div>
+            <div class="pipeline-step" data-step="2"><strong>PathPt1 검사</strong><span>다음 point에 <code>CustomNavLinkId</code>가 있으면 link를 캐시합니다.</span></div>
+            <div class="pipeline-step" data-step="3"><strong>Reach Condition</strong><span>link 시작점 도달 판정을 일반 점과 다르게 적용할 수 있습니다.</span></div>
+            <div class="pipeline-step" data-step="4"><strong>PathPt0 검사</strong><span>현재 point가 custom link면 <code>StartUsingCustomLink()</code> 호출</span></div>
+            <div class="pipeline-step" data-step="5"><strong>Finish</strong><span><code>ResumePathFollowing()</code> 또는 <code>FinishUsingCustomLink()</code>로 복귀</span></div>
           </div>
-
           <div class="callout warning">
-            <p class="callout-title">입력은 발동 조건을 우회하지 않습니다</p>
-            <p>
-              입력이 들어와도 GA의 태그 요구 조건, 쿨다운, 비용, Net Execution Policy를 통과하지 못하면 활성화되지 않습니다.
-              입력 처리는 “요청”이고, 실제 실행 가능 여부는 GAS의 활성화 검사에서 결정됩니다.
-            </p>
+            <p class="callout-title">Custom move 후 복귀를 빼먹으면 멈춥니다</p>
+            <p>Smart Link에서 직접 이동을 제어했다면 마지막에 path following의 custom-link 상태를 반드시 해제해야 다음 세그먼트로 넘어갑니다.</p>
           </div>
         </section>
 
-        <section class="panel">
-          <h2>Released와 홀드형 어빌리티</h2>
-          <p>
-            입력이 떨어졌을 때도 같은 InputID에 묶인 Spec을 찾아 Released 신호를 전달합니다.
-            이 흐름은 차징 공격, 조준 유지, 채널링 스킬처럼 “누르고 있는 동안” 상태가 중요한 어빌리티에서 핵심입니다.
-          </p>
-
-          <div class="table-wrap">
-            <table class="matrix">
-              <thead>
-                <tr>
-                  <th>상황</th>
-                  <th>Pressed에서 할 일</th>
-                  <th>Released에서 할 일</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>즉발 스킬</strong></td>
-                  <td>미활성 GA를 바로 <code>TryActivateAbility</code></td>
-                  <td>대개 별도 처리 없음</td>
-                </tr>
-                <tr>
-                  <td><strong>차징 공격</strong></td>
-                  <td>GA 활성화 후 차징 시작 시간 기록</td>
-                  <td>차징 종료, SetByCaller 값 계산, GE 적용</td>
-                </tr>
-                <tr>
-                  <td><strong>조준 후 발사</strong></td>
-                  <td>Target Actor/Reticle 시작</td>
-                  <td>타겟 확정 또는 발사 입력으로 해석</td>
-                </tr>
-                <tr>
-                  <td><strong>채널링</strong></td>
-                  <td>지속 GE 또는 반복 Task 시작</td>
-                  <td>GA 취소 또는 EndAbility로 정리</td>
-                </tr>
-              </tbody>
-            </table>
+        <section id="smart" class="panel">
+          <h2>UNavLinkCustomComponent의 핵심</h2>
+          <div class="lane-grid">
+            <div class="lane-card key"><strong>CustomLinkId</strong><span>NavigationSystem에 등록되는 식별 가능한 링크 객체가 됩니다.</span></div>
+            <div class="lane-card"><strong>SetEnabledArea</strong><span>navmesh rebuild 없이 enabled/disabled area를 런타임에서 갱신합니다.</span></div>
+            <div class="lane-card"><strong>OnLinkMoveStarted</strong><span>delegate가 있으면 custom move로 진입하고 moving agent를 추적합니다.</span></div>
+            <div class="lane-card"><strong>HasMovingAgents</strong><span>링크 상태를 바꾸기 전 이미 사용 중인 agent가 있는지 확인합니다.</span></div>
           </div>
         </section>
 
-        <section id="patterns" class="panel">
-          <h2>구현 패턴</h2>
-          <p>
-            5.7 기준으로도 InputID 방식은 여전히 이해할 가치가 있지만, 프로젝트에 따라 GameplayTag 기반 입력 라우팅이나 Enhanced Input Action과 직접 연결하는 구조를 선택할 수 있습니다.
-          </p>
-
-          <div class="table-wrap">
-            <table class="matrix">
-              <thead>
-                <tr>
-                  <th>패턴</th>
-                  <th>장점</th>
-                  <th>주의점</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>InputID 기반</strong></td>
-                  <td>원본 GAS 예제와 <code>FGameplayAbilitySpec</code> 구조를 이해하기 쉽습니다.</td>
-                  <td>숫자 ID만으로는 의미가 드러나지 않아 enum/테이블로 관리해야 합니다.</td>
-                </tr>
-                <tr>
-                  <td><strong>GameplayTag 기반</strong></td>
-                  <td><code>Input.Ability.Fire</code>처럼 의미가 명확하고 데이터 주도 설계와 잘 맞습니다.</td>
-                  <td>프로젝트 전용 매핑 계층을 직접 만들어야 합니다.</td>
-                </tr>
-                <tr>
-                  <td><strong>Enhanced Input Action 직접 연결</strong></td>
-                  <td>입력 값, Triggered/Started/Completed 상태를 세밀하게 다룰 수 있습니다.</td>
-                  <td>ASC로 전달할 Pressed/Released/Confirm/Cancel 규칙을 명확히 분리해야 합니다.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <pre class="code"><code>// 개념 예시: InputID로 연결된 Spec을 찾아 입력을 전달하는 형태
-void UProjectASC::AbilityInputPressed(int32 InputID)
-{
-    TArray&lt;FGameplayAbilitySpecHandle&gt; Handles;
-    FindAllAbilitiesWithInputID(InputID, Handles);
-
-    for (const FGameplayAbilitySpecHandle&amp; Handle : Handles)
-    {
-        if (FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle))
-        {
-            AbilitySpecInputPressed(*Spec);
-
-            if (!Spec-&gt;IsActive())
-            {
-                TryActivateAbility(Spec-&gt;Handle);
-            }
-        }
-    }
-}</code></pre>
-
-          <div class="callout">
-            <p class="callout-title">5.7 공식 API에서 확인할 점</p>
-            <p>
-              <code>AbilitySystemComponent</code>에는 InputID로 어빌리티를 찾는 함수와 활성화 요청 함수가 제공됩니다.
-              <code>GameplayAbilityInputBinds</code>는 예제용 enum에 가깝고, 실제 키와 액션 매핑은 프로젝트의 입력 시스템에서 결정합니다.
-            </p>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>입력 차단과 게임플레이 차단</h2>
-          <p>
-            ASC에는 로컬 유저의 입력 기반 활성화를 막는 기능이 있지만, 이것을 침묵, 기절, 무장 해제 같은 게임플레이 상태 차단과 혼동하면 안 됩니다.
-          </p>
-
-          <div class="split">
-            <div class="callout">
-              <p class="callout-title">입력/UI 차단</p>
-              <p>
-                메뉴가 열렸거나 UI가 입력을 소비하는 상황처럼, 로컬 플레이어 입력을 잠시 막을 때 사용합니다.
-                공식 API도 이 기능을 게임플레이 침묵/디스에이블 용도로 쓰지 말라고 구분합니다.
-              </p>
-            </div>
-            <div class="callout warning">
-              <p class="callout-title">게임플레이 차단</p>
-              <p>
-                기절, 침묵, 쿨다운, 무장 해제는 Gameplay Effect와 Gameplay Tag를 통해 막는 편이 맞습니다.
-                그래야 서버 권한, 복제, UI 표시, 디버깅이 같은 기준으로 움직입니다.
-              </p>
-            </div>
+        <section id="proxy" class="panel">
+          <h2>ANavLinkProxy의 브리지 역할</h2>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-kicker">Component</span><strong>SmartLinkComp</strong><span>move reached delegate를 proxy에 연결</span></div>
+            <div class="flow-step"><span class="flow-kicker">Proxy</span><strong>NotifySmartLinkReached</strong><span>path component 기준 이벤트를 pawn 기준으로 변환</span></div>
+            <div class="flow-step"><span class="flow-kicker">Blueprint</span><strong>ReceiveSmartLinkReached</strong><span>점프/문/사다리 custom move 실행</span></div>
+            <div class="flow-step"><span class="flow-kicker">Resume</span><strong>ResumePathFollowing</strong><span>내부적으로 <code>FinishUsingCustomLink()</code> 호출</span></div>
           </div>
         </section>
 
         <section id="review" class="panel">
           <h2>복습 질문</h2>
           <div class="term-grid">
-            <div class="quiz">
-              <strong>1. InputID는 어디에 저장되는가?</strong>
-              <p class="answer">정답: <code>FGameplayAbilitySpec</code>에 저장됩니다. ASC는 이 값을 기준으로 입력에 맞는 Spec을 찾을 수 있습니다.</p>
-            </div>
-            <div class="quiz">
-              <strong>2. 입력이 눌렸는데 GA가 아직 활성화되지 않았다면?</strong>
-              <p class="answer">정답: 보통 Pressed 신호를 기록한 뒤 <code>TryActivateAbility</code>로 활성화를 시도합니다.</p>
-            </div>
-            <div class="quiz">
-              <strong>3. Released 신호가 중요한 어빌리티는?</strong>
-              <p class="answer">정답: 차징, 조준 유지, 채널링처럼 누르고 있는 시간이 의미 있는 어빌리티입니다.</p>
-            </div>
-            <div class="quiz">
-              <strong>4. 입력 차단과 기절 상태 차단은 무엇으로 구분하는가?</strong>
-              <p class="answer">정답: UI/로컬 입력 차단은 입력 억제 기능으로, 기절/침묵 같은 게임플레이 차단은 GE와 Tag 조건으로 처리합니다.</p>
-            </div>
+            <div class="quiz"><strong>Q1. Simple Link와 Smart Link의 핵심 차이는?</strong><p class="answer">Simple Link는 정적 연결 데이터이고, Smart Link는 런타임 상태 변경과 custom movement callback까지 가집니다.</p></div>
+            <div class="quiz"><strong>Q2. Smart Link에서 custom move 진입 여부를 가르는 것은?</strong><p class="answer"><code>OnLinkMoveStarted()</code>가 true를 반환하면 path following이 custom link 사용 상태로 대기합니다.</p></div>
           </div>
         </section>
-
-        <section class="panel">
-          <h2>관련 노트</h2>
-          <ul class="relation-list">
-            <li><a href="어빌리티 시스템 컴포넌트(ASC).html">어빌리티 시스템 컴포넌트(ASC)</a>: 입력을 받는 GAS 중심 컴포넌트</li>
-            <li><a href="게임플레이 어빌리티 스펙(Spec).html">게임플레이 어빌리티 스펙(Spec)</a>: InputID를 보유하는 등록 단위</li>
-            <li><a href="게임플레이 어빌리티(GA).html">게임플레이 어빌리티(GA)</a>: 입력으로 활성화되는 실행 흐름</li>
-            <li><a href="게임플레이 어빌리티 타겟 액터(TA).html">게임플레이 어빌리티 타겟 액터(TA)</a>: Confirm/Cancel 입력과 TargetData 흐름</li>
-            <li><a href="게임플레이 태그(Tag).html">게임플레이 태그(Tag)</a>: 입력이 아니라 상태 조건으로 어빌리티를 차단하는 방식</li>
-          </ul>
-        </section>
-
-        <section class="panel">
-          <h2>참고 자료</h2>
-          <ul class="source-list">
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/AbilitySystemComponent?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: AbilitySystemComponent Python API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAbilitySystemComponent/AbilitySpecInputPressed" target="_blank" rel="noreferrer">Epic Developer Community: UAbilitySystemComponent::AbilitySpecInputPressed API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAbilitySystemComponent/AbilitySpecInputReleased" target="_blank" rel="noreferrer">Epic Developer Community: UAbilitySystemComponent::AbilitySpecInputReleased API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayAbilityInputBinds.html?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayAbilityInputBinds Python API 5.7</a></li>
-            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/input-in-unreal-engine?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: Input in Unreal Engine 5.7</a></li>
-            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\어빌리티 시스템 컴포넌트의 입력 처리.md</code></li>
-          </ul>
-        </section>
       </article>
-
-      <aside class="toc" aria-label="목차">
+      <aside class="toc">
         <p class="toc-title">목차</p>
-        <a href="#concept">한 줄 정의</a>
-        <a href="#flow">Pressed 흐름</a>
-        <a href="#patterns">구현 패턴</a>
-        <a href="#review">복습 질문</a>
-        <a href="../index.html">목록으로</a>
+        <a href="#visual">특수 세그먼트</a>
+        <a href="#flow">처리 흐름</a>
+        <a href="#smart">Smart Link</a>
+        <a href="#proxy">Proxy</a>
+        <a href="#review">복습</a>
       </aside>
     </div>
   </main>
 
   <footer class="footer">
-    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+    <div class="site-shell">NavLink/Smart Link Markdown을 반응형 시각 자료로 재구성했습니다.</div>
   </footer>
 </body>
 </html>

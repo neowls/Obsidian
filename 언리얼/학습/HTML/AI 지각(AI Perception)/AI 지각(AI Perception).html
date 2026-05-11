@@ -38,15 +38,90 @@
     <div class="layout">
       <article class="content">
         <section id="visual" class="panel">
-          <h2>Perception 입력 파이프라인</h2>
-          <p>중심 틱은 <code>UAIPerceptionComponent</code>가 아니라 <code>UAIPerceptionSystem</code>입니다. 시스템이 Sense를 틱하고, Sense가 만든 <code>FAIStimulus</code>를 Listener가 기억합니다.</p>
-          <div class="visual-board">
-            <div class="pipeline">
-              <div class="pipeline-step" data-step="1"><strong>Source 등록</strong><span>Pawn 자동 등록 또는 <code>StimuliSourceComponent</code> 명시 등록</span></div>
-              <div class="pipeline-step" data-step="2"><strong>Sense Tick</strong><span>Sight, Hearing, Custom Sense가 업데이트 필요 여부를 판단</span></div>
-              <div class="pipeline-step" data-step="3"><strong>Stimulus 생성</strong><span>위치, 강도, 성공 여부, 만료 시간을 담은 자극 생성</span></div>
-              <div class="pipeline-step" data-step="4"><strong>ProcessStimuli</strong><span>타깃별 <code>FActorPerceptionInfo</code>에 sense별 자극 저장</span></div>
-              <div class="pipeline-step" data-step="5"><strong>Gameplay 소비</strong><span>Delegate, 조회 API, AIController callback으로 블랙보드 갱신</span></div>
+          <h2>Perception 기억 실험판</h2>
+          <p>
+            중심 틱은 <code>UAIPerceptionComponent</code>가 아니라 <code>UAIPerceptionSystem</code>입니다.
+            아래 랩은 Sense가 만든 <code>FAIStimulus</code>가 Listener memory에 저장되고, gameplay 코드가 그 결과를 Blackboard로 옮기는 흐름을 조작형으로 보여줍니다.
+          </p>
+
+          <div class="interactive-lab ai-perception-lab" data-ai-perception-lab>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="control-group">
+                <span class="control-label">Case</span>
+                <div class="segmented-control" role="group" aria-label="Perception case">
+                  <button type="button" class="mini-button is-selected" data-ai-case="sight">Sight Acquire</button>
+                  <button type="button" class="mini-button" data-ai-case="lost">Lose Sight</button>
+                  <button type="button" class="mini-button" data-ai-case="hearing">Hear Noise</button>
+                  <button type="button" class="mini-button" data-ai-case="forget">Forget Stale</button>
+                </div>
+              </div>
+              <button type="button" class="primary-button" data-ai-run>Replay</button>
+            </div>
+
+            <div class="ai-lab-board">
+              <div class="ai-stage" data-ai-stage aria-label="AI Perception scene">
+                <div class="ai-sight-cone" data-ai-cone></div>
+                <div class="ai-flow-dot" data-ai-flow-dot></div>
+                <div class="ai-agent-token" data-ai-detail="listener" tabindex="0">
+                  <strong>AI Listener</strong>
+                  <span>UAIPerceptionComponent</span>
+                </div>
+                <div class="ai-target-token" data-ai-target data-ai-detail="target" tabindex="0">
+                  <strong>Target Pawn</strong>
+                  <span data-ai-target-label>Visible source</span>
+                </div>
+                <div class="ai-noise-token" data-ai-noise data-ai-detail="noise" tabindex="0">
+                  <strong>Noise</strong>
+                  <span>ReportNoiseEvent</span>
+                </div>
+                <div class="ai-last-location" data-ai-last-location data-ai-detail="memory" tabindex="0">
+                  <strong>LastKnownLocation</strong>
+                  <span>stored stimulus location</span>
+                </div>
+              </div>
+
+              <div class="lab-side-panel">
+                <div class="lab-summary-grid">
+                  <div class="lab-summary-card">
+                    <span>Case</span>
+                    <strong data-ai-case-title>Sight Acquire</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Step</span>
+                    <strong data-ai-step-label>ProcessStimuli</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Result</span>
+                    <strong data-ai-result>TargetActor</strong>
+                  </div>
+                </div>
+                <div class="lab-detail-panel" data-ai-detail-panel role="status" aria-live="polite">
+                  <span class="detail-kicker">Hover / Tap Detail</span>
+                  <strong data-ai-detail-title>AI Listener</strong>
+                  <p data-ai-detail-body>AI Perception Component는 Sense가 만든 stimulus를 listener memory에 저장하고 delegate로 gameplay 코드에 전달합니다.</p>
+                  <dl>
+                    <div><dt>State</dt><dd data-ai-detail-state>Current + Known</dd></div>
+                    <div><dt>Engine</dt><dd data-ai-detail-engine>UAIPerceptionComponent</dd></div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+
+            <div class="process-track ai-process-track" aria-label="Perception process state">
+              <div class="process-step is-active" data-ai-step="source"><span>1</span><strong>Source</strong><small>source 등록/이벤트 발생</small></div>
+              <div class="process-step is-active" data-ai-step="sense"><span>2</span><strong>Sense</strong><small>감지 성공 또는 실패 stimulus 생성</small></div>
+              <div class="process-step is-active" data-ai-step="memory"><span>3</span><strong>Memory</strong><small>FActorPerceptionInfo 갱신</small></div>
+              <div class="process-step is-active" data-ai-step="delegate"><span>4</span><strong>Delegate</strong><small>OnTargetPerceptionUpdated</small></div>
+              <div class="process-step is-active" data-ai-step="blackboard"><span>5</span><strong>Blackboard</strong><small>Target/Location 키 갱신</small></div>
+            </div>
+
+            <div class="lab-state-row" aria-live="polite">
+              <span class="state-chip is-hot">Memory <strong data-ai-memory-state>Current + Known</strong></span>
+              <span class="state-chip">Blackboard <strong data-ai-blackboard-state>TargetActor</strong></span>
+              <span class="state-chip">Delegate <strong data-ai-delegate>OnTargetPerceptionUpdated</strong></span>
+            </div>
+            <div class="event-log" data-ai-log>
+              <p>Sight 성공 stimulus가 저장되어 TargetActor Blackboard 키로 소비됩니다.</p>
             </div>
           </div>
         </section>
@@ -129,5 +204,211 @@
   <footer class="footer">
     <div class="site-shell">AI Perception Markdown을 반응형 시각 자료로 재구성했습니다.</div>
   </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-ai-perception-lab]');
+      if (!lab) return;
+
+      const cases = {
+        sight: {
+          title: 'Sight Acquire',
+          step: 'ProcessStimuli',
+          result: 'TargetActor',
+          memory: 'Current + Known',
+          blackboard: 'TargetActor',
+          delegate: 'OnTargetPerceptionUpdated',
+          line: 'Sight stimulus가 성공 상태로 저장되고 TargetActor Blackboard 키로 소비됩니다.',
+          detail: 'Sight Sense가 Target Pawn을 감지해 FAIStimulus를 만들고 listener memory에 저장합니다.',
+          classes: ['has-sight'],
+          targetLabel: 'Visible source',
+          activeSteps: ['source', 'sense', 'memory', 'delegate', 'blackboard'],
+          flow: 'target'
+        },
+        lost: {
+          title: 'Lose Sight',
+          step: 'MarkNoLongerSensed',
+          result: 'LastKnownLocation',
+          memory: 'Known only',
+          blackboard: 'LastKnownLocation',
+          delegate: 'OnTargetPerceptionUpdated',
+          line: 'Sight는 실패했지만 actor 기억은 남아 LastKnownLocation으로 추적을 이어갑니다.',
+          detail: '현재 stimulus는 사라졌지만 FActorPerceptionInfo가 남아 known actor로 취급됩니다.',
+          classes: ['is-stale'],
+          targetLabel: 'remembered actor',
+          activeSteps: ['sense', 'memory', 'delegate', 'blackboard'],
+          flow: 'memory'
+        },
+        hearing: {
+          title: 'Hear Noise',
+          step: 'DeliverDelayedStimuli',
+          result: 'InvestigateLocation',
+          memory: 'Hearing current',
+          blackboard: 'InvestigateLocation',
+          delegate: 'OnTargetPerceptionUpdated',
+          line: 'Noise 위치가 Hearing stimulus로 전달되어 조사 목적지 키에 기록됩니다.',
+          detail: 'ReportNoiseEvent가 만든 청각 stimulus는 target actor보다 위치 기반 의사결정에 자주 쓰입니다.',
+          classes: ['has-hearing'],
+          targetLabel: 'not visible',
+          activeSteps: ['source', 'sense', 'memory', 'delegate', 'blackboard'],
+          flow: 'noise'
+        },
+        forget: {
+          title: 'Forget Stale',
+          step: 'ForgetActor',
+          result: 'Clear Keys',
+          memory: 'Forgotten',
+          blackboard: 'Clear Target Keys',
+          delegate: 'OnTargetPerceptionForgotten',
+          line: 'stale actor가 완전히 정리되어 TargetActor와 LastKnownLocation을 clear해야 합니다.',
+          detail: 'bForgetStaleActors가 켜져 있으면 오래된 actor memory가 제거되고 forget 이벤트를 기준으로 정리합니다.',
+          classes: ['is-forgotten'],
+          targetLabel: 'not in memory',
+          activeSteps: ['memory', 'delegate', 'blackboard'],
+          flow: 'forget'
+        }
+      };
+
+      let activeCase = 'sight';
+      const buttons = [...lab.querySelectorAll('[data-ai-case]')];
+      const runButton = lab.querySelector('[data-ai-run]');
+      const stage = lab.querySelector('[data-ai-stage]');
+      const listener = lab.querySelector('.ai-agent-token');
+      const target = lab.querySelector('[data-ai-target]');
+      const targetLabel = lab.querySelector('[data-ai-target-label]');
+      const noise = lab.querySelector('[data-ai-noise]');
+      const lastLocation = lab.querySelector('[data-ai-last-location]');
+      const flowDot = lab.querySelector('[data-ai-flow-dot]');
+      const caseTitle = lab.querySelector('[data-ai-case-title]');
+      const stepLabel = lab.querySelector('[data-ai-step-label]');
+      const resultLabel = lab.querySelector('[data-ai-result]');
+      const delegate = lab.querySelector('[data-ai-delegate]');
+      const memoryState = lab.querySelector('[data-ai-memory-state]');
+      const blackboardState = lab.querySelector('[data-ai-blackboard-state]');
+      const log = lab.querySelector('[data-ai-log]');
+      const steps = [...lab.querySelectorAll('[data-ai-step]')];
+      const detailPanel = {
+        title: lab.querySelector('[data-ai-detail-title]'),
+        body: lab.querySelector('[data-ai-detail-body]'),
+        state: lab.querySelector('[data-ai-detail-state]'),
+        engine: lab.querySelector('[data-ai-detail-engine]')
+      };
+      const detailContent = {
+        listener: ['AI Listener', 'UAIPerceptionComponent가 listener로 등록되고 StimuliToProcess를 처리합니다.', 'listener memory', 'UAIPerceptionComponent'],
+        target: ['Target Pawn', 'Sight source로 등록된 pawn입니다. 성공 stimulus가 들어오면 TargetActor 후보가 됩니다.', 'source actor', 'UAISense_Sight'],
+        noise: ['Noise Event', 'Hearing은 위치 중심 stimulus를 만들어 InvestigateLocation 같은 키로 소비됩니다.', 'location stimulus', 'UAISense_Hearing'],
+        memory: ['LastKnownLocation', '현재 보이지 않아도 known memory가 남아 있으면 마지막 위치를 의사결정에 사용할 수 있습니다.', 'known stimulus', 'FActorPerceptionInfo']
+      };
+      const flowColors = {
+        target: ['var(--accent-2)', '0 0 18px rgba(255, 180, 84, 0.42)'],
+        memory: ['var(--accent-2)', '0 0 18px rgba(255, 180, 84, 0.42)'],
+        noise: ['#7893bd', '0 0 18px rgba(120, 147, 189, 0.46)'],
+        forget: ['var(--danger)', '0 0 18px rgba(211, 107, 95, 0.42)']
+      };
+
+      function setSelected(caseName) {
+        buttons.forEach((button) => {
+          const selected = button.dataset.aiCase === caseName;
+          button.classList.toggle('is-selected', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+      }
+
+      function setDetail(key) {
+        const detail = detailContent[key] || detailContent.listener;
+        detailPanel.title.textContent = detail[0];
+        detailPanel.body.textContent = detail[1];
+        detailPanel.state.textContent = detail[2];
+        detailPanel.engine.textContent = detail[3];
+      }
+
+      function getCenter(element) {
+        const stageRect = stage.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        return {
+          x: Math.round(rect.left - stageRect.left + rect.width / 2),
+          y: Math.round(rect.top - stageRect.top + rect.height / 2)
+        };
+      }
+
+      function setFlowPosition(flow) {
+        const routes = {
+          target: [target, listener],
+          memory: [target, lastLocation],
+          noise: [noise, lastLocation],
+          forget: [lastLocation, listener]
+        };
+        const [from, to] = routes[flow] || routes.target;
+        const start = getCenter(from);
+        const end = getCenter(to);
+        const [color, shadow] = flowColors[flow] || flowColors.target;
+        flowDot.style.setProperty('--flow-start-x', `${start.x}px`);
+        flowDot.style.setProperty('--flow-start-y', `${start.y}px`);
+        flowDot.style.setProperty('--flow-end-x', `${end.x}px`);
+        flowDot.style.setProperty('--flow-end-y', `${end.y}px`);
+        flowDot.style.setProperty('--flow-color', color);
+        flowDot.style.setProperty('--flow-shadow', shadow);
+      }
+
+      function render() {
+        const data = cases[activeCase];
+        const activeSteps = new Set(data.activeSteps);
+        ['has-sight', 'has-hearing', 'is-stale', 'is-forgotten', 'is-running'].forEach((className) => stage.classList.remove(className));
+        data.classes.forEach((className) => stage.classList.add(className));
+        target.classList.toggle('is-active', activeCase === 'sight');
+        target.classList.toggle('is-stale', activeCase === 'lost');
+        target.classList.toggle('is-forgotten', activeCase === 'forget');
+        noise.classList.toggle('is-active', activeCase === 'hearing');
+        lastLocation.classList.toggle('is-visible', activeCase === 'lost' || activeCase === 'hearing');
+        lastLocation.classList.toggle('is-noise', activeCase === 'hearing');
+        flowDot.dataset.aiFlow = data.flow;
+        targetLabel.textContent = data.targetLabel;
+        setFlowPosition(data.flow);
+        caseTitle.textContent = data.title;
+        stepLabel.textContent = data.step;
+        resultLabel.textContent = data.result;
+        memoryState.textContent = data.memory;
+        blackboardState.textContent = data.blackboard;
+        delegate.textContent = data.delegate;
+
+        steps.forEach((step) => {
+          const active = activeSteps.has(step.dataset.aiStep);
+          step.classList.toggle('is-active', active);
+          step.classList.toggle('is-success', active);
+          step.classList.toggle('is-failed', activeCase === 'forget' && step.dataset.aiStep === 'memory');
+        });
+
+        log.innerHTML = `<p>${data.line}</p>`;
+        setSelected(activeCase);
+      }
+
+      function replay() {
+        stage.classList.remove('is-running');
+        render();
+        stage.getBoundingClientRect();
+        stage.classList.add('is-running');
+      }
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+          activeCase = button.dataset.aiCase;
+          replay();
+        });
+      });
+      runButton.addEventListener('click', replay);
+      window.addEventListener('resize', () => {
+        setFlowPosition(cases[activeCase].flow);
+      });
+      lab.querySelectorAll('[data-ai-detail]').forEach((element) => {
+        const key = element.dataset.aiDetail;
+        element.addEventListener('mouseenter', () => setDetail(key));
+        element.addEventListener('focus', () => setDetail(key));
+        element.addEventListener('click', () => setDetail(key));
+      });
+
+      setDetail('listener');
+      render();
+    })();
+  </script>
+  <script src="../interactive-enhancements.js"></script>
 </body>
 </html>

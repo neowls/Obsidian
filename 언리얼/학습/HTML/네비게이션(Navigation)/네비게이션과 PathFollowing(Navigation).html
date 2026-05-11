@@ -37,16 +37,122 @@
     <div class="layout">
       <article class="content">
         <section id="visual" class="panel">
-          <h2>경로 계산과 경로 추종은 다릅니다</h2>
-          <div class="visual-board two-col">
-            <div class="tile-map" aria-label="Navigation path map">
-              <div class="tile">Start</div><div class="tile path">P1</div><div class="tile path">P2</div><div class="tile blocked">Block</div><div class="tile">Alt</div><div class="tile hot">Goal</div>
-              <div class="tile">Nav</div><div class="tile path">P3</div><div class="tile path">P4</div><div class="tile path">P5</div><div class="tile">Near</div><div class="tile">End</div>
+          <h2>MoveTo / PathFollowing 실험판</h2>
+          <p>
+            <code>MoveTo</code>는 경로 계산 함수 하나가 아니라 이동 요청 계약입니다.
+            목적지 조건과 옵션을 바꾸면 Project Goal, HasReached, FindPathSync, RequestMove, FollowPathSegment 중 어느 단계까지 가는지가 달라집니다.
+          </p>
+
+          <div class="interactive-lab nav-move-lab" data-nav-lab>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="control-group">
+                <span class="control-label">Case</span>
+                <div class="segmented-control" role="group" aria-label="Navigation goal scenario">
+                  <button type="button" class="mini-button is-selected" data-nav-goal="reachable">Reachable Goal</button>
+                  <button type="button" class="mini-button" data-nav-goal="projected">Off NavMesh</button>
+                  <button type="button" class="mini-button" data-nav-goal="partial">Blocked Goal</button>
+                  <button type="button" class="mini-button" data-nav-goal="already">Already At Goal</button>
+                </div>
+              </div>
+              <button type="button" class="primary-button" data-nav-run>Replay</button>
             </div>
-            <div class="memory-list">
-              <div class="memory-slot key"><strong>UNavigationSystemV1</strong><span>NavData 선택, 위치 투영, pathfinding 질의의 상위 진입점</span></div>
-              <div class="memory-slot"><strong>ANavigationData / Recast</strong><span>실제 pathfinding과 navmesh query 수행</span></div>
-              <div class="memory-slot"><strong>UPathFollowingComponent</strong><span>경로 수락, segment 추종, 도착 판정, 완료 통지</span></div>
+
+            <div class="nav-lab-board">
+              <div class="nav-topview-wrap">
+                <svg class="nav-topview" viewBox="0 0 720 420" role="img" aria-labelledby="nav-map-title nav-map-desc" data-nav-scene>
+                  <title id="nav-map-title">Navigation top view path map</title>
+                  <desc id="nav-map-desc">AI 위치에서 목적지까지의 complete path, projected goal, partial path를 탑뷰로 보여줍니다.</desc>
+                  <defs>
+                    <marker id="nav-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                      <path d="M 0 0 L 10 5 L 0 10 z"></path>
+                    </marker>
+                  </defs>
+                  <rect class="topview-floor" x="24" y="24" width="672" height="372" rx="12"></rect>
+                  <path class="topview-navmesh" d="M74 72 L274 58 L402 96 L650 82 L650 334 L496 364 L330 336 L74 350 Z"></path>
+                  <rect class="topview-wall" x="350" y="52" width="54" height="156" rx="6"></rect>
+                  <rect class="topview-wall" x="488" y="218" width="52" height="126" rx="6"></rect>
+                  <rect class="topview-cover" x="186" y="98" width="86" height="30" rx="5"></rect>
+                  <rect class="topview-cover" x="260" y="282" width="112" height="28" rx="5"></rect>
+                  <line class="nav-direct-line" data-nav-direct-line x1="92" y1="214" x2="638" y2="136"></line>
+                  <polyline class="nav-path-line" data-nav-path-line points=""></polyline>
+                  <circle class="nav-acceptance-ring" data-nav-radius-ring cx="638" cy="136" r="34"></circle>
+                  <g class="nav-map-spot is-start" data-nav-spot="0" tabindex="0" transform="translate(92 214)"><circle r="11"></circle><text y="31">Start</text></g>
+                  <g class="nav-map-spot" data-nav-spot="1" tabindex="0" transform="translate(170 174)"><circle r="8"></circle><text y="26">P1</text></g>
+                  <g class="nav-map-spot" data-nav-spot="2" tabindex="0" transform="translate(252 126)"><circle r="8"></circle><text y="26">P2</text></g>
+                  <g class="nav-map-spot" data-nav-spot="3" tabindex="0" transform="translate(190 272)"><circle r="8"></circle><text y="26">Alt1</text></g>
+                  <g class="nav-map-spot" data-nav-spot="4" tabindex="0" transform="translate(286 230)"><circle r="8"></circle><text y="26">Alt2</text></g>
+                  <g class="nav-map-spot" data-nav-spot="5" tabindex="0" transform="translate(320 122)"><circle r="8"></circle><text y="26">Turn</text></g>
+                  <g class="nav-map-spot" data-nav-spot="6" tabindex="0" transform="translate(360 270)"><circle r="8"></circle><text y="26">P3</text></g>
+                  <g class="nav-map-spot" data-nav-spot="7" tabindex="0" transform="translate(456 182)"><circle r="8"></circle><text y="26">Door</text></g>
+                  <g class="nav-map-spot is-block-node" data-nav-spot="8" tabindex="0" transform="translate(518 244)"><circle r="8"></circle><text y="26">Block</text></g>
+                  <g class="nav-map-spot is-block-node" data-nav-spot="9" tabindex="0" transform="translate(570 286)"><circle r="8"></circle><text y="26">Gap</text></g>
+                  <g class="nav-map-spot" data-nav-spot="10" tabindex="0" transform="translate(594 214)"><circle r="8"></circle><text y="26">Projected</text></g>
+                  <g class="nav-map-spot is-goal-node" data-nav-spot="11" tabindex="0" transform="translate(638 136)"><circle r="11"></circle><text y="31">Goal</text></g>
+                  <g class="nav-projected-marker" data-nav-projected-marker transform="translate(594 214)">
+                    <circle r="20"></circle>
+                    <text y="-27">ProjectPointToNavigation</text>
+                  </g>
+                  <g class="nav-agent-marker" data-nav-agent transform="translate(92 214)">
+                    <circle r="18"></circle>
+                    <path d="M17 0 L34 -10 L34 10 Z"></path>
+                  </g>
+                  <g class="nav-goal-marker" data-nav-goal-marker transform="translate(638 136)">
+                    <path d="M0 -24 L20 14 L-20 14 Z"></path>
+                    <text y="-32">Goal</text>
+                  </g>
+                </svg>
+                <div class="topview-legend" aria-label="Navigation map legend">
+                  <span><i class="legend-dot valid"></i>Path segment</span>
+                  <span><i class="legend-dot selected"></i>Goal</span>
+                  <span><i class="legend-dot blocked"></i>Blocked</span>
+                  <span><i class="legend-line"></i>PathFollowing route</span>
+                </div>
+              </div>
+
+              <div class="lab-side-panel">
+                <div class="lab-summary-grid">
+                  <div class="lab-summary-card">
+                    <span>Case</span>
+                    <strong data-nav-case-title>Complete Path</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Status</span>
+                    <strong data-nav-status>Moving</strong>
+                  </div>
+                  <div class="lab-summary-card">
+                    <span>Result</span>
+                    <strong data-nav-result>RequestSuccessful</strong>
+                  </div>
+                </div>
+                <div class="lab-detail-panel" data-nav-detail-panel role="status" aria-live="polite">
+                  <span class="detail-kicker">Hover / Tap Detail</span>
+                  <strong data-nav-detail-title>PathFollowing Route</strong>
+                  <p data-nav-detail-body>PathFollowingComponent가 경로 세그먼트를 소비하면서 movement component에 이동 입력을 전달합니다.</p>
+                  <dl>
+                    <div><dt>State</dt><dd data-nav-detail-state>Moving</dd></div>
+                    <div><dt>Engine</dt><dd data-nav-detail-engine>UPathFollowingComponent</dd></div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+
+            <div class="process-track nav-process-track" aria-label="MoveTo process">
+              <div class="process-step is-active" data-nav-step="request"><span>1</span><strong>MoveRequest</strong><small>FAIMoveRequest 구성</small></div>
+              <div class="process-step is-active" data-nav-step="project"><span>2</span><strong>Project</strong><small>목적지 NavMesh 투영</small></div>
+              <div class="process-step is-active" data-nav-step="reached"><span>3</span><strong>HasReached</strong><small>즉시 도착 판정</small></div>
+              <div class="process-step is-active" data-nav-step="query"><span>4</span><strong>FindPath</strong><small>FPathFindingQuery</small></div>
+              <div class="process-step is-active" data-nav-step="move"><span>5</span><strong>RequestMove</strong><small>PathFollowing에 경로 전달</small></div>
+              <div class="process-step is-active" data-nav-step="follow"><span>6</span><strong>Follow</strong><small>세그먼트 추종</small></div>
+              <div class="process-step is-active" data-nav-step="finish"><span>7</span><strong>Finish</strong><small>OnMoveCompleted</small></div>
+            </div>
+
+            <div class="lab-state-row" aria-live="polite">
+              <span class="state-chip is-hot">Owner <strong>UPathFollowingComponent</strong></span>
+              <span class="state-chip">Flag <strong data-nav-flag>None</strong></span>
+              <span class="state-chip">Controller <strong data-nav-controller>RequestMove</strong></span>
+            </div>
+            <div class="event-log" data-nav-log>
+              <p>Reachable Goal은 FindPathSync 이후 PathFollowingComponent가 complete path를 따라갑니다.</p>
             </div>
           </div>
         </section>
@@ -114,5 +220,318 @@
   <footer class="footer">
     <div class="site-shell">Navigation Markdown을 반응형 시각 자료로 재구성했습니다.</div>
   </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-nav-lab]');
+      if (!lab) return;
+
+      const goalButtons = [...lab.querySelectorAll('[data-nav-goal]')];
+      const spots = new Map([...lab.querySelectorAll('[data-nav-spot]')].map((spot) => [Number(spot.dataset.navSpot), spot]));
+      const scene = lab.querySelector('[data-nav-scene]');
+      const pathLine = lab.querySelector('[data-nav-path-line]');
+      const directLine = lab.querySelector('[data-nav-direct-line]');
+      const radiusRing = lab.querySelector('[data-nav-radius-ring]');
+      const projectedMarker = lab.querySelector('[data-nav-projected-marker]');
+      const goalMarker = lab.querySelector('[data-nav-goal-marker]');
+      const agentMarker = lab.querySelector('[data-nav-agent]');
+      const caseTitle = lab.querySelector('[data-nav-case-title]');
+      const resultLabel = lab.querySelector('[data-nav-result]');
+      const statusLabel = lab.querySelector('[data-nav-status]');
+      const flagLabel = lab.querySelector('[data-nav-flag]');
+      const controllerLabel = lab.querySelector('[data-nav-controller]');
+      const log = lab.querySelector('[data-nav-log]');
+      const runButton = lab.querySelector('[data-nav-run]');
+      const steps = [...lab.querySelectorAll('[data-nav-step]')];
+      let animationTimer = 0;
+      let agentFrame = 0;
+      let activeCase = 'reachable';
+      const detailPanel = {
+        title: lab.querySelector('[data-nav-detail-title]'),
+        body: lab.querySelector('[data-nav-detail-body]'),
+        state: lab.querySelector('[data-nav-detail-state]'),
+        engine: lab.querySelector('[data-nav-detail-engine]')
+      };
+
+      const spotPositions = {
+        0: { x: 92, y: 214 },
+        1: { x: 170, y: 174 },
+        2: { x: 252, y: 126 },
+        3: { x: 190, y: 272 },
+        4: { x: 286, y: 230 },
+        5: { x: 320, y: 122 },
+        6: { x: 360, y: 270 },
+        7: { x: 456, y: 182 },
+        8: { x: 518, y: 244 },
+        9: { x: 570, y: 286 },
+        10: { x: 594, y: 214 },
+        11: { x: 638, y: 136 }
+      };
+
+      const scenarios = {
+        reachable: {
+          title: 'Complete Path',
+          path: [0, 1, 2, 5, 6, 7, 11],
+          blocked: [],
+          goal: 11,
+          projected: null,
+          result: 'RequestSuccessful',
+          status: 'Moving',
+          pathState: 'Complete',
+          flag: 'None',
+          controller: 'RequestMove',
+          radius: 46,
+          skipped: [],
+          note: 'FindPathSync가 완전 경로를 만들고 PathFollowing이 세그먼트를 따라갑니다.'
+        },
+        projected: {
+          title: 'Projected Goal',
+          path: [0, 1, 4, 7, 10],
+          blocked: [],
+          goal: 11,
+          projected: 10,
+          result: 'RequestSuccessful',
+          status: 'Moving',
+          pathState: 'Projected',
+          flag: 'ProjectedGoal',
+          controller: 'ProjectPointToNavigation',
+          radius: 42,
+          skipped: [],
+          note: '목표가 NavMesh 밖이라 Project Goal 단계가 유효 위치로 보정합니다.'
+        },
+        partial: {
+          title: 'Partial Path',
+          path: [0, 3, 6, 7],
+          blocked: [8, 9, 10, 11],
+          goal: 11,
+          projected: null,
+          result: 'RequestSuccessful',
+          status: 'Moving',
+          pathState: 'Partial',
+          flag: 'PartialPath',
+          controller: 'RequestMove',
+          radius: 38,
+          skipped: [],
+          note: '완전 도달은 불가능하지만 AllowPartialPath 케이스라 마지막 도달 가능 지점까지 이동합니다.'
+        },
+        already: {
+          title: 'Already At Goal',
+          path: [0],
+          blocked: [],
+          goal: 0,
+          projected: null,
+          result: 'AlreadyAtGoal',
+          status: 'Idle',
+          pathState: 'No query',
+          flag: 'AlreadyAtGoal',
+          controller: 'Finish immediately',
+          radius: 54,
+          skipped: ['project', 'query', 'move', 'follow'],
+          note: 'HasReached가 먼저 성공해 pathfinding과 RequestMove를 생략합니다.'
+        }
+      };
+
+      function setPressed() {
+        goalButtons.forEach((button) => {
+          const selected = button.dataset.navGoal === activeCase;
+          button.classList.toggle('is-selected', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+      }
+
+      function pathPoints(path) {
+        return path
+          .map((index) => spotPositions[index])
+          .filter(Boolean)
+          .map((point) => `${point.x},${point.y}`)
+          .join(' ');
+      }
+
+      function getScenario() {
+        return scenarios[activeCase];
+      }
+
+      function setMarkerPosition(marker, index) {
+        const point = spotPositions[index];
+        if (!point) return;
+        marker.setAttribute('transform', `translate(${point.x} ${point.y})`);
+      }
+
+      function setDetail(type, id = null) {
+        const scenario = getScenario();
+        if (type === 'path') {
+          detailPanel.title.textContent = 'PathFollowing Route';
+          detailPanel.body.textContent = scenario.note;
+          detailPanel.state.textContent = scenario.pathState;
+          detailPanel.engine.textContent = 'UPathFollowingComponent';
+          return;
+        }
+        if (type === 'goal') {
+          detailPanel.title.textContent = scenario.projected === null ? 'Goal' : 'Projected Goal';
+          detailPanel.body.textContent = scenario.projected === null
+            ? 'MoveRequest의 목적지입니다. 경로 탐색 또는 HasReached 판정의 기준이 됩니다.'
+            : '원래 목표가 NavMesh 밖이라 ProjectPointToNavigation으로 보정된 위치입니다.';
+          detailPanel.state.textContent = scenario.flag;
+          detailPanel.engine.textContent = scenario.projected === null ? 'FAIMoveRequest' : 'UNavigationSystemV1';
+          return;
+        }
+        const pointName = id === 0 ? 'Start' : id === scenario.goal ? 'Goal' : id === scenario.projected ? 'Projected point' : `Path point ${id}`;
+        detailPanel.title.textContent = pointName;
+        detailPanel.body.textContent = spots.get(id)?.classList.contains('is-path')
+          ? '현재 케이스의 path segment에 포함되는 지점입니다.'
+          : '이번 케이스에서 경로로 선택되지 않은 후보 지점입니다.';
+        detailPanel.state.textContent = spots.get(id)?.classList.contains('is-blocked') ? 'Blocked' : 'Waypoint';
+        detailPanel.engine.textContent = id === 0 ? 'AIController MoveTo' : 'FNavPathPoint';
+      }
+
+      function renderMap() {
+        const scenario = getScenario();
+        const pathSet = new Set(scenario.path);
+        const blockedSet = new Set(scenario.blocked);
+        const finalIndex = scenario.projected ?? scenario.goal;
+        const startPoint = spotPositions[scenario.path[0] ?? 0];
+        const goalPoint = spotPositions[scenario.goal];
+        const finalPoint = spotPositions[finalIndex];
+
+        spots.forEach((spot, index) => {
+          spot.classList.toggle('is-path', pathSet.has(index));
+          spot.classList.toggle('is-explored', false);
+          spot.classList.toggle('is-blocked', blockedSet.has(index));
+          spot.classList.toggle('is-projected', scenario.projected === index);
+          spot.classList.toggle('is-current-goal', index === finalIndex);
+        });
+
+        pathLine.setAttribute('points', pathPoints(scenario.path));
+        pathLine.classList.toggle('is-active', scenario.path.length > 1);
+        pathLine.classList.toggle('is-partial', scenario.pathState === 'Partial');
+        pathLine.classList.toggle('is-failed', false);
+        directLine.classList.toggle('is-active', false);
+        directLine.classList.toggle('is-failed', false);
+        if (goalPoint) {
+          directLine.setAttribute('x2', String(goalPoint.x));
+          directLine.setAttribute('y2', String(goalPoint.y));
+        }
+        if (finalPoint) {
+          radiusRing.setAttribute('cx', String(finalPoint.x));
+          radiusRing.setAttribute('cy', String(finalPoint.y));
+          radiusRing.setAttribute('r', String(scenario.radius));
+        }
+        if (startPoint) {
+          agentMarker.setAttribute('transform', `translate(${startPoint.x} ${startPoint.y})`);
+        }
+        radiusRing.classList.toggle('is-active', activeCase !== 'already');
+        projectedMarker.classList.toggle('is-visible', scenario.projected !== null);
+        setMarkerPosition(projectedMarker, scenario.projected ?? 10);
+        setMarkerPosition(goalMarker, scenario.goal);
+        scene.classList.toggle('is-already', activeCase === 'already');
+        scene.classList.toggle('is-partial', scenario.pathState === 'Partial');
+        scene.classList.toggle('is-failed', false);
+        scene.classList.toggle('is-projected', scenario.projected !== null);
+      }
+
+      function renderProcess() {
+        const scenario = getScenario();
+        const skipped = new Set(scenario.skipped);
+        const success = new Set(['request', 'project', 'reached', 'query', 'move', 'follow', 'finish'].filter((id) => !skipped.has(id)));
+        steps.forEach((step) => {
+          const id = step.dataset.navStep;
+          step.classList.toggle('is-skipped', skipped.has(id));
+          step.classList.toggle('is-success', success.has(id) && !skipped.has(id));
+          step.classList.toggle('is-failed', false);
+        });
+      }
+
+      function render() {
+        const scenario = getScenario();
+        renderMap();
+        renderProcess();
+        setPressed();
+
+        caseTitle.textContent = scenario.title;
+        resultLabel.textContent = scenario.result;
+        statusLabel.textContent = scenario.status;
+        flagLabel.textContent = scenario.flag;
+        controllerLabel.textContent = scenario.controller;
+        log.innerHTML = `<p>${scenario.note}</p>`;
+      }
+
+      function animateMove() {
+        if (animationTimer) window.clearTimeout(animationTimer);
+        const scenario = getScenario();
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const order = ['request', 'project', 'reached', 'query', 'move', 'follow', 'finish']
+          .filter((id) => !scenario.skipped.includes(id));
+        steps.forEach((step) => step.classList.remove('is-active'));
+        order.forEach((id, index) => {
+          window.setTimeout(() => {
+            steps.forEach((step) => step.classList.toggle('is-active', step.dataset.navStep === id));
+          }, index * 150);
+        });
+        animationTimer = window.setTimeout(() => {
+          steps.forEach((step) => step.classList.add('is-active'));
+          renderProcess();
+        }, order.length * 150 + 180);
+      }
+
+      function animateAgent() {
+        if (agentFrame) cancelAnimationFrame(agentFrame);
+        const scenario = getScenario();
+        const route = scenario.path.map((index) => spotPositions[index]).filter(Boolean);
+        if (!route.length) return;
+        if (activeCase === 'already' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          agentMarker.setAttribute('transform', `translate(${route[0].x} ${route[0].y})`);
+          return;
+        }
+        const start = performance.now();
+        const duration = 1100;
+        function frame(now) {
+          const t = Math.min((now - start) / duration, 1);
+          const scaled = t * (route.length - 1);
+          const index = Math.min(route.length - 2, Math.floor(scaled));
+          const localT = scaled - index;
+          const a = route[index];
+          const b = route[index + 1];
+          agentMarker.setAttribute('transform', `translate(${a.x + (b.x - a.x) * localT} ${a.y + (b.y - a.y) * localT})`);
+          if (t < 1) agentFrame = requestAnimationFrame(frame);
+        }
+        agentFrame = requestAnimationFrame(frame);
+      }
+
+      function replay() {
+        scene.classList.remove('is-running');
+        render();
+        scene.getBoundingClientRect();
+        scene.classList.add('is-running');
+        animateMove();
+        animateAgent();
+      }
+
+      goalButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          activeCase = button.dataset.navGoal;
+          replay();
+        });
+      });
+      runButton.addEventListener('click', () => {
+        replay();
+      });
+      spots.forEach((spot, id) => {
+        spot.addEventListener('mouseenter', () => setDetail('spot', id));
+        spot.addEventListener('focus', () => setDetail('spot', id));
+        spot.addEventListener('click', () => setDetail('spot', id));
+      });
+      pathLine.setAttribute('tabindex', '0');
+      pathLine.addEventListener('mouseenter', () => setDetail('path'));
+      pathLine.addEventListener('focus', () => setDetail('path'));
+      pathLine.addEventListener('click', () => setDetail('path'));
+      goalMarker.setAttribute('tabindex', '0');
+      goalMarker.addEventListener('mouseenter', () => setDetail('goal'));
+      goalMarker.addEventListener('focus', () => setDetail('goal'));
+      goalMarker.addEventListener('click', () => setDetail('goal'));
+
+      setDetail('path');
+      render();
+    })();
+  </script>
+  <script src="../interactive-enhancements.js"></script>
 </body>
 </html>
