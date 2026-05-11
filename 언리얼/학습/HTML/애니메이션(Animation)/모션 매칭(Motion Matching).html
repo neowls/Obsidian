@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>모션 매칭(Motion Matching)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#motionmatch-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#schema">스키마</a>
+        <a href="#database">데이터베이스</a>
+        <a href="#node">노드</a>
+        <a href="#tuning">튜닝</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Animation / Pose Search</p>
+      <h1>모션 매칭(Motion Matching)</h1>
+      <p class="lead">
+        Motion Matching은 현재 캐릭터 상태와 목표 궤적을 쿼리로 만들고, Pose Search Database에서 가장 가까운 포즈를 찾아 재생하는 애니메이션 선택 시스템입니다.
+        전통적인 State Machine 전이 규칙을 줄이고, 많은 애니메이션 데이터를 기반으로 더 반응적인 로코모션을 만들 때 사용합니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 애니메이션(Animation)/모션 매칭(Motion Matching).md</span>
+        <span class="pill">난이도: 고급 로코모션</span>
+        <span class="pill">핵심: Pose Search, Schema, Database, Motion Matching Node</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="motionmatch-visual" class="panel">
+          <h2>Pose Search 선택 실험판</h2>
+          <p>
+            Motion Matching은 현재 상태와 미래 궤적을 쿼리로 만들고, Database 후보 중 비용이 가장 낮은 포즈를 선택합니다. 속도와 방향을 바꿔 어떤 후보가 선택되는지 확인하세요.
+          </p>
+
+          <div class="interactive-lab pose-search-lab" data-motionmatch-sim>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="range-field compact-range">
+                <label for="motion-speed">목표 속도</label>
+                <input id="motion-speed" type="range" min="0" max="650" value="420" step="10" data-motion-speed>
+              </div>
+              <div class="control-group">
+                <span class="control-label">목표 방향</span>
+                <div class="segmented-control" role="group" aria-label="Motion direction">
+                  <button type="button" class="mini-button is-selected" data-motion-dir="forward">Forward</button>
+                  <button type="button" class="mini-button" data-motion-dir="strafe">Strafe</button>
+                  <button type="button" class="mini-button" data-motion-dir="back">Back</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="pose-query-panel">
+              <div class="attribute-card">
+                <span class="node-kicker">Runtime Query</span>
+                <strong data-motion-query>Speed 420 / Forward</strong>
+                <small>Trajectory + Current Pose feature vector</small>
+              </div>
+              <div class="pose-candidates" data-motion-candidates></div>
+            </div>
+            <div class="event-log" data-motion-log>
+              <p>가장 낮은 비용의 후보가 Motion Matching 노드의 출력 포즈가 됩니다.</p>
+            </div>
+          </div>
+        </section>
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Motion Matching은 애니메이션을 상태 이름으로 고르는 대신, 현재 포즈와 미래 이동 의도에 가장 가까운 데이터베이스 포즈를 비용 계산으로 고르는 방식</strong>입니다.
+            Pose Search 플러그인이 스키마와 데이터베이스를 만들고, AnimGraph의 Motion Matching 노드가 런타임 검색과 블렌딩을 담당합니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../../IMG/image_000.gif" alt="Motion Matching 예시 애니메이션" loading="lazy">
+            <figcaption>원본 노트의 Motion Matching 개요 이미지입니다. 실제 품질은 데이터베이스 구성, 궤적 샘플, 블렌드 설정에 크게 좌우됩니다.</figcaption>
+          </figure>
+
+          <div class="flow">
+            <div class="flow-step">
+              <span class="flow-kicker">1</span>
+              <strong>플러그인 활성화</strong>
+              <span>Pose Search 플러그인을 켜고 프로젝트를 재시작합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2</span>
+              <strong>Schema 작성</strong>
+              <span>어떤 본, 속도, 궤적을 비교할지 채널로 정의합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3</span>
+              <strong>Database 구성</strong>
+              <span>검색 대상 애니메이션과 검색 모드를 정합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4</span>
+              <strong>AnimGraph 연결</strong>
+              <span>Motion Matching 노드에 Database와 블렌드 설정을 연결합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5</span>
+              <strong>디버깅과 튜닝</strong>
+              <span>Rewind Debugger, 채널 가중치, 노티파이 필터링으로 결과를 다듬습니다.</span>
+            </div>
+          </div>
+
+          <div class="diagram" aria-label="Pose Search와 Motion Matching 데이터 경로">
+            <p class="diagram-title">시각화 요약: Pose Search 데이터 경로</p>
+            <div class="node-chain wide">
+              <div class="v-node">
+                <strong>Character Intent</strong>
+                <span>속도, 입력 방향, 원하는 미래 궤적이 런타임 쿼리의 일부가 됩니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Current Pose</strong>
+                <span>현재 본 위치와 속도가 전환 비용을 줄이는 기준이 됩니다.</span>
+              </div>
+              <div class="v-node highlight">
+                <strong>Pose Search Schema</strong>
+                <span>어떤 채널과 가중치로 비교할지 정의합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Search Database</strong>
+                <span>분석된 애니메이션 포즈와 feature vector를 검색 대상으로 보관합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Motion Matching Node</strong>
+                <span>가장 낮은 비용의 포즈를 고르고 블렌드 정책을 적용합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Output Pose</strong>
+                <span>선택된 애니메이션이 AnimGraph의 다음 노드로 전달됩니다.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>기존 방식과의 차이</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>구분</th>
+                  <th>State Machine / Blend Space</th>
+                  <th>Motion Matching</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>선택 기준</td>
+                  <td>상태 전이 조건, 속도/방향 파라미터</td>
+                  <td>현재 포즈, 본 위치/속도, 과거/미래 궤적의 비용</td>
+                </tr>
+                <tr>
+                  <td>장점</td>
+                  <td>구조가 명확하고 작은 데이터에도 예측 가능</td>
+                  <td>전이 규칙을 적게 작성해도 다양한 상황에 반응</td>
+                </tr>
+                <tr>
+                  <td>비용</td>
+                  <td>상태가 늘수록 그래프와 전이 조건이 복잡해짐</td>
+                  <td>데이터베이스 크기, 채널 수, 검색 빈도에 따라 CPU/메모리 비용 증가</td>
+                </tr>
+                <tr>
+                  <td>적합한 경우</td>
+                  <td>명확한 상태와 적은 이동 패턴</td>
+                  <td>방향 전환, 시작/정지, 피벗, 다양한 속도가 많은 로코모션</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="schema" class="panel">
+          <h2>Pose Search Schema</h2>
+          <p>
+            Schema는 검색에 사용할 특징 벡터를 정의하는 에셋입니다.
+            "어떤 데이터를 비교할 것인가"를 정하는 곳이므로, 부정확한 Schema는 아무리 좋은 애니메이션을 넣어도 잘못된 포즈 선택을 만듭니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted image 20250120081422.png" alt="Pose Search Schema 에셋 설정" loading="lazy">
+            <figcaption>Schema는 Skeleton, Sample Rate, Channel, Data Preprocessor 같은 검색 기준을 담습니다.</figcaption>
+          </figure>
+
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>Trajectory 채널</h3>
+              <p>캐릭터의 과거/미래 이동 궤적을 비교합니다. 로코모션에서는 입력 방향과 목표 이동 방향을 반영하는 핵심 채널입니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Pose 채널</h3>
+              <p>발, 손, 골반처럼 중요한 본의 위치/속도/회전/페이즈를 비교합니다. 발 본은 걷기/달리기 품질에 특히 중요합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Heading / Velocity</h3>
+              <p>본이나 캐릭터의 방향과 속도를 비교합니다. 월드 이동보다 캐릭터 로컬 움직임을 보고 싶으면 Character Space 옵션을 고려합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Phase</h3>
+              <p>보행 주기 같은 반복 애니메이션의 위상을 비교합니다. 좌우 발 타이밍이 흔들릴 때 중요한 단서가 됩니다.</p>
+            </div>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">채널을 늘리는 것이 항상 정답은 아닙니다</p>
+            <p>
+              채널과 샘플이 많아지면 검색 품질을 높일 수 있지만, 메모리와 런타임 검색 비용도 증가합니다.
+              먼저 발 위치/속도와 궤적처럼 결과에 직접 영향을 주는 최소 채널을 잡고, 잘못 선택되는 케이스를 디버깅한 뒤 보강하는 편이 안정적입니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="database" class="panel">
+          <h2>Pose Search Database</h2>
+          <p>
+            Database는 Motion Matching 노드가 선택할 수 있는 애니메이션 후보 목록입니다.
+            원본 노트 기준으로 Animation Sequence를 기본으로 사용하고, 필요에 따라 Animation Composite와 Blend Space도 검색 대상으로 구성할 수 있습니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted image 20250120083040.png" alt="Pose Search Database 에디터" loading="lazy">
+            <figcaption>Database 에디터에서는 Schema, 애니메이션 목록, 검색 모드, 정규화 세트, 프리뷰 메시 등을 조정합니다.</figcaption>
+          </figure>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>설정</th>
+                  <th>학습 포인트</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Schema</code></td>
+                  <td>Database가 어떤 특징 벡터로 인덱싱될지 결정합니다. 다른 Skeleton이나 채널 구조를 섞기 전에 Schema 호환성을 먼저 확인합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Continuing Pose Cost Bias</code></td>
+                  <td>현재 재생 중인 세그먼트를 유지할지, 더 빨리 다른 포즈로 넘어갈지 조정합니다. 음수는 유지 쪽, 양수는 이탈 쪽으로 작동합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Pose Search Mode</code></td>
+                  <td><code>Brute Force</code>는 모든 포즈를 평가하고, <code>PCAKDTree</code>는 PCA/KDTree 기반 최적화 검색을 사용합니다. 원본 노트의 <code>VPTree</code>는 실험 기능으로 취급합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Normalization Set</code></td>
+                  <td>걷기/달리기/전투 이동처럼 성격이 다른 Database를 비교 가능한 범위로 정규화하거나, 상황별 데이터 풀을 제어할 때 사용합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Root Motion</code></td>
+                  <td>로코모션 Motion Matching에 쓰는 애니메이션은 보통 Root Motion이 필요합니다. 애니메이션 시퀀스의 Root Motion 설정까지 같이 확인합니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="node" class="panel">
+          <h2>Motion Matching 노드</h2>
+          <p>
+            AnimGraph의 Motion Matching 노드는 Database 검색, 선택 결과 재생, 블렌드 스택, 노티파이 필터링을 묶는 런타임 진입점입니다.
+            UE 5.7 Python API에서도 <code>AnimNode_MotionMatching</code>은 PoseSearch 플러그인 노드로 노출되며, Database와 검색/블렌드 관련 속성을 갖습니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted image 20250120083642.png" alt="Motion Matching 노드 디테일 패널" loading="lazy">
+            <figcaption>노드 설정은 품질과 성능을 동시에 결정합니다. 특히 Search Throttle, Blend Time, Pose Reselect History를 함께 봅니다.</figcaption>
+          </figure>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>옵션</th>
+                  <th>의미</th>
+                  <th>조정 기준</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Database</code></td>
+                  <td>검색할 Pose Search Database</td>
+                  <td>상황별 Database를 나눈 경우 Anim Node Function이나 Chooser로 교체할 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Blend Time</code></td>
+                  <td>새 포즈로 넘어갈 때 블렌드 시간</td>
+                  <td>짧으면 반응이 빠르지만 팝핑이 생기고, 길면 부드럽지만 둔해집니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Pose Jump Threshold Time</code></td>
+                  <td>같은 세그먼트 내 너무 가까운 포즈로 점프하지 않게 하는 시간 범위</td>
+                  <td>작은 떨림이나 같은 클립 반복 선택을 줄이는 데 사용합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Pose Reselect History</code></td>
+                  <td>최근 선택한 포즈를 일정 시간 다시 선택하지 않게 함</td>
+                  <td>반복적인 포즈 재선택으로 보행이 떨릴 때 확인합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Search Throttle Time</code></td>
+                  <td>새 검색을 수행하는 최소 간격</td>
+                  <td>매 프레임 검색이 필요 없는 점프/착지류 동작에서는 성능 절약 수단이 됩니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Should Filter Notifies</code></td>
+                  <td>선택 포즈가 바뀌며 같은 Anim Notify가 여러 번 울리는 것을 제한</td>
+                  <td>발소리, 먼지 이펙트 같은 반복 노티파이 중복을 줄입니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Max Active Blends</code></td>
+                  <td>Blend Stack에서 동시에 유지할 블렌드 수</td>
+                  <td>0이면 블렌드 스택이 꺼집니다. 값이 커질수록 부드러워질 수 있으나 비용이 늘어납니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tuning" class="panel">
+          <h2>튜닝 판단 기준</h2>
+          <div class="split">
+            <div class="study-card">
+              <h3>잘못된 포즈가 선택될 때</h3>
+              <p>가중치만 높이지 말고 데이터 자체가 원하는 속도와 방향을 포함하는지 먼저 확인합니다. 이동 모델은 5m/s인데 데이터 평균이 4m/s라면 최고 속도 포즈만 반복 선택될 수 있습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>노티파이가 중복될 때</h3>
+              <p><code>Should Filter Notifies</code>와 <code>Notify Recency Time Out</code>을 사용합니다. 단, Notify State에는 적용되지 않는 점을 구분해야 합니다.</p>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>애님 노티파이 필터링 미사용</th>
+                  <th>애님 노티파이 필터링 사용</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><img src="../../IMG/Pasted image 20250120083744.png" alt="노티파이 필터링 미사용 예시" loading="lazy" style="max-width:100%; border-radius:6px;"></td>
+                  <td><img src="../../IMG/Pasted image 20250120083735.png" alt="노티파이 필터링 사용 예시" loading="lazy" style="max-width:100%; border-radius:6px;"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout">
+            <p class="callout-title">UE 5.7.4에서 확인할 최신 포인트</p>
+            <p>
+              UE 5.7 릴리즈 노트 기준으로 Motion Matching과 Chooser 통합이 실험 기능으로 추가되었습니다.
+              이는 Database 단위뿐 아니라 개별 에셋 단위에서도 게임 로직 조건으로 후보를 필터링할 수 있게 하는 방향입니다.
+              프로덕션 문서에는 실험 기능으로 표시해 두고, 핵심 로코모션은 기존 Pose Search Database 흐름을 먼저 안정화하는 것이 좋습니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>실무 체크리스트</h2>
+          <ul class="checklist">
+            <li>Pose Search 플러그인이 켜져 있고, 프로젝트 재시작 후 에셋 메뉴가 보이는지 확인합니다.</li>
+            <li>Schema의 Skeleton이 실제 캐릭터 Skeleton과 맞는지 확인합니다.</li>
+            <li>발 본, 골반, 궤적 샘플처럼 결과에 직접 영향을 주는 채널부터 최소 구성합니다.</li>
+            <li>Database에 시작, 정지, 회전, 피벗, 속도별 루프가 충분히 들어 있는지 확인합니다.</li>
+            <li>Root Motion을 사용하는 로코모션이면 애니메이션 시퀀스의 Root Motion 설정을 일괄 확인합니다.</li>
+            <li>Search Throttle로 검색 비용을 낮추되, 입력 반응성이 떨어지는 지점을 Rewind Debugger로 확인합니다.</li>
+            <li>발소리나 발 먼지처럼 중복되기 쉬운 Notify는 필터링 가능 여부와 Recency Time을 따로 점검합니다.</li>
+          </ul>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. Motion Matching에서 Schema와 Database의 역할은 어떻게 다른가?</strong>
+            <p class="answer">Schema는 비교할 특징을 정의하고, Database는 그 특징으로 인덱싱할 애니메이션 후보를 보관합니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. 채널 가중치를 올려도 잘못된 포즈 선택이 계속될 수 있는 이유는?</strong>
+            <p class="answer">데이터베이스에 목표 속도/방향/상황을 만족하는 애니메이션이 부족하면, 가중치 조정만으로는 올바른 후보가 생기지 않습니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. <code>Should Filter Notifies</code>는 어떤 문제를 해결하는가?</strong>
+            <p class="answer">포즈 선택이 자주 바뀌며 같은 Anim Notify가 짧은 시간 안에 중복 실행되는 문제를 줄입니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/motion-matching-in-unreal-engine?application_version=5.7">Motion Matching in Unreal Engine</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/AnimNode_MotionMatching?application_version=5.7">Unreal Python 5.7: AnimNode_MotionMatching</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/PoseSearch/UMotionMatchingAnimNodeLibrary">UE 5.7 API: UMotionMatchingAnimNodeLibrary</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-5-7-release-notes?application_version=5.7">Unreal Engine 5.7 Release Notes</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#motionmatch-visual">시각화</a>
+        <a href="#concept">핵심 개념</a>
+        <a href="#schema">Pose Search Schema</a>
+        <a href="#database">Pose Search Database</a>
+        <a href="#node">Motion Matching 노드</a>
+        <a href="#tuning">튜닝 기준</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-motionmatch-sim]');
+      if (!lab) return;
+      const candidates = [
+        { id: 'idle', name: 'Idle', speed: 0, dir: 'forward' },
+        { id: 'walk', name: 'Walk Forward', speed: 220, dir: 'forward' },
+        { id: 'run', name: 'Run Forward', speed: 520, dir: 'forward' },
+        { id: 'strafe', name: 'Strafe Right', speed: 340, dir: 'strafe' },
+        { id: 'back', name: 'Backpedal', speed: 260, dir: 'back' }
+      ];
+      const dirPenalty = { forward: { forward: 0, strafe: 180, back: 280 }, strafe: { forward: 150, strafe: 0, back: 180 }, back: { forward: 280, strafe: 170, back: 0 } };
+      let dir = 'forward';
+      const speed = lab.querySelector('[data-motion-speed]');
+      const query = lab.querySelector('[data-motion-query]');
+      const holder = lab.querySelector('[data-motion-candidates]');
+      const log = lab.querySelector('[data-motion-log]');
+      function update() {
+        const targetSpeed = Number(speed.value);
+        const scored = candidates.map((candidate) => ({ ...candidate, cost: Math.round(Math.abs(candidate.speed - targetSpeed) + dirPenalty[dir][candidate.dir]) })).sort((a, b) => a.cost - b.cost);
+        query.textContent = `Speed ${targetSpeed} / ${dir}`;
+        holder.innerHTML = scored.map((candidate, index) => `<div class="pose-card ${index === 0 ? 'is-selected' : ''}"><span>${candidate.name}</span><strong>${candidate.cost}</strong><small>cost</small></div>`).join('');
+        log.innerHTML = `<p>${scored[0].name} 선택: 속도 차이와 방향 패널티를 합친 비용이 가장 낮습니다.</p>`;
+      }
+      lab.querySelectorAll('[data-motion-dir]').forEach((button) => button.addEventListener('click', () => {
+        dir = button.dataset.motionDir;
+        lab.querySelectorAll('[data-motion-dir]').forEach((candidate) => candidate.classList.toggle('is-selected', candidate === button));
+        update();
+      }));
+      speed.addEventListener('input', update);
+      update();
+    })();
+  </script>
+  <script src="../interactive-enhancements.js"></script>
+</body>
+</html>
+

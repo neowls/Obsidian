@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>모션 워핑(Motion Warping)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#warp-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#setup">구성</a>
+        <a href="#target">타깃</a>
+        <a href="#pitfalls">주의</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Animation / Root Motion</p>
+      <h1>모션 워핑(Motion Warping)</h1>
+      <p class="lead">
+        Motion Warping은 Root Motion 애니메이션의 이동과 회전을 런타임 타깃에 맞게 보정하는 기능입니다.
+        넘기, 문 열기, 암살, 점프 착지처럼 "애니메이션은 정해져 있지만 실제 목표 위치는 매번 달라지는" 상황에서 사용합니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 애니메이션(Animation)/모션 워핑(Motion Warping).md</span>
+        <span class="pill">원본 상태: 개요 제목만 존재</span>
+        <span class="pill">핵심: Root Motion, Motion Warping Component, Warp Target, Notify Window</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="warp-visual" class="panel">
+          <h2>Motion Warping 궤적 실험판</h2>
+          <p>
+            원본 Root Motion은 정해진 거리로 움직이지만, Motion Warping은 Notify Window 동안 목표 지점에 맞도록 이동 궤적과 회전을 보정합니다. Target 위치를 바꿔 원본 경로와 보정 경로를 비교하세요.
+          </p>
+
+          <div class="interactive-lab warp-lab" data-warp-sim>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="range-field compact-range">
+                <label for="warp-distance">Warp Target 거리</label>
+                <input id="warp-distance" type="range" min="110" max="270" value="220" step="10" data-warp-distance>
+              </div>
+              <div class="range-field compact-range">
+                <label for="warp-rotation">Target 회전</label>
+                <input id="warp-rotation" type="range" min="-45" max="45" value="20" step="5" data-warp-rotation>
+              </div>
+            </div>
+
+            <div class="sim-workbench warp-workbench">
+              <svg class="warp-scene" viewBox="0 0 420 220" role="img" aria-labelledby="warp-title">
+                <title id="warp-title">Root Motion 원본 경로와 워핑 경로 비교</title>
+                <line class="trace-ground" x1="36" y1="164" x2="384" y2="164"></line>
+                <path class="original-path" d="M58 150 C108 112 168 112 220 150"></path>
+                <path class="warped-path" data-warp-path d=""></path>
+                <circle class="trace-start" cx="58" cy="150" r="7"></circle>
+                <g class="warp-target" data-warp-target transform="translate(220 150) rotate(20)">
+                  <path d="M0,-20 L14,18 L0,10 L-14,18 Z"></path>
+                  <text x="0" y="40" text-anchor="middle">Target</text>
+                </g>
+                <text class="svg-label" x="178" y="106">Original Root Motion</text>
+                <text class="svg-label" data-warp-label x="230" y="92">Warped</text>
+              </svg>
+              <div class="metric-grid">
+                <div class="metric-card"><span>원본 도착 거리</span><strong>180cm</strong><small>애니메이션에 baked된 이동량</small></div>
+                <div class="metric-card"><span>Target 거리</span><strong data-warp-distance-readout>220cm</strong><small>런타임 상호작용 지점</small></div>
+                <div class="metric-card"><span>회전 보정</span><strong data-warp-rotation-readout>20도</strong><small>타깃 방향으로 루트 회전 보정</small></div>
+                <div class="metric-card"><span>주의</span><strong data-warp-warning>적정</strong><small>차이가 너무 크면 새 애니메이션 후보가 낫습니다.</small></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Motion Warping은 애니메이션 몽타주의 특정 시간 구간에서 Root Motion을 목표 지점에 맞게 변형하는 시스템</strong>입니다.
+            애니메이션 원본이 "앞으로 180cm 이동"하도록 만들어졌더라도, 런타임에는 실제 문턱, 적, 난간 위치에 맞춰 루트 이동량과 회전을 보정할 수 있습니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">Motion Matching과 구분</p>
+            <p>
+              Motion Matching은 "어떤 포즈를 선택할지"를 결정하고, Motion Warping은 "선택된 Root Motion을 어디에 맞출지"를 보정합니다.
+              둘은 경쟁 관계가 아니라, 데이터 기반 선택과 목표 정렬을 나누어 맡는 관계로 사용할 수 있습니다.
+            </p>
+          </div>
+          <div class="diagram" aria-label="Motion Warping 런타임 보정 흐름">
+            <p class="diagram-title">시각화 요약: Root Motion을 목표에 맞추는 경로</p>
+            <div class="node-chain wide">
+              <div class="v-node">
+                <strong>Root Motion Montage</strong>
+                <span>원본 애니메이션의 루트 이동과 회전이 기준이 됩니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Notify Window</strong>
+                <span>보정할 시간 구간과 Modifier 타입을 지정합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Warp Target</strong>
+                <span>난간, 적, 상호작용 지점 같은 목표 위치와 회전을 등록합니다.</span>
+              </div>
+              <div class="v-node highlight">
+                <strong>MotionWarpingComponent</strong>
+                <span>Montage 구간과 Target 이름을 매칭해 보정 작업을 생성합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Root Motion Modifier</strong>
+                <span>Skew, Scale, Rotation 방식으로 루트 이동량을 변형합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Aligned Motion</strong>
+                <span>캐릭터가 애니메이션을 유지하면서 목표 지점에 자연스럽게 도착합니다.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="setup" class="panel">
+          <h2>기본 구성 순서</h2>
+          <div class="flow">
+            <div class="flow-step">
+              <span class="flow-kicker">1</span>
+              <strong>플러그인 활성화</strong>
+              <span>Motion Warping 플러그인을 켜고 에디터를 재시작합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2</span>
+              <strong>컴포넌트 추가</strong>
+              <span>Character 또는 Pawn에 <code>MotionWarpingComponent</code>를 추가합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3</span>
+              <strong>Root Motion 준비</strong>
+              <span>Root Motion이 들어 있는 Montage 또는 Animation을 사용합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4</span>
+              <strong>Notify Window 설정</strong>
+              <span>몽타주 구간에 <code>AnimNotifyState_MotionWarping</code>을 배치합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5</span>
+              <strong>Warp Target 등록</strong>
+              <span>블루프린트에서 같은 이름의 타깃 위치/회전을 등록하고 몽타주를 재생합니다.</span>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>구성 요소</th>
+                  <th>역할</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>MotionWarpingComponent</code></td>
+                  <td>Warp Target을 보관하고 활성 Root Motion Modifier를 업데이트합니다. 5.7 API 기준으로 타깃 추가, 갱신, 제거 함수가 제공됩니다.</td>
+                </tr>
+                <tr>
+                  <td><code>MotionWarpingTarget</code></td>
+                  <td>월드 정렬 지점입니다. 이름, 위치, 회전, 컴포넌트, 본 이름, 컴포넌트 추적 여부, 오프셋을 가질 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>AnimNotifyState_MotionWarping</code></td>
+                  <td>애니메이션 안에서 실제 워핑이 적용될 시간 구간을 정의합니다. 타깃 이름과 워핑 방식이 여기에서 연결됩니다.</td>
+                </tr>
+                <tr>
+                  <td><code>RootMotionModifier</code></td>
+                  <td>Notify Window가 활성화될 때 루트 모션을 어떤 방식으로 변형할지 처리하는 내부 단위입니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="target" class="panel">
+          <h2>Warp Target 등록 방식</h2>
+          <p>
+            공식 5.7 Python API 기준으로 <code>MotionWarpingComponent</code>는 위치, 위치+회전, Transform, Component 기반으로 Warp Target을 추가하거나 갱신할 수 있습니다.
+            중요한 것은 <strong>Notify Window의 Warp Target Name과 블루프린트에서 등록한 이름이 정확히 같아야 한다</strong>는 점입니다.
+          </p>
+
+          <pre class="code"><code>// Blueprint 흐름을 C++ 의사 코드처럼 표현
+MotionWarpingComponent->AddOrUpdateWarpTargetFromTransform(
+    WarpTargetName = "VaultTarget",
+    TargetTransform = LedgeTransform
+);
+
+PlayAnimMontage(VaultMontage);
+</code></pre>
+
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>Location 타깃</h3>
+              <p>회전은 유지하고 위치만 맞추고 싶을 때 적합합니다. 단순한 점프 착지나 발판 맞춤에 사용하기 쉽습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Location + Rotation 타깃</h3>
+              <p>상호작용 대상의 방향까지 맞춰야 할 때 사용합니다. 문 열기, 처형 애니메이션, 장치 조작에 자주 맞습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Component 타깃</h3>
+              <p>움직이는 대상이나 소켓을 따라가야 할 때 사용합니다. <code>follow_component</code>를 켜면 워핑 중에도 갱신됩니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Remove 타깃</h3>
+              <p>상호작용이 끝났거나 중단된 경우 타깃을 제거합니다. 재사용 캐릭터에서 오래된 타깃이 남지 않도록 정리합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>워핑 방식 선택 감각</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>방식</th>
+                  <th>사용 감각</th>
+                  <th>주의점</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Skew Warp</code></td>
+                  <td>루트 모션의 경로를 기울여 목표 위치와 회전에 맞춥니다.</td>
+                  <td>원본 애니메이션과 목표가 너무 멀면 발 미끄러짐이나 자세 왜곡이 커집니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Scale</code></td>
+                  <td>루트 이동량을 스케일링해 더 짧거나 긴 거리로 맞춥니다.</td>
+                  <td>거리 차이가 클수록 애니메이션 속도감이 부자연스러워질 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Adjustment Blend Warp</code></td>
+                  <td>API 목록에는 존재하지만 5.7 플러그인 API에서 실험 성격이 표시됩니다.</td>
+                  <td>프로덕션 핵심 흐름은 안정적인 방식으로 먼저 구성하고, 실험 기능 의존은 문서화합니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="pitfalls" class="panel">
+          <h2>자주 틀리는 부분</h2>
+          <ul class="checklist">
+            <li>Motion Warping은 일반 In-Place 애니메이션을 마법처럼 이동시키는 기능이 아닙니다. Root Motion 구간이 있어야 보정할 이동량이 있습니다.</li>
+            <li>Warp Target 이름이 Notify Window의 이름과 다르면 워핑이 적용되지 않습니다.</li>
+            <li>타깃 등록은 워핑 창이 시작되기 전에 끝나야 합니다. 몽타주를 먼저 재생하고 뒤늦게 타깃을 넣으면 첫 구간이 어긋날 수 있습니다.</li>
+            <li>컴포넌트 추적 타깃은 틱 순서 영향을 받습니다. 대상 Actor가 나중에 틱되면 한 프레임 늦을 수 있으므로 Tick Prerequisite을 검토합니다.</li>
+            <li>목표 위치가 원본 애니메이션 이동 범위와 너무 다르면 보정보다 새 애니메이션 또는 다른 상호작용 지점이 필요합니다.</li>
+            <li>네트워크 게임에서는 서버 권한, 몽타주 재생, 타깃 Transform 복제 방식이 일관되어야 합니다.</li>
+          </ul>
+
+          <div class="callout warning">
+            <p class="callout-title">원본 보강 내용</p>
+            <p>
+              원본 Markdown은 <code>## 개요</code>만 있어 세부 내용이 비어 있었습니다.
+              이 HTML 문서는 UE 5.7.4 공식 Motion Warping 문서와 5.7 API를 기준으로 기본 개념, 구성 순서, 실무 주의점을 새로 채웠습니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. Motion Warping을 쓰기 전에 애니메이션에서 반드시 확인할 것은?</strong>
+            <p class="answer">워핑할 구간에 Root Motion이 있는지, 몽타주 또는 애니메이션에서 Motion Warping Notify Window가 올바른 시간에 배치되어 있는지 확인합니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. Warp Target Name이 중요한 이유는?</strong>
+            <p class="answer">Notify Window가 참조하는 이름과 컴포넌트에 등록한 타깃 이름이 일치해야 해당 구간의 루트 모션을 목표 지점으로 보정할 수 있습니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. 움직이는 대상에 붙는 워핑은 어떤 타깃 등록 방식을 고려해야 하는가?</strong>
+            <p class="answer">Component 기반 타깃과 <code>follow_component</code> 사용을 고려합니다. 다만 틱 순서로 한 프레임 오차가 생길 수 있어 필요하면 Tick Prerequisite을 설정합니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/motion-warping-in-unreal-engine?application_version=5.7">Motion Warping in Unreal Engine</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/MotionWarpingComponent?application_version=5.7">Unreal Python 5.7: MotionWarpingComponent</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/MotionWarpingTarget?application_version=5.7">Unreal Python 5.7: MotionWarpingTarget</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/MotionWarping">UE 5.7 API: MotionWarping Plugin</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#warp-visual">시각화</a>
+        <a href="#concept">핵심 개념</a>
+        <a href="#setup">기본 구성</a>
+        <a href="#target">Warp Target</a>
+        <a href="#pitfalls">주의점</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-warp-sim]');
+      if (!lab) return;
+      const distance = lab.querySelector('[data-warp-distance]');
+      const rotation = lab.querySelector('[data-warp-rotation]');
+      const path = lab.querySelector('[data-warp-path]');
+      const target = lab.querySelector('[data-warp-target]');
+      const label = lab.querySelector('[data-warp-label]');
+      const distanceReadout = lab.querySelector('[data-warp-distance-readout]');
+      const rotationReadout = lab.querySelector('[data-warp-rotation-readout]');
+      const warning = lab.querySelector('[data-warp-warning]');
+      function update() {
+        const d = Number(distance.value);
+        const r = Number(rotation.value);
+        const x = 40 + d;
+        const mid = 58 + (x - 58) * 0.5;
+        path.setAttribute('d', `M58 150 C${mid - 45} 84 ${mid + 35} 96 ${x} 150`);
+        target.setAttribute('transform', `translate(${x} 150) rotate(${r})`);
+        label.setAttribute('x', String(Math.min(340, x - 20)));
+        distanceReadout.textContent = `${d}cm`;
+        rotationReadout.textContent = `${r}도`;
+        const delta = Math.abs(d - 180);
+        warning.textContent = delta > 70 ? '과도함' : delta > 35 ? '주의' : '적정';
+      }
+      distance.addEventListener('input', update);
+      rotation.addEventListener('input', update);
+      update();
+    })();
+  </script>
+  <script src="../interactive-enhancements.js"></script>
+</body>
+</html>
+

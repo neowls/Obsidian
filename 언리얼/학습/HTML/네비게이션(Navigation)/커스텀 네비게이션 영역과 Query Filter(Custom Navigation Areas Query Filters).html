@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>커스텀 네비게이션 영역과 Query Filter</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#visual">시각화</a>
+        <a href="#flow">흐름</a>
+        <a href="#cost">비용</a>
+        <a href="#cache">캐시</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Nav Area / Query Filter</p>
+      <h1>커스텀 네비게이션 영역과 Query Filter</h1>
+      <p class="lead">
+        NavArea는 polygon의 기본 성질이고, Query Filter는 이번 pathfinding에서 그 area를 얼마나 선호하거나 배제할지 결정하는 정책입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: Custom Navigation Areas Query Filters.md</span>
+        <span class="pill">핵심: Area Cost, Entering Cost, Exclude, Flags</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="visual" class="panel">
+          <h2>같은 NavMesh, 다른 Filter</h2>
+          <div class="visual-board two-col">
+            <div class="tile-map">
+              <div class="tile path">Default<br>x1</div><div class="tile hot">Mud<br>x4</div><div class="tile hot">Mud<br>x4</div><div class="tile blocked">Null</div><div class="tile path">Road</div><div class="tile path">Goal</div>
+              <div class="tile path">Start</div><div class="tile path">Road</div><div class="tile path">Road</div><div class="tile path">Road</div><div class="tile">Water</div><div class="tile">Alt</div>
+            </div>
+            <div class="memory-list">
+              <div class="memory-slot key"><strong>UNavArea</strong><span>월드 polygon에 붙는 기본 비용과 flag를 정의합니다.</span></div>
+              <div class="memory-slot"><strong>FNavigationFilterArea</strong><span>특정 area에 대한 cost override 또는 exclude 한 줄입니다.</span></div>
+              <div class="memory-slot"><strong>UNavigationQueryFilter</strong><span>area override, include/exclude flags, meta filter 정책을 묶습니다.</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="flow" class="panel">
+          <h2>Pathfinding에 개입하는 순서</h2>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>NavMesh Area</strong><span>polygon은 area id와 flags를 가집니다.</span></div>
+            <div class="pipeline-step" data-step="2"><strong>MoveRequest</strong><span><code>SetNavigationFilter()</code>로 filter class 지정</span></div>
+            <div class="pipeline-step" data-step="3"><strong>GetQueryFilter</strong><span>NavData 캐시 또는 새 runtime filter 준비</span></div>
+            <div class="pipeline-step" data-step="4"><strong>InitializeFilter</strong><span>area cost, exclude, include/exclude flags 반영</span></div>
+            <div class="pipeline-step" data-step="5"><strong>FindPath</strong><span>runtime filter가 path cost 계산에 사용됨</span></div>
+          </div>
+        </section>
+
+        <section id="cost" class="panel">
+          <h2>Cost와 Exclude의 차이</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead><tr><th>정책</th><th>효과</th><th>사용 상황</th></tr></thead>
+              <tbody>
+                <tr><td><code>DefaultCost</code></td><td>해당 area를 지날 때 거리 비용을 곱합니다.</td><td>위험/느린 구역을 우회 유도</td></tr>
+                <tr><td><code>FixedAreaEnteringCost</code></td><td>area에 들어갈 때 한 번 비용을 더합니다.</td><td>짧은 구역도 진입 자체를 꺼리게 할 때</td></tr>
+                <tr><td><code>bIsExcluded</code></td><td>이번 query에서 해당 area를 경로 후보에서 제거합니다.</td><td>절대 지나가면 안 되는 상황</td></tr>
+                <tr><td><code>UNavArea_Null</code></td><td>기본적으로 통과 불가 area입니다.</td><td>물리적 차단 또는 금지 구역</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="cache" class="panel">
+          <h2>Meta Filter와 캐시</h2>
+          <div class="visual-board two-col">
+            <div class="layer-card key"><strong>Meta Filter</strong><span>외부에서는 하나의 filter처럼 보이지만, querier를 보고 실제 simple filter class를 고르는 라우터 역할을 합니다.</span></div>
+            <div class="layer-card danger"><strong>bInstantiateForQuerier</strong><span>꺼져 있으면 nav data 캐시의 공유 filter를 재사용하므로 querier별 런타임 상태를 기대하면 안 됩니다.</span></div>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz"><strong>Q1. Area와 Filter의 차이는?</strong><p class="answer">Area는 월드 polygon의 기본 성질이고, Filter는 이번 pathfinding에서 그 area를 해석하는 정책입니다.</p></div>
+            <div class="quiz"><strong>Q2. 우회 유도와 완전 차단은 어떻게 다르게 표현하는가?</strong><p class="answer">우회 유도는 cost 상승, 완전 차단은 exclude 또는 Null area가 더 명확합니다.</p></div>
+          </div>
+        </section>
+      </article>
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#visual">Filter 시각화</a>
+        <a href="#flow">개입 순서</a>
+        <a href="#cost">Cost/Exclude</a>
+        <a href="#cache">캐시</a>
+        <a href="#review">복습</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">Navigation Area/Filter Markdown을 반응형 시각 자료로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

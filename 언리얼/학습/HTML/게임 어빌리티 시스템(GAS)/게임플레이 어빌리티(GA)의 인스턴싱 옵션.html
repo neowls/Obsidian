@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>게임플레이 어빌리티(GA)의 인스턴싱 옵션</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#compare">비교</a>
+        <a href="#choice">선택</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>게임플레이 어빌리티(GA)의 인스턴싱 옵션</h1>
+      <p class="lead">
+        Instancing Policy는 Gameplay Ability가 실행될 때 어빌리티 객체를 어떻게 만들고 재사용할지를 결정합니다.
+        이 선택은 상태 저장, Ability Task 사용, 동시 실행, 네트워크 복제, 성능에 직접 영향을 줍니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/게임플레이 어빌리티(GA)의 인스턴싱 옵션.md</span>
+        <span class="pill">난이도: GA 설계 선택</span>
+        <span class="pill">핵심: NonInstanced, InstancedPerActor, InstancedPerExecution</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>GA 인스턴싱 옵션은 어빌리티 실행 상태를 어디에 둘지 정하는 정책</strong>입니다.
+            CDO 하나로 처리할지, 액터마다 하나의 인스턴스를 재사용할지, 실행할 때마다 새 인스턴스를 만들지 결정합니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">기본 판단</p>
+            <p>
+              특별한 이유가 없다면 <code>InstancedPerActor</code>가 가장 무난합니다.
+              상태 저장과 복제, RPC, 대부분의 Blueprint/Ability Task 흐름을 다루기 좋기 때문입니다.
+            </p>
+          </div>
+
+          <div class="system-map" aria-label="Gameplay Ability 인스턴싱 옵션">
+            <div class="system-node">
+              <h3>NonInstanced</h3>
+              <p>어빌리티 객체를 만들지 않고 CDO에서 실행합니다. 빠르지만 상태 저장과 동적 바인딩이 제한됩니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>InstancedPerActor</h3>
+              <p>각 액터가 어빌리티 인스턴스 하나를 갖고 실행 간 재사용합니다. 상태가 남으므로 정리가 필요합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>InstancedPerExecution</h3>
+              <p>실행할 때마다 새 인스턴스를 만듭니다. 실행별 상태는 깔끔하지만 생성 비용이 가장 큽니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="compare" class="panel">
+          <h2>옵션 비교</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>정책</th>
+                  <th>동작 방식</th>
+                  <th>장점</th>
+                  <th>주의점</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>NonInstanced</strong></td>
+                  <td>인스턴스 없이 Class Default Object에서 실행</td>
+                  <td>객체 생성 비용이 거의 없어 가장 가볍습니다.</td>
+                  <td>멤버 변수 상태 저장, Delegate 바인딩, Ability Task, RPC 같은 기능에 큰 제약이 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>InstancedPerActor</strong></td>
+                  <td>액터마다 하나의 GA 인스턴스를 만들고 재사용</td>
+                  <td>상태 저장과 복제가 가능하고, 대부분의 어빌리티 구현에 적합합니다.</td>
+                  <td>실행 간 멤버 변수가 남을 수 있으므로 시작/종료 시 상태 정리를 명확히 해야 합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>InstancedPerExecution</strong></td>
+                  <td>활성화할 때마다 새 GA 인스턴스를 생성</td>
+                  <td>실행별 상태가 분리되어 변수 초기화 부담이 적고 동시 실행 모델과 잘 맞습니다.</td>
+                  <td>자주 실행되는 능력에는 생성 비용이 부담될 수 있고, 복제 지원 범위도 확인해야 합니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="choice" class="panel">
+          <h2>선택 기준</h2>
+          <p>아래 질문에 답하면 어떤 정책을 써야 할지 빠르게 좁힐 수 있습니다.</p>
+
+          <div class="flow" aria-label="Instancing Policy 선택 흐름">
+            <div class="flow-step">
+              <span class="flow-kicker">1. State</span>
+              <strong>상태가 필요한가?</strong>
+              <span>멤버 변수, Delegate, Task가 필요하면 NonInstanced는 피합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2. Reuse</span>
+              <strong>실행 간 유지할 값이 있는가?</strong>
+              <span>콤보 단계나 캐시가 필요하면 InstancedPerActor가 맞기 쉽습니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3. Isolation</span>
+              <strong>실행별 분리가 중요한가?</strong>
+              <span>동시에 여러 실행이 겹치거나 매번 깨끗한 상태가 필요하면 InstancedPerExecution을 봅니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4. Frequency</span>
+              <strong>매우 자주 실행되는가?</strong>
+              <span>수백 개 액터가 반복 실행하면 생성 비용과 상태 제약을 함께 비교합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5. Network</span>
+              <strong>RPC/복제가 필요한가?</strong>
+              <span>복제나 Ability 내부 RPC가 필요하면 공식 지원 범위를 확인하고 보수적으로 선택합니다.</span>
+            </div>
+          </div>
+
+          <div class="split">
+            <div class="callout">
+              <p class="callout-title">실무 기본값</p>
+              <p>
+                플레이어 스킬, 블루프린트 기반 능력, Ability Task를 쓰는 능력은 대체로
+                <code>InstancedPerActor</code>부터 검토하는 편이 안전합니다.
+              </p>
+            </div>
+            <div class="callout warning">
+              <p class="callout-title">NonInstanced 주의</p>
+              <p>
+                CDO에서 실행되므로 인스턴스별 상태를 둘 수 없습니다.
+                “가볍다”는 이유만으로 고르면 이후 Task, 변수, 예측 로직에서 구조를 다시 바꾸게 될 수 있습니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">활성화 전 콜백은 인스턴스에서만 돈다고 가정하지 않습니다</p>
+            <p>
+              5.7의 <code>UGameplayAbility</code> API를 보면 <code>CanActivateAbility</code>, <code>ShouldAbilityRespondToEvent</code> 같은 판단 함수와
+              <code>OnAvatarSet</code>, <code>OnGiveAbility</code>, <code>OnRemoveAbility</code> 같은 생명주기 콜백은 실제 활성화 인스턴스가 없을 때도 호출될 수 있습니다.
+              특히 <code>NonInstanced</code>와 일부 실행 전 단계에서는 CDO 기준으로 실행될 수 있으므로 멤버 변수에 플레이어별 상태를 저장하지 않는 습관이 중요합니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>예시 판단</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>어빌리티</th>
+                  <th>추천 후보</th>
+                  <th>이유</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>점프</strong></td>
+                  <td>NonInstanced 또는 InstancedPerActor</td>
+                  <td>별도 상태가 거의 없으면 NonInstanced도 가능하지만, 최근 프로젝트에서는 일관성을 위해 InstancedPerActor를 선택하기도 합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>질주</strong></td>
+                  <td>InstancedPerActor</td>
+                  <td>입력 유지, 이동 속도 변경, 비용 소모, 종료 정리가 필요합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>메테오 범위 지정</strong></td>
+                  <td>InstancedPerActor 또는 InstancedPerExecution</td>
+                  <td>Target Actor, Ability Task, 몽타주/이펙트 대기 등 실행 상태가 필요합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>동시에 중첩 가능한 투사체 발사</strong></td>
+                  <td>InstancedPerExecution 검토</td>
+                  <td>각 실행이 독립 상태를 가져야 하면 실행별 인스턴스가 설계를 단순하게 만들 수 있습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. NonInstanced는 어디서 실행되는가?</strong>
+              <p class="answer">정답: 별도 인스턴스를 만들지 않고 Class Default Object에서 실행됩니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. InstancedPerActor의 가장 큰 장점은?</strong>
+              <p class="answer">정답: 액터별 인스턴스를 재사용하면서 상태 저장, 복제, RPC 같은 기능을 쓰기 쉽습니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. InstancedPerExecution을 고려할 상황은?</strong>
+              <p class="answer">정답: 실행마다 독립 상태가 필요하거나 동시 실행 가능성을 깔끔하게 분리하고 싶을 때입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. 인스턴싱 정책을 잘못 고르면 어떤 문제가 생기는가?</strong>
+              <p class="answer">정답: 상태가 남거나, 상태를 저장할 수 없거나, Task와 복제 제약 때문에 구현 구조를 다시 바꿔야 할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%96%B4%EB%B9%8C%EB%A6%AC%ED%8B%B0(GA).html">게임플레이 어빌리티(GA)</a>: 어빌리티 실행 생명주기</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%96%B4%EB%B9%8C%EB%A6%AC%ED%8B%B0%20%EC%8A%A4%ED%8E%99(Spec).html">게임플레이 어빌리티 스펙(Spec)</a>: ASC에 등록된 어빌리티 정보</li>
+            <li>어빌리티 태스크(AT): 인스턴스 상태와 Delegate 흐름을 많이 요구하는 비동기 작업</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-gameplay-abilities-in-unreal-engine" target="_blank" rel="noreferrer">Epic Developer Community: Using Gameplay Abilities</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayAbility?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayAbility Python API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayAbilityInstancingPolicy.html?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayAbilityInstancingPolicy Python API 5.7</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\게임플레이 어빌리티(GA)의 인스턴싱 옵션.md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#compare">옵션 비교</a>
+        <a href="#choice">선택 기준</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

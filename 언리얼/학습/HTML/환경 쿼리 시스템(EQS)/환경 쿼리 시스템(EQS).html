@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>환경 쿼리 시스템(EQS)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#visual">시각화</a>
+        <a href="#runtime">런타임</a>
+        <a href="#parts">구성요소</a>
+        <a href="#bt">BT 연결</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">AI Query / Scoring</p>
+      <h1>환경 쿼리 시스템(EQS)</h1>
+      <p class="lead">
+        EQS는 기억을 저장하는 시스템이 아니라, 실행 시점의 후보를 만들고 테스트로 걸러 점수를 매긴 뒤
+        RunMode에 맞는 결과를 돌려주는 환경 질의 계층입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 환경 쿼리 시스템(EQS).md</span>
+        <span class="pill">핵심: Generator, Test, Context, ItemType</span>
+        <span class="pill">주의: 시간 분할 실행과 BT 비동기 완료</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="visual" class="panel">
+          <h2>EQS 후보 평가판</h2>
+          <p>아래 격자는 후보 point가 generator에서 만들어지고, cheap filter와 expensive test를 거쳐 최종 결과로 압축되는 감각을 보여줍니다.</p>
+          <div class="visual-board two-col">
+            <div class="tile-map" aria-label="EQS 후보 격자">
+              <div class="tile">P1</div><div class="tile path">P2</div><div class="tile path">P3</div><div class="tile blocked">Wall</div><div class="tile">P4</div><div class="tile hot">Best</div>
+              <div class="tile">P5</div><div class="tile path">P6</div><div class="tile blocked">Trace fail</div><div class="tile path">P7</div><div class="tile hot">P8</div><div class="tile">P9</div>
+            </div>
+            <div class="memory-list">
+              <div class="memory-slot key"><strong>Generator</strong><span>Querier 주변의 point 또는 perception 기반 actor 후보를 만듭니다.</span></div>
+              <div class="memory-slot"><strong>Filter</strong><span>거리, trace, pathfinding 같은 조건으로 후보를 줄입니다.</span></div>
+              <div class="memory-slot"><strong>Score</strong><span>남은 후보를 정규화하고 RunMode에 맞춰 결과를 고릅니다.</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="runtime" class="panel">
+          <h2>런타임 처리 흐름</h2>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>Request</strong><span><code>FEnvQueryRequest</code>가 template, owner, named params를 묶음</span></div>
+            <div class="pipeline-step" data-step="2"><strong>Manager</strong><span><code>UEnvQueryManager::RunQuery()</code>가 instance 준비</span></div>
+            <div class="pipeline-step" data-step="3"><strong>Instance</strong><span><code>FEnvQueryInstance</code>가 items, context cache, tests 상태 보관</span></div>
+            <div class="pipeline-step" data-step="4"><strong>ExecuteOneStep</strong><span>Generator 이후 Test를 시간 분할로 진행할 수 있음</span></div>
+            <div class="pipeline-step" data-step="5"><strong>Finalize</strong><span>RunMode에 따라 Single, RandomBest, AllMatching 결과 확정</span></div>
+          </div>
+          <div class="callout warning">
+            <p class="callout-title">즉시 함수로만 보면 위험합니다</p>
+            <p><code>MaxAllowedTestingTime</code> 안에서 여러 프레임에 나눠 실행될 수 있으므로, 완료 delegate와 BT message 흐름까지 같이 설계해야 합니다.</p>
+          </div>
+        </section>
+
+        <section id="parts" class="panel">
+          <h2>Generator / Test / Context / ItemType</h2>
+          <div class="lane-grid">
+            <div class="lane-card key"><span class="layer-kicker">Generator</span><strong>후보 생성</strong><span><code>SimpleGrid</code>는 point, <code>PerceivedActors</code>는 actor 후보를 만듭니다.</span></div>
+            <div class="lane-card"><span class="layer-kicker">Test</span><strong>필터와 점수</strong><span><code>Distance</code>, <code>Trace</code>처럼 후보를 줄이거나 점수를 부여합니다.</span></div>
+            <div class="lane-card"><span class="layer-kicker">Context</span><strong>비교 기준</strong><span>Querier, Target 같은 기준점은 <code>ContextCache</code>에 저장됩니다.</span></div>
+            <div class="lane-card"><span class="layer-kicker">ItemType</span><strong>결과 해석</strong><span>Point인지 Actor인지에 따라 결과와 Blackboard 저장 방식이 달라집니다.</span></div>
+          </div>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead><tr><th>RunMode</th><th>의미</th><th>주의점</th></tr></thead>
+              <tbody>
+                <tr><td><code>SingleResult</code></td><td>최상위 결과 하나</td><td>BT에서 가장 흔한 목적지/대상 선택</td></tr>
+                <tr><td><code>RandomBest5Pct</code></td><td>상위 5% 안 랜덤</td><td>같은 위치만 반복 선택하는 문제 완화</td></tr>
+                <tr><td><code>RandomBest25Pct</code></td><td>상위 25% 안 랜덤</td><td>더 넓은 변동성</td></tr>
+                <tr><td><code>AllMatching</code></td><td>살아남은 모든 결과</td><td>BT Blackboard 저장 단계에서는 단일 값으로 축약될 수 있음</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="bt" class="panel">
+          <h2>Behavior Tree와의 연결</h2>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-kicker">BT Task</span><strong>Run EQS Query</strong><span><code>FEQSParametrizedQueryExecutionRequest</code> 실행</span></div>
+            <div class="flow-step"><span class="flow-kicker">Async</span><strong>WaitForMessage</strong><span><code>AIMessage_QueryFinished</code>를 기다림</span></div>
+            <div class="flow-step"><span class="flow-kicker">Result</span><strong>Item 해석</strong><span>ItemType CDO로 actor/vector/object 값을 읽음</span></div>
+            <div class="flow-step"><span class="flow-kicker">Blackboard</span><strong>Key 저장</strong><span>결과를 목적지, 대상, object 키에 기록</span></div>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz"><strong>Q1. EQS와 Perception의 차이는?</strong><p class="answer">Perception은 자극 기억을 유지하고, EQS는 현재 후보를 평가해 결과를 뽑는 질의 시스템입니다.</p></div>
+            <div class="quiz"><strong>Q2. 비싼 테스트를 뒤로 미루는 이유는?</strong><p class="answer">값싼 필터로 후보 수를 먼저 줄이면 Trace/Pathfinding 같은 고비용 테스트 호출량을 줄일 수 있습니다.</p></div>
+          </div>
+        </section>
+      </article>
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#visual">후보 평가판</a>
+        <a href="#runtime">런타임 흐름</a>
+        <a href="#parts">구성요소</a>
+        <a href="#bt">BT 연결</a>
+        <a href="#review">복습</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">EQS Markdown을 반응형 시각 자료로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

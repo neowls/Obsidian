@@ -1,0 +1,2260 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>게임플레이 이펙트(GE)</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --bg: #0b0b09;
+  --surface: #15120e;
+  --surface-soft: #211a12;
+  --ink: #f2eadc;
+  --muted: #a79a86;
+  --line: #3a2a19;
+  --accent: #f28c28;
+  --accent-2: #ffb454;
+  --accent-3: #8faa67;
+  --danger: #d36b5f;
+  --code-bg: #070705;
+  --code-ink: #f3d7a4;
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    linear-gradient(180deg, rgba(242, 140, 40, 0.09), transparent 330px),
+    var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  line-height: 1.65;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.site-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgba(11, 11, 9, 0.94);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  gap: 20px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #0b0b09;
+  font-size: 0.85rem;
+}
+
+.topbar nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: flex-end;
+  font-size: 0.92rem;
+}
+
+.hero {
+  padding: 58px 0 34px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent-2);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+h1 {
+  max-width: 860px;
+  margin: 0;
+  font-size: clamp(2.25rem, 5vw, 4.4rem);
+}
+
+.lead {
+  max-width: 820px;
+  margin: 20px 0 0;
+  color: #d8cab6;
+  font-size: 1.13rem;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.stat-card {
+  min-height: 118px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.stat-card strong {
+  display: block;
+  color: var(--accent-2);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  line-height: 1.05;
+}
+
+.stat-card span {
+  display: block;
+  margin-top: 8px;
+  color: #d4c0a2;
+}
+
+.path-list {
+  display: grid;
+  gap: 12px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.path-list li {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.path-list a {
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.path-list small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.doc-finder {
+  margin-bottom: 22px;
+}
+
+.finder-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.search-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #100d0a;
+  color: var(--ink);
+  font: inherit;
+}
+
+.search-input:focus {
+  outline: 2px solid rgba(242, 140, 40, 0.42);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.filter-button {
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: #e6d2b4;
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.filter-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgba(242, 140, 40, 0.18);
+  color: var(--ink);
+}
+
+.doc-count {
+  color: var(--muted);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.no-results {
+  margin-top: 14px;
+  color: var(--danger);
+}
+
+.visual-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.diagram {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #14100c;
+}
+
+.diagram-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.node-chain {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.node-chain.wide {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+}
+
+.v-node {
+  position: relative;
+  min-width: 0;
+  min-height: 116px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.v-node::after {
+  display: none;
+}
+
+.v-node:last-child::after {
+  display: none;
+}
+
+.v-node strong {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--accent);
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.v-node span {
+  display: block;
+  color: #d7c6ad;
+  font-size: 0.92rem;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.v-node.highlight {
+  border-color: #8a5524;
+  background: #251a10;
+}
+
+.v-node.warning {
+  border-color: #6f2f24;
+  background: #24150f;
+}
+
+.concept-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}
+
+.concept-map .v-node {
+  min-height: 132px;
+}
+
+.concept-map .v-node::after {
+  display: none;
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #ddc9aa;
+  font-size: 0.86rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(21, 18, 14, 0.76);
+  color: #e2cfb2;
+  font-size: 0.92rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 30px;
+  align-items: start;
+  padding-bottom: 72px;
+}
+
+.content {
+  display: grid;
+  gap: 22px;
+}
+
+.toc {
+  position: sticky;
+  top: 78px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(21, 18, 14, 0.86);
+  box-shadow: var(--shadow);
+}
+
+.toc-title {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.toc a {
+  display: block;
+  padding: 7px 0;
+  color: #dccab0;
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+
+.toc a:hover {
+  color: var(--accent);
+}
+
+.panel,
+.callout,
+.study-card,
+.quiz {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  padding: clamp(22px, 4vw, 34px);
+}
+
+.panel h2,
+.panel h3 {
+  margin-top: 0;
+}
+
+.panel h2 {
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+}
+
+.panel p:last-child,
+.panel ul:last-child,
+.panel ol:last-child {
+  margin-bottom: 0;
+}
+
+.callout {
+  padding: 18px 20px;
+  border-left: 5px solid var(--accent);
+  background: #17110c;
+}
+
+.callout.warning {
+  border-left-color: var(--danger);
+  background: #24150f;
+}
+
+.callout-title {
+  margin: 0 0 6px;
+  font-weight: 800;
+}
+
+.term-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.study-card {
+  padding: 18px;
+  box-shadow: none;
+}
+
+.study-card h3 {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 1.04rem;
+}
+
+.study-card p {
+  margin: 0;
+  color: #d6c4aa;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.flow-step {
+  position: relative;
+  min-width: 0;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.flow-step:not(:last-child)::after {
+  display: none;
+}
+
+.flow-kicker {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.flow-step strong {
+  display: block;
+  margin-bottom: 6px;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.flow-step span:last-child {
+  display: block;
+  color: #d3c0a5;
+  font-size: 0.93rem;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.system-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.system-node {
+  min-width: 0;
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.system-node.core {
+  grid-column: 1 / -1;
+  min-height: 120px;
+  background: #251a10;
+  border-color: #6f4c22;
+}
+
+.system-node h3 {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 1.08rem;
+}
+
+.system-node p {
+  margin: 0;
+  color: #d6c4aa;
+}
+
+.relation-list {
+  display: grid;
+  gap: 10px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.relation-list li {
+  padding: 12px 14px;
+  border-left: 4px solid var(--accent-3);
+  border-radius: 6px;
+  background: #1a130c;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.figure {
+  margin: 22px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #15100b;
+}
+
+.figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.figure figcaption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.matrix {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.matrix th,
+.matrix td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.matrix th {
+  background: var(--surface-soft);
+  color: #f2eadc;
+  font-weight: 800;
+}
+
+.matrix tr:last-child td {
+  border-bottom: 0;
+}
+
+.checklist {
+  padding-left: 1.2rem;
+}
+
+.checklist li {
+  margin: 10px 0;
+}
+
+.code {
+  overflow-x: auto;
+  padding: 18px;
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+code {
+  padding: 0.12em 0.32em;
+  border-radius: 4px;
+  background: rgba(242, 140, 40, 0.14);
+  color: #ffca7a;
+  font-family: Consolas, "Cascadia Code", monospace;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.code code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.quiz {
+  padding: 18px;
+  box-shadow: none;
+}
+
+.quiz strong {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.answer {
+  margin-top: 10px;
+  color: #c9b79b;
+  font-size: 0.94rem;
+}
+
+.source-list {
+  padding-left: 1.15rem;
+}
+
+.footer {
+  padding: 30px 0 46px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.index-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.index-list a {
+  display: block;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.index-list a:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .toc {
+    position: static;
+    order: -1;
+  }
+
+  .flow {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-step:not(:last-child)::after {
+    top: auto;
+    right: 50%;
+    bottom: -12px;
+    transform: translateX(50%) rotate(135deg);
+  }
+
+  .term-grid,
+  .overview-grid,
+  .finder-toolbar,
+  .node-chain,
+  .node-chain.wide,
+  .concept-map,
+  .system-map,
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .v-node::after {
+    top: auto;
+    right: 50%;
+    bottom: -12px;
+    transform: translateX(50%) rotate(135deg);
+  }
+
+  .system-node.core {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .site-shell {
+    width: min(100% - 24px, 1180px);
+  }
+
+  .topbar-inner {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 12px 0;
+  }
+
+  .hero {
+    padding-top: 38px;
+  }
+}
+
+@media print {
+  .topbar,
+  .toc {
+    display: none;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .site-shell {
+    width: 100%;
+  }
+
+  .layout {
+    display: block;
+  }
+
+  .panel,
+  .callout,
+  .study-card,
+  .quiz {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+
+/* Interactive learning labs */
+.interactive-lab {
+  margin-top: 22px;
+  padding: clamp(16px, 3vw, 22px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #14100c;
+}
+
+.lab-toolbar,
+.broadcast-controls,
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.lab-toolbar {
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.range-field {
+  display: grid;
+  min-width: min(100%, 340px);
+  gap: 8px;
+}
+
+.range-field label {
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.range-field input[type="range"] {
+  width: min(100%, 420px);
+  accent-color: var(--accent);
+}
+
+.primary-button,
+.mini-button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.primary-button {
+  padding: 8px 16px;
+  border-color: rgba(192, 163, 106, 0.72);
+  background: #4a2b12;
+}
+
+.primary-button:hover,
+.primary-button:focus-visible {
+  border-color: var(--accent-2);
+  background: #5a3518;
+}
+
+.mini-button {
+  padding: 7px 11px;
+  background: var(--surface-soft);
+}
+
+.mini-button:hover,
+.mini-button:focus-visible {
+  border-color: var(--accent);
+  background: #2b1d12;
+}
+
+.vector-workbench {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.15fr) minmax(240px, 0.85fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.vector-diagram {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0a0907;
+  background-size: 26px 26px;
+}
+
+.axis-line {
+  stroke: rgba(242, 234, 220, 0.28);
+  stroke-width: 1.2;
+}
+
+.svg-label {
+  fill: #c9b79b;
+  font-size: 8px;
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+}
+
+.vector-name {
+  fill: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.vector-line {
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.vector-forward {
+  stroke: var(--accent-2);
+}
+
+.vector-target {
+  stroke: var(--accent);
+}
+
+#arrow-forward path {
+  fill: var(--accent-2);
+}
+
+#arrow-target path {
+  fill: var(--accent);
+}
+
+.origin-dot {
+  fill: var(--ink);
+}
+
+.target-dot {
+  fill: #ffe2a3;
+  stroke: #0a0907;
+  stroke-width: 2;
+}
+
+.projection-line {
+  stroke: var(--danger);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}
+
+.parallelogram-shape {
+  fill: rgba(242, 140, 40, 0.12);
+  stroke: rgba(242, 140, 40, 0.48);
+  stroke-width: 1.4;
+}
+
+.angle-arc {
+  fill: none;
+  stroke: #ffb454;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  min-height: 128px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.metric-card span,
+.metric-card small {
+  display: block;
+  color: var(--muted);
+}
+
+.metric-card strong {
+  display: block;
+  margin: 8px 0 6px;
+  color: var(--accent-2);
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  line-height: 1;
+}
+
+.delegate-lab {
+  display: grid;
+  gap: 16px;
+}
+
+.delegate-board {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.8fr) 74px minmax(190px, 1fr) minmax(260px, 1.25fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.delegate-node,
+.listener-node {
+  min-width: 0;
+  min-height: 124px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  text-align: left;
+}
+
+.delegate-node strong,
+.listener-node strong {
+  display: block;
+  margin: 4px 0 7px;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.delegate-node small,
+.listener-node small {
+  display: block;
+  color: #d7c6ad;
+  font-size: 0.9rem;
+}
+
+.node-kicker {
+  color: var(--accent-2);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.delegate-source {
+  border-color: rgba(192, 163, 106, 0.45);
+}
+
+.delegate-bus {
+  border-color: rgba(242, 140, 40, 0.52);
+  background: #18221f;
+}
+
+.wire-lane {
+  display: grid;
+  gap: 10px;
+}
+
+.signal-wire {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(192, 163, 106, 0.22), rgba(242, 140, 40, 0.72), rgba(192, 163, 106, 0.22));
+  opacity: 0.35;
+  transform-origin: left center;
+}
+
+.listener-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.listener-node {
+  position: relative;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.listener-node[aria-pressed="true"] {
+  border-color: rgba(242, 140, 40, 0.72);
+  background: #251a10;
+}
+
+.listener-node[aria-pressed="false"] {
+  opacity: 0.58;
+}
+
+.status-dot {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--danger);
+  box-shadow: 0 0 0 3px rgba(198, 129, 123, 0.14);
+}
+
+.listener-node[aria-pressed="true"] .status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(242, 140, 40, 0.16);
+}
+
+.event-log {
+  min-height: 74px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a0907;
+  color: #d7c6ad;
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: 0.9rem;
+}
+
+.event-log p {
+  margin: 0;
+}
+
+.event-log p + p {
+  margin-top: 6px;
+}
+
+.is-broadcasting {
+  animation: nodePulse 760ms ease-out;
+}
+
+.signal-wire.is-signal {
+  animation: signalSweep 900ms ease-out;
+}
+
+.listener-node.is-flashing {
+  animation: listenerFlash 920ms ease-out;
+}
+
+.listener-node.is-skipped {
+  border-color: rgba(198, 129, 123, 0.42);
+}
+
+@keyframes nodePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(192, 163, 106, 0.42);
+    transform: translateY(0);
+  }
+  45% {
+    box-shadow: 0 0 0 12px rgba(192, 163, 106, 0);
+    transform: translateY(-2px);
+  }
+  100% {
+    box-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+@keyframes signalSweep {
+  0% {
+    opacity: 0.25;
+    transform: scaleX(0.15);
+  }
+  55% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes listenerFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(242, 140, 40, 0.55);
+    transform: translateY(0);
+  }
+  38% {
+    border-color: var(--accent-2);
+    background: #322111;
+    box-shadow: 0 0 22px rgba(192, 163, 106, 0.44);
+    transform: translateY(-3px);
+  }
+  100% {
+    box-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 980px) {
+  .vector-workbench,
+  .delegate-board {
+    grid-template-columns: 1fr;
+  }
+
+  .wire-lane {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .signal-wire {
+    height: 3px;
+  }
+}
+
+@media (max-width: 620px) {
+  .metric-grid,
+  .listener-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vector-diagram {
+    min-height: 280px;
+  }
+}
+/* Additional simulation labs */
+.stacked-toolbar {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.control-group {
+  display: grid;
+  gap: 8px;
+}
+
+.control-label {
+  color: var(--accent-2);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.segmented-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mini-button.is-selected {
+  border-color: var(--accent);
+  background: rgba(242, 140, 40, 0.22);
+  color: var(--ink);
+}
+
+.toggle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: #e6d2b4;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.toggle-chip input {
+  accent-color: var(--accent);
+}
+
+.compact-range {
+  min-width: min(100%, 220px);
+}
+
+.sim-workbench,
+.attribute-board,
+.duration-board,
+.damage-board,
+.pose-query-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.trace-workbench,
+.warp-workbench,
+.pose-query-panel {
+  grid-template-columns: minmax(280px, 1.15fr) minmax(240px, 0.85fr);
+  align-items: stretch;
+}
+
+.trace-scene,
+.warp-scene {
+  width: 100%;
+  min-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0a0907;
+  background-size: 28px 28px;
+}
+
+.trace-ground {
+  stroke: rgba(242, 234, 220, 0.22);
+  stroke-width: 2;
+}
+
+.trace-ray {
+  stroke: var(--accent-2);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.trace-ray.is-wide {
+  stroke-width: 9;
+  opacity: 0.82;
+}
+
+.trace-sweep {
+  fill: rgba(242, 140, 40, 0.13);
+  stroke: rgba(242, 140, 40, 0.52);
+  stroke-width: 2;
+}
+
+.trace-start,
+.trace-arrow,
+.trace-hit-marker circle {
+  fill: var(--accent-2);
+}
+
+.trace-hit-marker circle {
+  opacity: 0.9;
+  transition: r 180ms ease;
+}
+
+.trace-object rect,
+.trace-object circle {
+  fill: #20160f;
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.trace-object text,
+.warp-target text {
+  fill: #d6c4aa;
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.trace-object.is-hit rect,
+.trace-object.is-hit circle {
+  stroke: var(--accent);
+  fill: #2a1d12;
+}
+
+.trace-object.is-blocking rect,
+.trace-object.is-blocking circle {
+  stroke: var(--danger);
+}
+
+.rpc-network-board,
+.replication-board {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) 90px minmax(260px, 1.2fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.client-cluster {
+  display: grid;
+  gap: 12px;
+}
+
+.net-machine,
+.rep-card,
+.attribute-card,
+.process-step,
+.bt-node,
+.pose-card {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.net-machine strong,
+.rep-card strong,
+.attribute-card strong,
+.process-step strong,
+.bt-node strong,
+.pose-card strong {
+  display: block;
+  color: var(--accent);
+}
+
+.net-machine small,
+.rep-card small,
+.attribute-card small,
+.process-step small,
+.bt-node small,
+.pose-card small {
+  display: block;
+  margin-top: 5px;
+  color: #d7c6ad;
+  font-size: 0.9rem;
+}
+
+.net-wire-column,
+.rep-filter-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.net-machine.is-active,
+.rep-card.is-active,
+.process-step.is-active,
+.bt-node.is-active {
+  border-color: var(--accent-2);
+  animation: nodePulse 760ms ease-out;
+}
+
+.net-machine.is-success,
+.rep-card.is-success,
+.attribute-card.is-success,
+.process-step.is-success,
+.bt-node.is-success,
+.pose-card.is-selected {
+  border-color: var(--accent);
+  background: #251a10;
+  box-shadow: 0 0 18px rgba(242, 140, 40, 0.16);
+}
+
+.net-machine.is-failed,
+.process-step.is-failed,
+.bt-node.is-failed,
+.filter-step.is-failed {
+  border-color: var(--danger);
+  background: #251d1c;
+}
+
+.process-step.is-skipped {
+  opacity: 0.48;
+}
+
+.filter-step {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #110d09;
+  color: #d7c6ad;
+  font-size: 0.9rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.filter-step.is-active {
+  border-color: var(--accent-2);
+  background: #2b2519;
+}
+
+.filter-step.is-success {
+  border-color: var(--accent);
+  background: #20160f;
+}
+
+.health-meter {
+  overflow: hidden;
+  height: 12px;
+  margin: 10px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #0a0907;
+}
+
+.health-meter span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--danger), var(--accent-2), var(--accent));
+  transition: width 220ms ease;
+}
+
+.time-meter span {
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+}
+
+.process-track {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.process-step span {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(242, 140, 40, 0.18);
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.attribute-board,
+.duration-board,
+.damage-board {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stack-pips {
+  display: flex;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.stack-pips span {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #0a0907;
+}
+
+.stack-pips span.is-filled {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(242, 140, 40, 0.35);
+}
+
+.bt-tree-board {
+  display: grid;
+  gap: 14px;
+}
+
+.bt-tree-board > .bt-node {
+  width: min(100%, 340px);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.bt-branches {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bt-branch {
+  display: grid;
+  gap: 10px;
+}
+
+.bt-node.decorator {
+  border-style: dashed;
+}
+
+.original-path,
+.warped-path {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.original-path {
+  stroke: rgba(198, 129, 123, 0.48);
+  stroke-dasharray: 8 8;
+}
+
+.warped-path {
+  stroke: var(--accent);
+}
+
+.warp-target path {
+  fill: var(--accent-2);
+  stroke: #0a0907;
+  stroke-width: 2;
+}
+
+.pose-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.pose-card span {
+  display: block;
+  color: #d7c6ad;
+  font-weight: 750;
+}
+
+.pose-card strong {
+  margin-top: 8px;
+  color: var(--accent-2);
+  font-size: 1.45rem;
+}
+
+@media (max-width: 980px) {
+  .trace-workbench,
+  .warp-workbench,
+  .pose-query-panel,
+  .rpc-network-board,
+  .replication-board {
+    grid-template-columns: 1fr;
+  }
+
+  .process-track,
+  .attribute-board,
+  .duration-board,
+  .damage-board,
+  .bt-branches {
+    grid-template-columns: 1fr;
+  }
+
+  .net-wire-column,
+  .rep-filter-stack {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .trace-scene,
+  .warp-scene {
+    min-height: 250px;
+  }
+
+  .net-wire-column,
+  .rep-filter-stack {
+    grid-template-columns: 1fr;
+  }
+}
+/* Pointer learning lab */
+.pointer-choice-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.1fr) minmax(260px, 0.9fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.pointer-stage,
+.pointer-result-card,
+.pointer-code-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.pointer-stage {
+  padding: 12px;
+}
+
+.pointer-scene {
+  width: 100%;
+  min-height: 310px;
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0a0907;
+  background-size: 28px 28px;
+}
+
+.pointer-scene marker path {
+  fill: currentColor;
+}
+
+.pointer-link {
+  fill: none;
+  stroke: rgba(242, 234, 220, 0.24);
+  stroke-width: 5;
+  stroke-linecap: round;
+  marker-end: url(#arrow-pointer);
+  opacity: 0.24;
+  transition: opacity 180ms ease, stroke 180ms ease, stroke-dasharray 180ms ease;
+}
+
+.pointer-lab[data-pointer-mode="strong"] [data-pointer-link="strong"],
+.pointer-lab[data-pointer-mode="weak"] [data-pointer-link="weak"],
+.pointer-lab[data-pointer-mode="soft"] [data-pointer-link="soft"],
+.pointer-lab[data-pointer-mode="class"] [data-pointer-link="class"],
+.pointer-lab[data-pointer-mode="cpp"] [data-pointer-link="cpp"] {
+  opacity: 1;
+  stroke: var(--accent);
+}
+
+.pointer-lab[data-pointer-mode="weak"] [data-pointer-link="weak"],
+.pointer-lab[data-pointer-mode="soft"] [data-pointer-link="soft"] {
+  stroke-dasharray: 9 8;
+}
+
+.pointer-lab[data-pointer-mode="class"] [data-pointer-link="class"] {
+  stroke: var(--accent-2);
+}
+
+.pointer-lab[data-pointer-mode="cpp"] [data-pointer-link="cpp"] {
+  stroke: #d36b5f;
+}
+
+.pointer-node rect {
+  fill: #15100b;
+  stroke: var(--line);
+  stroke-width: 2;
+  transition: fill 180ms ease, stroke 180ms ease, filter 180ms ease;
+}
+
+.pointer-node text {
+  fill: #e4d0b0;
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.pointer-node text:nth-of-type(2) {
+  fill: #b9a489;
+  font-size: 11px;
+}
+
+.pointer-node.is-active rect {
+  fill: #251a10;
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 10px rgba(242, 140, 40, 0.26));
+}
+
+.pointer-result-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.result-kicker {
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pointer-result-card strong {
+  color: var(--accent);
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.15;
+}
+
+.pointer-result-card p {
+  margin: 0;
+}
+
+.pointer-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pointer-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #100d0a;
+  color: #e4d0b0;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.pointer-note-list {
+  margin: 0;
+  padding-left: 19px;
+  color: #e4d0b0;
+}
+
+.pointer-note-list li + li {
+  margin-top: 7px;
+}
+
+.pointer-code-card {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(240px, 0.75fr);
+  gap: 14px;
+  margin-top: 16px;
+  padding: 14px;
+}
+
+.pointer-code-card .code {
+  margin: 8px 0 0;
+  min-height: 150px;
+}
+
+@media (max-width: 980px) {
+  .pointer-choice-grid,
+  .pointer-code-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .pointer-scene {
+    min-height: 240px;
+  }
+}
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#ge-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#duration">타입</a>
+        <a href="#modifier">Modifier</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>게임플레이 이펙트(GE)</h1>
+      <p class="lead">
+        Gameplay Effect는 Attribute와 Gameplay Tag를 바꾸는 데이터 중심 규칙입니다.
+        데미지, 회복, 버프, 디버프, 비용, 쿨다운, 지속 회복처럼 “게임 상태를 바꾸는 일” 대부분이 GE를 통해 표현됩니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/게임플레이 이펙트(GE).md</span>
+        <span class="pill">난이도: GAS 핵심</span>
+        <span class="pill">핵심: DurationPolicy, Modifier, Attribute, ExecutionCalculation</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="ge-visual" class="panel">
+          <h2>GE Modifier 수치 실험판</h2>
+          <p>
+            Instant GE는 값을 적용하고 끝나지만, Duration/Infinite GE는 Active GE로 남아 CurrentValue 계산에 참여합니다. 적용 정책과 Magnitude를 바꿔 BaseValue와 CurrentValue 차이를 확인하세요.
+          </p>
+
+          <div class="interactive-lab attribute-lab" data-ge-sim>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="control-group">
+                <span class="control-label">Duration Policy</span>
+                <div class="segmented-control" role="group" aria-label="GE duration policy">
+                  <button type="button" class="mini-button is-selected" data-ge-policy="instant">Instant</button>
+                  <button type="button" class="mini-button" data-ge-policy="duration">Duration</button>
+                  <button type="button" class="mini-button" data-ge-policy="infinite">Infinite</button>
+                </div>
+              </div>
+              <div class="range-field compact-range">
+                <label for="ge-magnitude">Magnitude</label>
+                <input id="ge-magnitude" type="range" min="-50" max="60" value="-30" step="5" data-ge-magnitude>
+              </div>
+              <div class="range-field compact-range">
+                <label for="ge-stacks">Stacks</label>
+                <input id="ge-stacks" type="range" min="1" max="5" value="1" step="1" data-ge-stacks>
+              </div>
+            </div>
+
+            <div class="attribute-board">
+              <div class="attribute-card">
+                <span class="node-kicker">BaseValue</span>
+                <strong data-ge-base>100</strong>
+                <div class="health-meter"><span data-ge-bar="base"></span></div>
+              </div>
+              <div class="attribute-card active-effect-card" data-ge-active-card>
+                <span class="node-kicker">Active GE Modifier</span>
+                <strong data-ge-active>없음</strong>
+                <small data-ge-active-note>Instant는 Active GE로 남지 않습니다.</small>
+              </div>
+              <div class="attribute-card">
+                <span class="node-kicker">CurrentValue</span>
+                <strong data-ge-current>100</strong>
+                <div class="health-meter"><span data-ge-bar="current"></span></div>
+              </div>
+            </div>
+
+            <div class="broadcast-controls">
+              <button type="button" class="primary-button" data-ge-apply>Apply GE</button>
+              <button type="button" class="mini-button" data-ge-expire>Expire/Remove Active</button>
+              <button type="button" class="mini-button" data-ge-reset>Reset</button>
+            </div>
+            <div class="event-log" data-ge-log>
+              <p>Instant 피해는 BaseValue를 바꾸고, Duration/Infinite 버프는 CurrentValue 계산에 남습니다.</p>
+            </div>
+          </div>
+        </section>
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Gameplay Effect는 ASC에 적용되어 Attribute, Tag, Cue, Ability 부여 같은 게임플레이 변화를 만드는 데이터 자산</strong>입니다.
+            대부분의 Attribute 변경은 직접 값을 수정하기보다 GE를 통해 처리하는 편이 예측, 복제, 디버깅 흐름과 잘 맞습니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">GE와 Attribute는 같이 이해해야 합니다</p>
+            <p>
+              Attribute는 체력, 마나, 이동속도 같은 숫자 상태이고, GE는 그 숫자를 어떻게 바꿀지 정의합니다.
+              즉 “체력 -30”은 Attribute 자체의 책임이 아니라 GE의 Modifier 또는 ExecutionCalculation 책임입니다.
+            </p>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">5.7 계열에서 볼 때의 변화</p>
+            <p>
+              Epic 5.7 문서의 <code>UGameplayEffect</code>는 많은 부가 동작을 <code>GameplayEffectComponent</code> 계열로 분리해 설명합니다.
+              태그 조건, 추가 효과, 면역, 다른 효과 제거처럼 "GE에 붙는 옵션"은 예전 단일 속성 이름만 외우기보다 컴포넌트로 조립되는 구조로 이해하는 편이 안전합니다.
+            </p>
+          </div>
+
+          <div class="system-map" aria-label="Gameplay Effect의 역할">
+            <div class="system-node core">
+              <h3>Gameplay Effect</h3>
+              <p>게임 상태 변경을 데이터로 표현합니다. 적용 대상 ASC는 GE Spec을 받아 즉시 실행하거나 ActiveGameplayEffect로 보관합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Attribute 변경</h3>
+              <p>체력 감소, 스태미나 소모, 이동속도 증가처럼 숫자 값을 변경합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Gameplay Tag 부여</h3>
+              <p>기절, 무적, 쿨다운 중 같은 상태 태그를 GE의 지속 시간 동안 유지할 수 있습니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Gameplay Cue 연동</h3>
+              <p>버프 시작, 피해 이펙트, 지속 파티클 같은 시각/청각 표현을 연결할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="duration" class="panel">
+          <h2>GE의 세 가지 지속 정책</h2>
+          <p>
+            GE는 적용 기간에 따라 다르게 동작합니다. 이 선택은 BaseValue와 CurrentValue 변화, 태그 유지, Cue 이벤트 처리까지 영향을 줍니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>정책</th>
+                  <th>동작</th>
+                  <th>대표 사용</th>
+                  <th>주의점</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Instant</strong></td>
+                  <td>즉시 한 번 적용되고 Active GE로 남지 않습니다.</td>
+                  <td>피해, 즉시 회복, 스태미나 비용</td>
+                  <td>상태 태그를 유지하는 용도에는 맞지 않습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>Duration</strong></td>
+                  <td>정해진 시간 동안 유지되다가 만료됩니다.</td>
+                  <td>5초 이동속도 증가, 3초 기절, 지속 피해</td>
+                  <td>만료 시점과 중첩 정책을 명확히 정해야 합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>Infinite</strong></td>
+                  <td>명시적으로 제거할 때까지 계속 유지됩니다.</td>
+                  <td>장비 보너스, 패시브 효과, 오라, 무한 재생</td>
+                  <td>제거 경로를 설계하지 않으면 상태가 계속 남습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="modifier" class="panel">
+          <h2>게임플레이 이펙트 모디파이어</h2>
+          <p>
+            Modifier는 GE가 어떤 Attribute를 어떤 방식으로 바꿀지 정의하는 설정입니다.
+            “무엇을 바꿀지”, “어떤 연산을 할지”, “값은 어디서 가져올지”를 함께 지정합니다.
+          </p>
+
+          <div class="flow" aria-label="Gameplay Effect Modifier 구성 흐름">
+            <div class="flow-step">
+              <span class="flow-kicker">1. Attribute</span>
+              <strong>대상 선택</strong>
+              <span>Health, Mana, MoveSpeed 같은 변경 대상 Attribute를 지정합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2. Operation</span>
+              <strong>연산 선택</strong>
+              <span>AddBase, MultiplyAdditive, DivideAdditive, Override, MultiplyCompound, AddFinal 같은 적용 방식을 고릅니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3. Magnitude</span>
+              <strong>값 계산</strong>
+              <span>ScalableFloat, AttributeBased, CustomCalculationClass, SetByCaller 중 선택합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4. Spec</span>
+              <strong>Spec 생성</strong>
+              <span>레벨, Context, SetByCaller 값이 반영된 GE Spec이 만들어집니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5. Apply</span>
+              <strong>ASC에 적용</strong>
+              <span>대상 ASC가 GE를 실행하거나 ActiveGameplayEffect로 보관합니다.</span>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>값 계산 방식</th>
+                  <th>설명</th>
+                  <th>잘 맞는 상황</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>ScalableFloat</strong></td>
+                  <td>고정 실수 또는 레벨/커브 테이블 기반 값을 사용합니다.</td>
+                  <td>스킬 레벨별 피해량, 쿨다운 시간, 기본 비용</td>
+                </tr>
+                <tr>
+                  <td><strong>AttributeBased</strong></td>
+                  <td>소스 또는 타겟의 Attribute 값을 기반으로 계산합니다.</td>
+                  <td>공격력 기반 피해, 최대 체력 비례 회복</td>
+                </tr>
+                <tr>
+                  <td><strong>CustomCalculationClass</strong></td>
+                  <td>전용 계산 클래스로 Magnitude를 산출합니다.</td>
+                  <td>복잡하지만 Modifier 구조 안에 남기고 싶은 계산</td>
+                </tr>
+                <tr>
+                  <td><strong>SetByCaller</strong></td>
+                  <td>GE Spec을 만드는 쪽에서 GameplayTag 키로 런타임 값을 주입합니다.</td>
+                  <td>충전 시간 기반 피해, 타겟팅 결과에 따른 가변 값</td>
+                </tr>
+                <tr>
+                  <td><strong>ExecutionCalculation</strong></td>
+                  <td>Modifier만으로 부족한 복잡한 적용 로직을 실행 계산으로 처리합니다.</td>
+                  <td>방어력, 치명타, 보호막, 피해 분배가 섞인 최종 피해 계산</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>5.7 Modifier 연산</th>
+                  <th>의미</th>
+                  <th>설계 감각</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>AddBase</strong></td>
+                  <td>기본값에 먼저 더합니다.</td>
+                  <td>가장 일반적인 피해, 회복, 비용의 출발점입니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>MultiplyAdditive</strong></td>
+                  <td>곱셈 보정을 합산한 뒤 이전 결과에 곱합니다.</td>
+                  <td>여러 버프의 퍼센트 보정이 더해지는 체감에 맞습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>DivideAdditive</strong></td>
+                  <td>나눗셈 보정을 합산한 뒤 이전 결과를 나눕니다.</td>
+                  <td>감속, 저항, 페널티 계열을 별도 축으로 다룰 때 씁니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>Override</strong></td>
+                  <td>계산 결과와 관계없이 값을 덮어씁니다.</td>
+                  <td>고정 이동속도, 강제 체력 값처럼 우선순위가 분명할 때만 사용합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>MultiplyCompound</strong></td>
+                  <td>곱셈 보정이 서로 누적 곱으로 적용됩니다.</td>
+                  <td>1.5와 1.5가 2.25처럼 커지는 복합 배율에 맞습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>AddFinal</strong></td>
+                  <td>최종 계산 결과에 마지막으로 더합니다.</td>
+                  <td>모든 배율 뒤에 붙는 보정값이 필요할 때 씁니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>C++ 작성 감각</h2>
+          <p>
+            아래 코드는 개념 감각을 위한 예시입니다. 실제 C++ enum 표기는 프로젝트가 사용하는 엔진 헤더의 이름을 확인해야 합니다.
+            GE는 데이터 전용 Blueprint로 만드는 편이 일반적으로 편합니다.
+            C++로도 만들 수 있지만, Attribute 지정과 Magnitude 설정 문법이 장황해지기 쉬워 공통 베이스나 팩토리 없이 대량 작성하기에는 부담이 큽니다.
+          </p>
+          <pre class="code"><code>UProjectGE_AttackDamage::UProjectGE_AttackDamage()
+{
+    DurationPolicy = EGameplayEffectDurationType::Instant;
+
+    FGameplayModifierInfo HealthModifier;
+    HealthModifier.Attribute = UCharacterAttributeSet::GetHealthAttribute();
+    HealthModifier.ModifierOp = EGameplayModOp::AddBase;
+
+    HealthModifier.ModifierMagnitude =
+        FGameplayEffectModifierMagnitude(FScalableFloat(-30.0f));
+
+    Modifiers.Add(HealthModifier);
+}</code></pre>
+
+          <div class="callout warning">
+            <p class="callout-title">권장 제작 방식</p>
+            <p>
+              디자이너가 수치와 태그를 조정해야 하는 GE는 Blueprint/Data Asset으로 만들고,
+              C++는 AttributeSet, 공통 계산 클래스, ExecutionCalculation, MMC 같은 구조를 제공하는 쪽이 유지보수에 유리합니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>적용 시나리오</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>상황</th>
+                  <th>GE 설계</th>
+                  <th>핵심 판단</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>총알 피해</strong></td>
+                  <td>Instant GE + Damage 또는 Health Modifier</td>
+                  <td>단순 피해면 Modifier, 방어력/치명타가 있으면 ExecutionCalculation을 검토합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>질주 비용</strong></td>
+                  <td>Instant 또는 주기적 GE로 Stamina 감소</td>
+                  <td>예측과 서버 권한, 입력 유지 중 비용 적용 주기를 함께 봅니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>이동속도 버프</strong></td>
+                  <td>Duration GE + MoveSpeed Modifier</td>
+                  <td>만료 시 자동 제거되고 CurrentValue가 원래 계산으로 돌아가야 합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>장비 패시브</strong></td>
+                  <td>Infinite GE + Attribute/Tag Modifier</td>
+                  <td>장비 해제나 캐릭터 교체 시 제거 경로를 반드시 둡니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. GE가 주로 바꾸는 대상은?</strong>
+              <p class="answer">정답: Attribute와 Gameplay Tag입니다. 필요하면 Cue, Ability 부여, Stack 정책도 함께 다룹니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. Duration GE와 Infinite GE의 차이는?</strong>
+              <p class="answer">정답: Duration은 지정 시간이 지나면 만료되고, Infinite는 명시적으로 제거할 때까지 남습니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. SetByCaller는 언제 쓰는가?</strong>
+              <p class="answer">정답: GE 자산 안에 고정할 수 없는 런타임 값을 GE Spec을 만드는 쪽에서 주입할 때 씁니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. Modifier만으로 부족할 때 쓰는 것은?</strong>
+              <p class="answer">정답: <code>GameplayEffectExecutionCalculation</code>입니다. 복잡한 피해 계산, 방어력, 치명타, 보호막 분배 등에 적합합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%96%B4%EB%B9%8C%EB%A6%AC%ED%8B%B0(GA).html">게임플레이 어빌리티(GA)</a>: GE를 비용, 쿨다운, 효과 적용에 사용</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8%EC%9D%98%20%EC%83%9D%EC%84%B1%20%EA%B3%BC%EC%A0%95.html">게임플레이 이펙트의 생성 과정</a>: Context와 Spec을 만들어 ASC에 적용하는 흐름</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%ED%81%90(GC).html">게임플레이 큐(GC)</a>: GE에 연결되는 시각/청각 표현 효과</li>
+            <li><a href="어트리뷰트 세트(Attribute Set).html">어트리뷰트 세트(Attribute Set)</a>: GE 적용 전후로 값을 검증하고 반응하는 곳</li>
+            <li><a href="%EA%B8%B0%EA%B0%84%ED%98%95%20%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8.html">기간형 게임플레이 이펙트</a>: Duration/Infinite 효과의 태그, 스택, 만료 흐름</li>
+            <li><a href="%EB%A0%88%EB%B2%A8%EA%B3%BC%20%EC%BB%A4%EB%B8%8C%20%ED%85%8C%EC%9D%B4%EB%B8%94.html">레벨과 커브 테이블</a>: ScalableFloat와 레벨 기반 수치 설계</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/EGameplayEffectDurationType" target="_blank" rel="noreferrer">Epic Developer Community: EGameplayEffectDurationType API</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayEffect?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayEffect Python API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayModOp?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayModOp Python API 5.7</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\게임플레이 이펙트(GE).md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#ge-visual">시각화</a>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#duration">지속 정책</a>
+        <a href="#modifier">Modifier</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-ge-sim]');
+      if (!lab) return;
+      const state = { base: 100, active: 0, policy: 'instant' };
+      const magnitude = lab.querySelector('[data-ge-magnitude]');
+      const stacks = lab.querySelector('[data-ge-stacks]');
+      const log = lab.querySelector('[data-ge-log]');
+      function clamp(value) { return Math.max(0, Math.min(160, value)); }
+      function current() { return clamp(state.base + state.active); }
+      function render(lines) {
+        lab.querySelector('[data-ge-base]').textContent = Math.round(state.base);
+        lab.querySelector('[data-ge-current]').textContent = Math.round(current());
+        lab.querySelector('[data-ge-active]').textContent = state.active === 0 ? '없음' : `${state.active > 0 ? '+' : ''}${state.active}`;
+        lab.querySelector('[data-ge-active-note]').textContent = state.policy === 'instant' ? 'Instant는 Active GE로 남지 않습니다.' : '효과가 제거될 때까지 CurrentValue에 참여합니다.';
+        lab.querySelector('[data-ge-bar="base"]').style.width = `${Math.min(100, state.base)}%`;
+        lab.querySelector('[data-ge-bar="current"]').style.width = `${Math.min(100, current())}%`;
+        lab.querySelector('[data-ge-active-card]').classList.toggle('is-success', state.active !== 0);
+        if (lines) log.innerHTML = lines.map((line) => `<p>${line}</p>`).join('');
+      }
+      lab.querySelectorAll('[data-ge-policy]').forEach((button) => button.addEventListener('click', () => {
+        state.policy = button.dataset.gePolicy;
+        lab.querySelectorAll('[data-ge-policy]').forEach((candidate) => candidate.classList.toggle('is-selected', candidate === button));
+        render([`${button.textContent} 정책을 선택했습니다.`]);
+      }));
+      lab.querySelector('[data-ge-apply]').addEventListener('click', () => {
+        const amount = Number(magnitude.value) * Number(stacks.value);
+        if (state.policy === 'instant') {
+          state.base = clamp(state.base + amount);
+          state.active = 0;
+          render([`Instant GE 적용: BaseValue가 ${amount > 0 ? '+' : ''}${amount}만큼 변했습니다.`]);
+        } else {
+          state.active = amount;
+          render([`${state.policy === 'duration' ? 'Duration' : 'Infinite'} GE 활성: CurrentValue에 ${amount > 0 ? '+' : ''}${amount} 보정이 붙었습니다.`]);
+        }
+      });
+      lab.querySelector('[data-ge-expire]').addEventListener('click', () => { state.active = 0; render(['Active GE가 제거되어 CurrentValue가 BaseValue 기준으로 돌아갑니다.']); });
+      lab.querySelector('[data-ge-reset]').addEventListener('click', () => { state.base = 100; state.active = 0; render(['BaseValue와 Active GE를 초기화했습니다.']); });
+      render();
+    })();
+  </script>
+</body>
+</html>
+

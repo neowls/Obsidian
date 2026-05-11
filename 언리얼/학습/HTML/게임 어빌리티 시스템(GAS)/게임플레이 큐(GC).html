@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>게임플레이 큐(GC)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#types">타입</a>
+        <a href="#events">이벤트</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>게임플레이 큐(GC)</h1>
+      <p class="lead">
+        Gameplay Cue는 파티클, 사운드, 카메라 흔들림 같은 표현 효과를 게임 로직과 분리해서 실행하는 GAS의 연출 경로입니다.
+        데미지 계산이나 상태 변경은 GE가 맡고, 그 결과를 보여주는 일은 GC가 맡는 식으로 책임을 나누면 구조가 깔끔해집니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/게임플레이 큐(GC).md</span>
+        <span class="pill">난이도: 표현 효과 기초</span>
+        <span class="pill">핵심: GameplayCueNotify, GameplayCueManager, GameplayCue Tag</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Gameplay Cue는 게임플레이 결과를 시각적, 청각적으로 표현하는 비게임플레이 로직</strong>입니다.
+            서버 판정, Attribute 변경, 데미지 계산 같은 핵심 로직을 담당하지 않고, 클라이언트가 볼 효과를 재생하는 데 집중합니다.
+          </p>
+
+          <div class="callout warning">
+            <p class="callout-title">태그 규칙</p>
+            <p>
+              Gameplay Cue를 발동하는 태그는 반드시 <code>GameplayCue</code>로 시작해야 합니다.
+              예: <code>GameplayCue.Weapon.Fire.Impact</code>, <code>GameplayCue.Status.Stun</code>
+            </p>
+          </div>
+
+          <div class="system-map" aria-label="Gameplay Cue의 역할">
+            <div class="system-node core">
+              <h3>GameplayCueManager</h3>
+              <p>GameplayCue Tag와 이벤트를 받아 알맞은 GameplayCueNotify로 라우팅합니다. GC 재생은 다른 GAS 로직과 분리된 매니저가 담당합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>GameplayEffect</h3>
+              <p>GE가 성공적으로 적용될 때 연결된 GameplayCue를 자동으로 Execute, Add, Remove할 수 있습니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>GameplayCue Tag</h3>
+              <p>어떤 Cue를 실행할지 식별하는 태그입니다. GameplayCue로 시작하는 계층형 태그를 씁니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>GameplayCueParameters</h3>
+              <p>위치, Instigator, EffectContext, Magnitude, SourceObject 같은 연출에 필요한 추가 정보를 전달합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="types" class="panel">
+          <h2>두 종류의 GameplayCueNotify</h2>
+          <p>
+            GC는 보통 일회성 효과와 지속 효과로 나눠 생각하면 됩니다.
+            한 번 터지고 끝나는 효과는 Static, 일정 시간 유지되며 정리가 필요한 효과는 Actor가 잘 맞습니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>종류</th>
+                  <th>주요 이벤트</th>
+                  <th>잘 맞는 효과</th>
+                  <th>주의점</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>GameplayCueNotify_Static</strong></td>
+                  <td>Execute</td>
+                  <td>피격 임팩트, 총구 화염, 한 번 재생되는 사운드</td>
+                  <td>인스턴스가 없으므로 상태를 오래 보관하는 용도에는 맞지 않습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>GameplayCueNotify_Actor</strong></td>
+                  <td>Add, WhileActive, Remove<br><span class="muted">BP: On Burst, On Become Relevant, On Cease Relevant</span></td>
+                  <td>스턴 이펙트, 질주 루프 파티클, 지속 오라, 루프 사운드</td>
+                  <td>Remove에서 정리해야 하며, Auto Destroy 설정을 확인해야 합니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="events" class="panel">
+          <h2>이벤트 흐름</h2>
+          <p>
+            Instant GE는 보통 Execute를 호출하고, Duration/Infinite GE는 Add와 Remove를 통해 지속 연출을 관리합니다.
+          </p>
+
+          <div class="flow" aria-label="Gameplay Cue 이벤트 흐름">
+            <div class="flow-step">
+              <span class="flow-kicker">1. Trigger</span>
+              <strong>태그로 호출</strong>
+              <span>ASC, GA, GE가 <code>GameplayCue.*</code> 태그와 이벤트를 보냅니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2. Manager</span>
+              <strong>매니저 라우팅</strong>
+              <span>GameplayCueManager가 태그에 맞는 Notify를 찾습니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3. Execute</span>
+              <strong>일회성 재생</strong>
+              <span>Static Notify가 즉발 파티클, 사운드, 카메라 효과를 재생합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4. Add</span>
+              <strong>지속 효과 시작</strong>
+              <span>Actor Notify가 스폰되고 루프 효과를 시작합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5. Remove</span>
+              <strong>정리</strong>
+              <span>GE 만료나 수동 제거 시 루프 효과와 인스턴스를 정리합니다.</span>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>이벤트</th>
+                  <th>의미</th>
+                  <th>사용 예</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Executed</strong></td>
+                  <td>즉시 실행되는 이벤트입니다.</td>
+                  <td>총알 충돌, 타격 스파크, 폭발음</td>
+                </tr>
+                <tr>
+                  <td><strong>OnActive</strong></td>
+                  <td>지속 Cue가 처음 활성화될 때 호출됩니다. 5.7 Blueprint Notify에서는 On Burst 명칭도 함께 확인해야 합니다.</td>
+                  <td>버프 시작 효과, 기절 시작 사운드</td>
+                </tr>
+                <tr>
+                  <td><strong>WhileActive</strong></td>
+                  <td>Cue가 활성 상태로 보일 때 호출됩니다. 5.7 Blueprint Notify에서는 On Become Relevant 흐름과 대응됩니다.</td>
+                  <td>중도 참여자도 봐야 하는 루프 파티클 시작</td>
+                </tr>
+                <tr>
+                  <td><strong>Removed</strong></td>
+                  <td>지속 Cue가 제거될 때 호출됩니다. 5.7 Blueprint Notify에서는 On Cease Relevant 명칭과 대응됩니다.</td>
+                  <td>루프 파티클 중단, 사운드 페이드아웃, 컴포넌트 정리</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout">
+            <p class="callout-title">이벤트 이름을 두 층으로 읽기</p>
+            <p>
+              GAS의 개념 이벤트는 여전히 <code>Executed</code>, <code>OnActive</code>, <code>WhileActive</code>, <code>Removed</code>로 이해하면 됩니다.
+              다만 5.7의 <code>GameplayCueNotify_Actor</code> Blueprint API에서는 활성/중지 이벤트가 <code>On Burst</code>, <code>On Become Relevant</code>, <code>On Cease Relevant</code>처럼 보일 수 있습니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>GE와 연결되는 방식</h2>
+          <p>
+            GameplayEffect 안에 GameplayCue 태그를 지정하면 GE 적용 방식에 따라 적절한 이벤트가 자동으로 호출됩니다.
+            즉, 버프 GE는 버프 연출을 켜고 만료 시 끄는 구조를 자연스럽게 만들 수 있습니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>GE 타입</th>
+                  <th>GC 이벤트</th>
+                  <th>대표 예시</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Instant</strong></td>
+                  <td>Execute</td>
+                  <td>피격 이펙트, 즉발 폭발, 회복 팝업</td>
+                </tr>
+                <tr>
+                  <td><strong>Duration</strong></td>
+                  <td>Add, WhileActive, Remove</td>
+                  <td>5초 기절 파티클, 일정 시간 보호막 연출</td>
+                </tr>
+                <tr>
+                  <td><strong>Infinite</strong></td>
+                  <td>Add, WhileActive, Remove</td>
+                  <td>장비 오라, 패시브 효과, 무한 루프 사운드</td>
+                </tr>
+                <tr>
+                  <td><strong>Periodic</strong></td>
+                  <td>Execute 반복 가능</td>
+                  <td>독 데미지 틱, 화상 틱 임팩트</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>네트워크와 안전성</h2>
+          <div class="split">
+            <div class="callout">
+              <p class="callout-title">GC는 표현 효과입니다</p>
+              <p>
+                GC는 일반적으로 비신뢰성 멀티캐스트 경로를 탈 수 있으므로, 데미지 판정이나 상태 변경 같은 게임플레이 결정을 GC에 넣지 않는 것이 맞습니다.
+              </p>
+            </div>
+            <div class="callout warning">
+              <p class="callout-title">데디케이티드 서버</p>
+              <p>
+                데디케이티드 서버는 화면과 사운드가 없으므로 GC의 시각/청각 재생 자체가 필요하지 않습니다.
+                서버는 판정과 상태 변경을 처리하고, 클라이언트가 Cue를 재생하게 두는 구조가 자연스럽습니다.
+              </p>
+            </div>
+          </div>
+
+          <pre class="code"><code>// 어빌리티 또는 ASC에서 수동으로 Cue를 호출하는 감각
+ExecuteGameplayCue(FGameplayTag::RequestGameplayTag(TEXT("GameplayCue.Weapon.Impact")));
+
+// 지속 Cue는 Add와 Remove가 짝을 이뤄야 한다.
+AddGameplayCue(FGameplayTag::RequestGameplayTag(TEXT("GameplayCue.Status.Stun")));
+RemoveGameplayCue(FGameplayTag::RequestGameplayTag(TEXT("GameplayCue.Status.Stun")));</code></pre>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. Gameplay Cue의 주된 책임은?</strong>
+              <p class="answer">정답: 파티클, 사운드, 카메라 흔들림 같은 표현 효과를 재생하는 것입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. GC 태그는 무엇으로 시작해야 하는가?</strong>
+              <p class="answer">정답: 반드시 <code>GameplayCue</code>로 시작해야 합니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. Static Cue와 Actor Cue의 차이는?</strong>
+              <p class="answer">정답: Static은 일회성 Execute 효과에 맞고, Actor는 인스턴스가 생성되어 지속 효과와 정리에 맞습니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. GC에 넣으면 안 좋은 로직은?</strong>
+              <p class="answer">정답: 데미지 판정, Attribute 변경, 상태 결정처럼 게임플레이 결과를 바꾸는 로직입니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8(GE).html">게임플레이 이펙트(GE)</a>: GE 적용에 연결된 Cue 자동 트리거</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%ED%83%9C%EA%B7%B8(Tag).html">게임플레이 태그(Tag)</a>: GameplayCue로 시작하는 태그 규칙</li>
+            <li>게임플레이 이펙트의 생성 과정: EffectContext와 CueParameters로 전달되는 정보</li>
+            <li><a href="어빌리티 태스크(AT).html">어빌리티 태스크(AT)</a>: 애니메이션이나 타이밍에 맞춘 로컬 Cue 호출</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayCueNotify_Static.html?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayCueNotify_Static Python API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayCueNotify_Actor?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayCueNotify_Actor Python API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UGameplayCueManager/HandleGameplayCue" target="_blank" rel="noreferrer">Epic Developer Community: UGameplayCueManager::HandleGameplayCue API</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/FGameplayCueParameters/SourceObject" target="_blank" rel="noreferrer">Epic Developer Community: FGameplayCueParameters::SourceObject API</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\게임플레이 큐(GC).md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#types">Notify 타입</a>
+        <a href="#events">이벤트 흐름</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

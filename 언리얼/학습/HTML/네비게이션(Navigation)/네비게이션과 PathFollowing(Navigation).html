@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>네비게이션과 PathFollowing</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#visual">시각화</a>
+        <a href="#move">MoveTo</a>
+        <a href="#follow">Following</a>
+        <a href="#arrival">도착 판정</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Navigation / PathFollowing</p>
+      <h1>네비게이션과 PathFollowing</h1>
+      <p class="lead">
+        Navigation은 목적지까지의 경로를 계산하고, PathFollowing은 계산된 경로를 상태 기계로 추종하며 도착 또는 실패를 판정합니다.
+        <code>MoveTo</code>는 이 전체 흐름의 진입점입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 네비게이션과 PathFollowing(Navigation).md</span>
+        <span class="pill">핵심: FAIMoveRequest, FindPathSync, UPathFollowingComponent</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="visual" class="panel">
+          <h2>경로 계산과 경로 추종은 다릅니다</h2>
+          <div class="visual-board two-col">
+            <div class="tile-map" aria-label="Navigation path map">
+              <div class="tile">Start</div><div class="tile path">P1</div><div class="tile path">P2</div><div class="tile blocked">Block</div><div class="tile">Alt</div><div class="tile hot">Goal</div>
+              <div class="tile">Nav</div><div class="tile path">P3</div><div class="tile path">P4</div><div class="tile path">P5</div><div class="tile">Near</div><div class="tile">End</div>
+            </div>
+            <div class="memory-list">
+              <div class="memory-slot key"><strong>UNavigationSystemV1</strong><span>NavData 선택, 위치 투영, pathfinding 질의의 상위 진입점</span></div>
+              <div class="memory-slot"><strong>ANavigationData / Recast</strong><span>실제 pathfinding과 navmesh query 수행</span></div>
+              <div class="memory-slot"><strong>UPathFollowingComponent</strong><span>경로 수락, segment 추종, 도착 판정, 완료 통지</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="move" class="panel">
+          <h2>MoveTo 런타임 흐름</h2>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>MoveToActor/Location</strong><span><code>FAIMoveRequest</code> 구성</span></div>
+            <div class="pipeline-step" data-step="2"><strong>Project Goal</strong><span>필요하면 목적지를 NavMesh 위로 투영</span></div>
+            <div class="pipeline-step" data-step="3"><strong>HasReached</strong><span>이미 도착했으면 path query 없이 성공 처리</span></div>
+            <div class="pipeline-step" data-step="4"><strong>Build Query</strong><span><code>FPathFindingQuery</code> 생성</span></div>
+            <div class="pipeline-step" data-step="5"><strong>FindPathSync</strong><span>NavSystem이 NavData에 실제 탐색 위임</span></div>
+            <div class="pipeline-step" data-step="6"><strong>RequestMove</strong><span>PathFollowingComponent가 경로를 받고 이동 시작</span></div>
+          </div>
+        </section>
+
+        <section id="follow" class="panel">
+          <h2>PathFollowing 상태 기계</h2>
+          <div class="status-strip">
+            <div class="status-card"><strong>Idle</strong><span>현재 이동 요청 없음</span></div>
+            <div class="status-card"><strong>Waiting</strong><span>경로가 완전히 준비되지 않았거나 observer 대기</span></div>
+            <div class="status-card key"><strong>Moving</strong><span><code>UpdatePathSegment()</code>와 <code>FollowPathSegment()</code> 반복</span></div>
+            <div class="status-card danger"><strong>Paused</strong><span>리소스나 외부 제어로 이동 일시 중단</span></div>
+          </div>
+          <div class="callout">
+            <p class="callout-title">진짜 프레임 단위 이동은 PathFollowing이 담당합니다</p>
+            <p>Controller는 request를 만들고, path following component가 path observer, segment 갱신, movement component 입력, 완료 결과를 관리합니다.</p>
+          </div>
+        </section>
+
+        <section id="arrival" class="panel">
+          <h2>도착 판정과 Acceptance Radius</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead><tr><th>ReachMode</th><th>반경 계산 감각</th></tr></thead>
+              <tbody>
+                <tr><td><code>ExactLocation</code></td><td>Acceptance radius만 사용합니다.</td></tr>
+                <tr><td><code>OverlapAgent</code></td><td>Acceptance radius에 agent 반지름을 포함합니다.</td></tr>
+                <tr><td><code>OverlapGoal</code></td><td>Acceptance radius에 goal 반지름을 포함합니다.</td></tr>
+                <tr><td><code>OverlapAgentAndGoal</code></td><td>둘 다 포함하므로 체감 도착 반경이 커집니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz"><strong>Q1. 목표가 NavMesh 위가 아니면 무엇을 확인해야 하는가?</strong><p class="answer"><code>SetProjectGoalLocation()</code> 또는 Blueprint의 Project Destination 옵션을 확인합니다.</p></div>
+            <div class="quiz"><strong>Q2. MoveTo 호출이 항상 pathfinding을 발생시키는가?</strong><p class="answer">아닙니다. <code>HasReached()</code>가 먼저 성공하면 <code>AlreadyAtGoal</code>로 끝날 수 있습니다.</p></div>
+          </div>
+        </section>
+      </article>
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#visual">계층 구분</a>
+        <a href="#move">MoveTo</a>
+        <a href="#follow">Following</a>
+        <a href="#arrival">도착 판정</a>
+        <a href="#review">복습</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">Navigation Markdown을 반응형 시각 자료로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

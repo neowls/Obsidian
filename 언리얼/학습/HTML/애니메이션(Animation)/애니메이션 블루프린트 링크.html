@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>애니메이션 블루프린트 링크</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#graph">Graph</a>
+        <a href="#layer">Layer</a>
+        <a href="#template">Template</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Animation Blueprint / Modularity</p>
+      <h1>애니메이션 블루프린트 링크</h1>
+      <p class="lead">
+        Animation Blueprint Linking은 하나의 거대한 AnimBP를 여러 블루프린트와 레이어로 나눠 재사용하고, 상황에 따라 동적으로 연결하는 방식입니다.
+        무기, 탑승물, 상태별 애니메이션 로직을 분리해 협업과 메모리 관리를 쉽게 만드는 데 초점이 있습니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 애니메이션(Animation)/애니메이션 블루프린트 링크.md</span>
+        <span class="pill">난이도: 중급 AnimBP 구조화</span>
+        <span class="pill">핵심: Linked Anim Graph, Linked Anim Layer, Animation Layer Interface, Template</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>왜 분리하는가</h2>
+          <p>
+            캐릭터 애니메이션이 커지면 하나의 AnimBP에 로코모션, 무기, 상호작용, IK, 탑승물, 특수 상태가 모두 들어가게 됩니다.
+            Linked Anim Graph와 Linked Anim Layer는 이 복잡도를 여러 애니메이션 블루프린트로 나누고, 필요한 블루프린트만 링크해서 실행할 수 있게 합니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted image 20250120132312.png" alt="Linked Anim Layer 개념 예시" loading="lazy">
+            <figcaption>레이어 기반 분리는 복잡한 캐릭터에서 무기, 차량, IK 같은 영역을 독립된 AnimBP로 관리하게 해 줍니다.</figcaption>
+          </figure>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>방식</th>
+                  <th>핵심 용도</th>
+                  <th>선택 기준</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Linked Anim Graph</td>
+                  <td>특정 AnimBP를 노드로 참조해 포즈와 변수를 넘김</td>
+                  <td>비교적 직접적인 재사용, 서브 그래프처럼 쓰고 싶을 때</td>
+                </tr>
+                <tr>
+                  <td>Linked Anim Layer</td>
+                  <td>Animation Layer Interface로 정한 레이어를 구현체 AnimBP가 덮어씀</td>
+                  <td>무기/탑승물/상태별 교체처럼 표준화된 확장 지점이 필요할 때</td>
+                </tr>
+                <tr>
+                  <td>Animation Blueprint Template</td>
+                  <td>Skeleton에 묶이지 않는 재사용 가능한 AnimBP 로직</td>
+                  <td>여러 Skeleton에서 같은 로직 구조를 공유하고 싶을 때</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="graph" class="panel">
+          <h2>Linked Anim Graph</h2>
+          <p>
+            Linked Anim Graph 노드는 AnimGraph 안에서 다른 Animation Blueprint 클래스를 인스턴스로 실행합니다.
+            공식 5.7 API 기준으로 핵심 속성은 <code>instance_class</code>, <code>receive_notifies_from_linked_instances</code>, <code>propagate_notifies_to_linked_instances</code>입니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted image 20250120132058.png" alt="Linked Anim Graph 속성" loading="lazy">
+            <figcaption>Notify 수신/전파 옵션은 재생 위치와 Notify 처리 위치를 분리할 때 중요합니다.</figcaption>
+          </figure>
+
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>Input Pose</h3>
+              <p>링크된 AnimBP 내부에 Input Pose 노드를 만들면, 외부 Linked Anim Graph 노드에 포즈 입력 핀이 생깁니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Input Variables</h3>
+              <p>변수를 <code>Instance Editable</code>로 공개하면 링크 노드의 입력으로 노출됩니다. 무기 타입, 가중치, 설정값 전달에 적합합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Notify Receive</h3>
+              <p>다른 링크 인스턴스에서 발생한 Skeleton Notify를 이 인스턴스가 받을지 정합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Notify Propagate</h3>
+              <p>이 인스턴스에서 발생한 Notify를 다른 링크 인스턴스로 전달할지 정합니다. 대상도 전파 수신 설정이 필요합니다.</p>
+            </div>
+          </div>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted image 20250120132223.png" alt="여러 Input Pose가 핀으로 노출된 예시" loading="lazy">
+            <figcaption>Input Pose를 여러 개 만들면 Linked Anim Graph 노드에도 여러 포즈 입력 핀이 표시됩니다.</figcaption>
+          </figure>
+        </section>
+
+        <section id="layer" class="panel">
+          <h2>Linked Anim Layer</h2>
+          <p>
+            Linked Anim Layer는 특정 블루프린트를 직접 호출하는 수준을 넘어, Animation Layer Interface로 "확장 지점"을 먼저 정의합니다.
+            Base AnimBP는 Full Body, Upper Body, IK 같은 구조를 잡고, 무기나 차량 AnimBP는 필요한 레이어만 구현해 런타임에 연결합니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted image 20250120132439.png" alt="Animation Layer Interface 예시" loading="lazy">
+            <figcaption>Animation Layer Interface는 레이어 이름, 그룹, 입력 포즈와 프로퍼티를 정의하는 읽기 전용 계약입니다.</figcaption>
+          </figure>
+
+          <div class="flow">
+            <div class="flow-step">
+              <span class="flow-kicker">1</span>
+              <strong>Interface 생성</strong>
+              <span>Animation Interface 에셋에 레이어와 입력을 정의합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2</span>
+              <strong>Base AnimBP 바인딩</strong>
+              <span>Class Settings에서 Interface를 추가하고 전체 구조를 배치합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3</span>
+              <strong>구현 AnimBP 생성</strong>
+              <span>무기/차량/상태별 AnimBP도 같은 Interface를 구현합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4</span>
+              <strong>레이어 로직 작성</strong>
+              <span>각 구현 AnimBP에서 필요한 레이어만 실제 로직으로 채웁니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5</span>
+              <strong>런타임 링크</strong>
+              <span><code>Link Anim Class Layers</code>로 현재 캐릭터 Mesh에 연결합니다.</span>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>레이어 예시</th>
+                  <th>담기 좋은 로직</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Full Body</td>
+                  <td>기본 로코모션, 전신 상태 머신, 무기별 이동 세트</td>
+                </tr>
+                <tr>
+                  <td>Upper Body</td>
+                  <td>무기 조준, 상체 반동, 장비별 Aim Offset</td>
+                </tr>
+                <tr>
+                  <td>IK</td>
+                  <td>발 IK, 손 IK, 무기 그립 보정, 최종 포즈 보정</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted image 20250120132740.png" alt="Link Anim Class Layers 노드" loading="lazy">
+            <figcaption><code>Link Anim Class Layers</code>는 Skeletal Mesh Component와 구현 AnimBP 클래스를 연결합니다.</figcaption>
+          </figure>
+        </section>
+
+        <section class="panel">
+          <h2>그룹 이름과 메모리</h2>
+          <p>
+            원본 노트의 중요한 문장처럼, 디폴트가 아닌 같은 그룹 이름 아래의 레이어는 같은 Animation Instance를 공유합니다.
+            관련 레이어를 같은 컨텍스트로 묶을 때 유용하지만, 의도치 않게 공유하면 상태가 섞일 수 있으므로 그룹 이름을 설계 문서에 명시하는 것이 좋습니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">메모리 관리 관점</p>
+            <p>
+              Linked Anim Layer를 쓰면 특정 무기나 차량의 애니메이션 블루프린트가 실제로 링크될 때만 관련 에셋을 로드하는 구조를 만들 수 있습니다.
+              단, 링크 해제 후 메모리에서 제거하려면 프로젝트의 스트리밍/참조 관리 로직이 함께 필요합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="template" class="panel">
+          <h2>Animation Blueprint Template</h2>
+          <p>
+            Template AnimBP는 특정 Skeleton을 지정하지 않고 만드는 애니메이션 블루프린트입니다.
+            Skeleton 전용 애니메이션을 직접 참조할 수 없기 때문에, Sequence Player의 Sequence 같은 값을 변수로 노출하고 사용하는 쪽에서 채우는 방식으로 설계합니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted image 20250120132919.png" alt="Animation Blueprint Template 생성" loading="lazy">
+            <figcaption>Template은 로직 재사용에 초점이 있으며, Skeleton 전용 에셋 참조는 외부 입력으로 처리합니다.</figcaption>
+          </figure>
+
+          <div class="split">
+            <div class="study-card">
+              <h3>좋은 사용처</h3>
+              <p>여러 캐릭터가 공유하는 보간, 보정, 조건 처리, 공통 Sequence Player 구조처럼 Skeleton 독립 로직에 적합합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>주의할 점</h3>
+              <p>특정 Skeleton의 애니메이션 에셋을 직접 잡을 수 없습니다. 노출 변수와 입력 핀 설계를 먼저 해야 합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>실무 체크리스트</h2>
+          <ul class="checklist">
+            <li>단순 재사용이면 Linked Anim Graph, 시스템 확장 지점이면 Linked Anim Layer를 우선 고려합니다.</li>
+            <li>Layer Interface의 레이어 이름과 그룹 이름은 변경 비용이 크므로 초기에 명확히 정합니다.</li>
+            <li>Base AnimBP는 전체 흐름을 유지하고, 구현 AnimBP는 해당 컨텍스트의 레이어 로직만 담당하게 합니다.</li>
+            <li>Notify 처리 위치가 분산되면 Receive/Propagate 옵션을 문서화합니다.</li>
+            <li>무기 교체처럼 런타임에 링크가 바뀌는 경우, 필요하면 몽타주로 전환 애니메이션을 보강합니다.</li>
+            <li>Template AnimBP에서는 Skeleton 전용 에셋을 직접 참조하지 말고 변수/핀으로 외부에서 주입합니다.</li>
+          </ul>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. Linked Anim Graph와 Linked Anim Layer의 가장 큰 차이는?</strong>
+            <p class="answer">Linked Anim Graph는 특정 AnimBP를 직접 참조하는 방식이고, Linked Anim Layer는 Interface로 정의한 레이어 계약을 구현 AnimBP가 런타임에 덮어쓰는 방식입니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. Animation Layer Interface는 왜 필요한가?</strong>
+            <p class="answer">Base AnimBP와 구현 AnimBP가 같은 레이어 이름, 입력, 그룹 계약을 공유하게 만들어 런타임 링크가 가능하도록 합니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. Template AnimBP에서 애니메이션 에셋을 직접 참조하지 않는 이유는?</strong>
+            <p class="answer">Template은 특정 Skeleton에 종속되지 않기 때문에 Skeleton 전용 애니메이션을 직접 가질 수 없고, 변수나 핀으로 외부에서 주입해야 합니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-blueprint-linking-in-unreal-engine?application_version=5.7">Animation Blueprint Linking in Unreal Engine</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/AnimNode_LinkedAnimGraph?application_version=5.7">Unreal Python 5.7: AnimNode_LinkedAnimGraph</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/AnimNode_LinkedAnimLayer?application_version=5.7">Unreal Python 5.7: AnimNode_LinkedAnimLayer</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#concept">분리 목적</a>
+        <a href="#graph">Linked Anim Graph</a>
+        <a href="#layer">Linked Anim Layer</a>
+        <a href="#template">Template AnimBP</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

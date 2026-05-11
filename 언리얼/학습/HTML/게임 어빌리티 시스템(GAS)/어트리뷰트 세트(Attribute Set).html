@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>어트리뷰트 세트(Attribute Set)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#values">값</a>
+        <a href="#callbacks">콜백</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>어트리뷰트 세트(Attribute Set)</h1>
+      <p class="lead">
+        Attribute Set은 체력, 마나, 스태미나, 공격력 같은 게임플레이 수치를 모아 두는 GAS 데이터 묶음입니다.
+        값 자체는 <code>FGameplayAttributeData</code>로 정의하고, 변경은 대부분 Gameplay Effect를 통해 흐르게 만드는 것이 핵심입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/어트리뷰트 세트(Attribute Set).md</span>
+        <span class="pill">난이도: GAS 수치 기초</span>
+        <span class="pill">핵심: AttributeSet, GameplayAttributeData, BaseValue, CurrentValue</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Attribute Set은 ASC가 소유한 게임플레이 수치의 구조체 모음</strong>입니다.
+            공식 5.7 문서의 <code>GameplayAttributeData</code>는 AttributeSet 안에 두어 <code>FGameplayAttribute</code>로 접근할 수 있는 값이며, raw float 대신 이 타입 사용이 권장됩니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">ASC와 Attribute Set의 관계</p>
+            <p>
+              ASC는 자신과 연결된 Attribute Set을 통해 Attribute 값을 찾고, Gameplay Effect가 적용될 때 어떤 Attribute를 바꿔야 하는지 해석합니다.
+              그래서 Attribute Set은 단순 저장소이면서 동시에 GE 적용 전후 검증과 후처리의 기준점입니다.
+            </p>
+          </div>
+
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>Attribute Set</h3>
+              <p><code>UAttributeSet</code>을 상속해 만든 수치 묶음입니다. 캐릭터의 핵심 스탯을 기능별로 나눠 보관합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Gameplay Attribute</h3>
+              <p>Attribute Set 안의 특정 속성을 가리키는 핸들입니다. GE Modifier가 어떤 값을 바꿀지 지정할 때 사용합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>GameplayAttributeData</h3>
+              <p>BaseValue와 CurrentValue를 함께 가진 Attribute 값 타입입니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Accessors</h3>
+              <p>반복되는 Getter, Setter, Init 함수를 매크로로 만들어 Attribute 접근을 단순화합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="values" class="panel">
+          <h2>BaseValue와 CurrentValue</h2>
+          <p>
+            <code>FGameplayAttributeData</code>는 단순 float 하나가 아니라 BaseValue와 CurrentValue를 함께 봐야 합니다.
+            이 차이를 이해하면 Instant GE와 Duration/Infinite GE의 차이도 자연스럽게 연결됩니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>값</th>
+                  <th>의미</th>
+                  <th>대표 변화</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>BaseValue</strong></td>
+                  <td>Attribute의 기준값입니다. 영구 변화나 Instant GE 결과가 주로 여기에 반영됩니다.</td>
+                  <td>피해로 체력 자체 감소, 레벨업으로 최대 체력 증가, 장비 교체 시 기본 스탯 재계산</td>
+                </tr>
+                <tr>
+                  <td><strong>CurrentValue</strong></td>
+                  <td>BaseValue에 활성 GE Modifier가 합쳐진 현재 계산 결과입니다.</td>
+                  <td>5초 이동속도 버프, 독에 의한 임시 저항 감소, 오라로 인한 공격력 증가</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">Attribute는 직접 수정하지 않는 습관이 중요합니다</p>
+            <p>
+              원본 노트처럼 Attribute는 일반적으로 Gameplay Effect를 통해 수정해야 ASC가 예측, 복제, GE 집계, 콜백 흐름을 제대로 추적할 수 있습니다.
+              초기화나 특수 보정이 아니라면 <code>Health = 50</code>처럼 직접 대입하는 코드는 피하는 편이 안전합니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Modifier 집계 감각</h2>
+          <p>
+            5.7의 <code>GameplayModOp</code>는 Modifier를 다음 계산 흐름으로 집계합니다.
+            이 흐름 때문에 “버프가 CurrentValue에 붙는다”는 말은 실제로는 여러 연산 그룹이 순서대로 합쳐진다는 뜻입니다.
+          </p>
+
+          <pre class="code"><code>((BaseValue + AddBase) * MultiplyAdditive / DivideAdditive * MultiplyCompound) + AddFinal</code></pre>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>설계 질문</th>
+                  <th>해석</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>피해가 BaseValue를 영구히 줄여야 하는가?</td>
+                  <td>Instant GE나 ExecutionCalculation을 통해 최종 체력 BaseValue에 반영하는 구조를 봅니다.</td>
+                </tr>
+                <tr>
+                  <td>버프가 끝나면 원래 값으로 돌아와야 하는가?</td>
+                  <td>Duration/Infinite GE Modifier로 CurrentValue 계산에만 참여하게 만듭니다.</td>
+                </tr>
+                <tr>
+                  <td>임시 계산값을 거쳐 후처리해야 하는가?</td>
+                  <td>Damage 같은 Meta Attribute를 사용해 <code>PostGameplayEffectExecute</code>에서 체력/실드로 분배합니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="callbacks" class="panel">
+          <h2>Attribute Set 주요 콜백</h2>
+          <p>
+            Attribute Set은 값이 바뀌는 순간에 개입할 수 있는 콜백을 제공합니다.
+            콜백은 단순 로그용이 아니라 클램프, 후처리, 파생 값 갱신, Meta Attribute 소비에 사용됩니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>콜백</th>
+                  <th>호출 시점</th>
+                  <th>잘 맞는 작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>PreAttributeChange</strong></td>
+                  <td>CurrentValue가 바뀌기 직전</td>
+                  <td>이동속도, 최대 체력 같은 값의 상한/하한 클램프</td>
+                </tr>
+                <tr>
+                  <td><strong>PostAttributeChange</strong></td>
+                  <td>CurrentValue가 바뀐 직후</td>
+                  <td>UI 알림, 파생 값 갱신, 디버그 추적</td>
+                </tr>
+                <tr>
+                  <td><strong>PreGameplayEffectExecute</strong></td>
+                  <td>Instant GE나 Execution 결과가 적용되기 직전</td>
+                  <td>최종 적용 가능 여부 검사, 면역/방어 조건 확인</td>
+                </tr>
+                <tr>
+                  <td><strong>PostGameplayEffectExecute</strong></td>
+                  <td>GE 실행 결과가 적용된 직후</td>
+                  <td>Damage Meta Attribute를 Health/Shield에 분배, Health 클램프, 사망 판정</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout">
+            <p class="callout-title">클램프 위치를 구분합니다</p>
+            <p>
+              임시 버프까지 포함한 CurrentValue의 제한은 <code>PreAttributeChange</code>가 자연스럽습니다.
+              Instant GE로 BaseValue가 바뀐 뒤 체력 0~MaxHealth를 보정하거나 Damage를 소비하는 로직은 <code>PostGameplayEffectExecute</code>에서 처리하는 편이 이해하기 쉽습니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>C++ 작성 감각</h2>
+          <p>
+            Attribute Set은 선언이 반복되므로 프로젝트 매크로로 접근자를 만드는 패턴이 일반적입니다.
+            아래 코드는 구조 감각을 위한 축약 예시입니다.
+          </p>
+
+          <pre class="code"><code>UCLASS()
+class UProjectAttributeSet : public UAttributeSet
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health)
+    FGameplayAttributeData Health;
+    ATTRIBUTE_ACCESSORS(UProjectAttributeSet, Health)
+
+    UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth)
+    FGameplayAttributeData MaxHealth;
+    ATTRIBUTE_ACCESSORS(UProjectAttributeSet, MaxHealth)
+
+    virtual void PreAttributeChange(
+        const FGameplayAttribute&amp; Attribute,
+        float&amp; NewValue) override;
+
+    virtual void PostGameplayEffectExecute(
+        const FGameplayEffectModCallbackData&amp; Data) override;
+};</code></pre>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. Attribute Set은 무엇을 모아 두는가?</strong>
+              <p class="answer">정답: 체력, 마나, 이동속도, 공격력 같은 Gameplay Attribute 값을 모아 둡니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. BaseValue와 CurrentValue의 차이는?</strong>
+              <p class="answer">정답: BaseValue는 기준값이고, CurrentValue는 활성 GE Modifier가 반영된 현재 계산 결과입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. Attribute를 GE로 수정하는 이유는?</strong>
+              <p class="answer">정답: ASC가 예측, 복제, Modifier 집계, 콜백, 디버깅 흐름을 추적할 수 있기 때문입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. Damage를 Health에 분배하는 후처리는 어디가 적합한가?</strong>
+              <p class="answer">정답: 보통 <code>PostGameplayEffectExecute</code>에서 처리합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="어빌리티 시스템 컴포넌트(ASC).html">어빌리티 시스템 컴포넌트(ASC)</a>: Attribute Set을 보유하고 조회하는 중심 컴포넌트</li>
+            <li><a href="게임플레이 이펙트(GE).html">게임플레이 이펙트(GE)</a>: Attribute를 변경하는 데이터 규칙</li>
+            <li><a href="기간형 게임플레이 이펙트.html">기간형 게임플레이 이펙트</a>: CurrentValue 계산에 참여하는 지속 Modifier</li>
+            <li><a href="메타(Meta) 어트리뷰트.html">메타(Meta) 어트리뷰트</a>: Damage 같은 임시 계산용 Attribute 설계</li>
+            <li><a href="레벨과 커브 테이블.html">레벨과 커브 테이블</a>: 레벨별 초기 스탯과 Modifier Magnitude 설계</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAttributeSet" target="_blank" rel="noreferrer">Epic Developer Community: UAttributeSet API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayAttributeData?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayAttributeData Python API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayModOp?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayModOp Python API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/FGameplayModifierEvaluatedData" target="_blank" rel="noreferrer">Epic Developer Community: FGameplayModifierEvaluatedData API 5.7</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\어트리뷰트 세트(Attribute Set).md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#values">Base/Current</a>
+        <a href="#callbacks">주요 콜백</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

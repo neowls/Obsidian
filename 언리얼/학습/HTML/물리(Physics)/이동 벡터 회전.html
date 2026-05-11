@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>이동 벡터 회전</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#ue">UE 구현</a>
+        <a href="#math">수학</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Physics / Math</p>
+      <h1>이동 벡터 회전</h1>
+      <p class="lead">
+        입력으로 받은 2D 이동 벡터를 월드 X/Y축 그대로 쓰지 않고, 원하는 각도만큼 회전시켜 캐릭터 이동 방향으로 사용하는 방법입니다.
+        <code>AddMovementInput</code>, <code>FRotator::RotateVector</code>, 2D 회전 행렬의 관계를 함께 정리합니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 물리(Physics)/이동 벡터 회전.md</span>
+        <span class="pill">난이도: 이동 입력 수학</span>
+        <span class="pill">핵심: AddMovementInput, FRotator, RotateVector, 2D Rotation</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>이동 벡터 회전은 입력 벡터를 원하는 기준 좌표계로 돌린 뒤 <code>AddMovementInput</code>의 World Direction으로 넘기는 과정</strong>입니다.
+            예를 들어 입력이 <code>(1, 0)</code>이고 기준을 Yaw 45도로 틀면 이동 방향은 대략 <code>(0.707, 0.707, 0)</code>이 됩니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">AddMovementInput이 기대하는 값</p>
+            <p>
+              공식 5.7 문서 기준으로 <code>AddMovementInput</code>은 월드 공간 방향 벡터를 받고, <code>Scale Value</code>로 입력 세기를 곱합니다.
+              방향 벡터는 보통 정규화되어 있어야 하며, Character와 DefaultPawn은 누적된 이동 입력을 자동 처리합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="ue" class="panel">
+          <h2>언리얼 코드 흐름</h2>
+          <p>
+            Enhanced Input에서 받은 <code>FInputActionValue</code>는 보통 2D 축 값입니다.
+            아날로그 스틱처럼 길이가 1을 넘을 수 있는 입력은 방향을 정규화하고, 실제 입력 세기는 별도 Scale로 넘기면 대각선 이동이 빨라지는 문제를 줄일 수 있습니다.
+          </p>
+
+          <pre class="code"><code>void AMyCharacter::Move(const FInputActionValue&amp; Value)
+{
+    FVector2D Input = Value.Get&lt;FVector2D&gt;();
+
+    float Scale = 1.0f;
+    const float SizeSquared = Input.SizeSquared();
+
+    if (SizeSquared &gt; 1.0f)
+    {
+        Input.Normalize();
+    }
+    else
+    {
+        Scale = FMath::Sqrt(SizeSquared);
+    }
+
+    FVector MoveDirection(Input.X, Input.Y, 0.0f);
+
+    // 월드 기준 입력 방향을 Yaw 45도만큼 돌린다.
+    const FRotator RotationOffset(0.0f, 45.0f, 0.0f);
+    MoveDirection = RotationOffset.RotateVector(MoveDirection);
+
+    AddMovementInput(MoveDirection, Scale);
+}</code></pre>
+
+          <div class="callout warning">
+            <p class="callout-title">원본 내용의 교정</p>
+            <p>
+              <code>FRotator</code>는 각도를 도(degrees) 단위로 저장합니다.
+              <code>FMath::Sin</code>, <code>FMath::Cos</code> 같은 삼각함수는 라디안 값을 받으므로 직접 공식을 구현할 때만 <code>DegreesToRadians</code> 변환이 필요합니다.
+              또한 <code>TRotator::RotateVector</code>는 공식 API와 공개 소스 흐름상 회전 행렬로 벡터를 변환한다고 이해하는 것이 맞고, <code>FQuat::RotateVector</code>와는 같은 결과를 낼 수 있는 별도 표현 방식입니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="math" class="panel">
+          <h2>2D 회전 공식</h2>
+          <p>
+            Z축을 기준으로 2D 입력 벡터 <code>(x, y)</code>를 각도 <code>theta</code>만큼 회전하면 아래 공식을 사용합니다.
+            Unreal 좌표계의 실제 진행 방향은 카메라 기준, 캐릭터 기준, 월드 기준 중 무엇을 선택하느냐에 따라 달라질 수 있지만, 평면 회전 자체는 동일합니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>공식</th>
+                  <th>의미</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>x' = x * cos(theta) - y * sin(theta)</code></td>
+                  <td>회전 후 X 성분</td>
+                </tr>
+                <tr>
+                  <td><code>y' = x * sin(theta) + y * cos(theta)</code></td>
+                  <td>회전 후 Y 성분</td>
+                </tr>
+                <tr>
+                  <td><code>z' = z</code></td>
+                  <td>Yaw 회전만 할 때 Z 성분은 그대로 둡니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <pre class="code"><code>FVector2D RotateVector2D(const FVector2D&amp; Vec, float AngleDegrees)
+{
+    const float AngleRadians = FMath::DegreesToRadians(AngleDegrees);
+    const float CosTheta = FMath::Cos(AngleRadians);
+    const float SinTheta = FMath::Sin(AngleRadians);
+
+    return FVector2D(
+        Vec.X * CosTheta - Vec.Y * SinTheta,
+        Vec.X * SinTheta + Vec.Y * CosTheta
+    );
+}</code></pre>
+
+          <div class="split">
+            <div class="callout">
+              <p class="callout-title">45도 예시</p>
+              <p>
+                <code>(1, 0)</code>을 45도 회전하면 <code>cos(45)</code>와 <code>sin(45)</code>가 모두 약 <code>0.707</code>이므로
+                결과는 <code>(0.707, 0.707)</code>입니다.
+              </p>
+            </div>
+            <div class="callout warning">
+              <p class="callout-title">카메라 기준 이동과 구분</p>
+              <p>
+                단순히 45도 틀어진 월드 기준 이동이면 <code>RotationOffset.RotateVector</code>가 충분합니다.
+                카메라가 바라보는 방향 기준 이동이라면 Controller Rotation에서 Yaw만 뽑아 Forward/Right 벡터를 만드는 구조가 더 일반적입니다.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>언제 어떤 방식을 쓸까?</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>상황</th>
+                  <th>추천 방식</th>
+                  <th>이유</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>월드 기준을 일정 각도 회전</strong></td>
+                  <td><code>FRotator(0, Angle, 0).RotateVector</code></td>
+                  <td>가장 읽기 쉽고 Unreal 좌표계와 잘 맞습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>2D 수식 검증 또는 UI 좌표</strong></td>
+                  <td>직접 <code>cos/sin</code> 공식 사용</td>
+                  <td>평면 좌표 계산을 명확히 보여 주기 좋습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>많은 회전을 반복 계산</strong></td>
+                  <td>회전 객체나 sin/cos 값을 미리 계산</td>
+                  <td>매 프레임 같은 각도의 삼각함수를 반복 계산하지 않아도 됩니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>3D 임의 축 회전</strong></td>
+                  <td><code>FQuat</code> 또는 Transform 사용</td>
+                  <td>Yaw만이 아니라 임의 축과 보간이 중요할 때 안정적입니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. <code>AddMovementInput</code>의 World Direction은 어느 공간 기준인가?</strong>
+              <p class="answer">정답: 월드 공간 기준 방향 벡터입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. <code>FRotator</code>의 각도 단위는?</strong>
+              <p class="answer">정답: 도(degrees)입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. <code>FMath::Sin</code>, <code>FMath::Cos</code>에 직접 각도를 넣을 때 필요한 변환은?</strong>
+              <p class="answer">정답: 도를 라디안으로 바꾸는 <code>FMath::DegreesToRadians</code> 변환입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. <code>(1, 0)</code>을 45도 회전하면 대략 어떤 값이 되는가?</strong>
+              <p class="answer">정답: <code>(0.707, 0.707)</code>입니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/input-in-unreal-engine?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: Input in Unreal Engine 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/BlueprintAPI/Pawn/Input/AddMovementInput" target="_blank" rel="noreferrer">Epic Developer Community: Add Movement Input 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Core/Math/TRotator" target="_blank" rel="noreferrer">Epic Developer Community: TRotator API</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Core/Math/FMath/DegreesToRadians" target="_blank" rel="noreferrer">Epic Developer Community: FMath::DegreesToRadians API</a></li>
+            <li>로컬 원본 노트: <code>물리(Physics)\이동 벡터 회전.md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#ue">UE 구현</a>
+        <a href="#math">2D 회전</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 다음 폴더의 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

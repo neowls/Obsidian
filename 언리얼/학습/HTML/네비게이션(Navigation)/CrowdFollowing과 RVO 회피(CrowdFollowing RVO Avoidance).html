@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CrowdFollowing과 RVO 회피</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#visual">시각화</a>
+        <a href="#crowd">Crowd</a>
+        <a href="#rvo">RVO</a>
+        <a href="#compare">비교</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Crowd / Avoidance</p>
+      <h1>CrowdFollowing과 RVO 회피</h1>
+      <p class="lead">
+        CrowdFollowing은 PathFollowing의 Detour Crowd 확장이고, RVO Avoidance는 CharacterMovement가 현재 속도를 국소적으로 보정하는 기능입니다.
+        둘 다 회피지만 계산 주체와 계층이 다릅니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: CrowdFollowing RVO Avoidance.md</span>
+        <span class="pill">핵심: Path-aware Crowd vs Velocity-aware RVO</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="visual" class="panel">
+          <h2>두 회피 모델을 분리해서 봅니다</h2>
+          <div class="visual-board two-col">
+            <div class="layer-card key"><strong>CrowdFollowing</strong><span><code>UCrowdFollowingComponent</code>와 <code>UCrowdManager</code>가 path corridor, steering, avoidance, smart link를 함께 봅니다.</span></div>
+            <div class="layer-card"><strong>RVO Avoidance</strong><span><code>UCharacterMovementComponent</code>가 <code>UAvoidanceManager</code>에 현재 velocity 보정을 요청합니다.</span></div>
+          </div>
+          <div class="tile-map" aria-label="Crowd avoidance map">
+            <div class="tile path">Agent A</div><div class="tile hot">Neighbor</div><div class="tile path">Corridor</div><div class="tile">Corner</div><div class="tile link">SmartLink</div><div class="tile">Goal</div>
+            <div class="tile">Velocity</div><div class="tile blocked">Obstacle</div><div class="tile path">Steer</div><div class="tile hot">Avoid</div><div class="tile">Move</div><div class="tile">Apply</div>
+          </div>
+        </section>
+
+        <section id="crowd" class="panel">
+          <h2>CrowdFollowing 런타임</h2>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>MoveTo</strong><span>PathFollowingComponent가 crowd 구현체면 crowd 경로로 진입</span></div>
+            <div class="pipeline-step" data-step="2"><strong>Register Agent</strong><span><code>UCrowdManager</code>에 agent 등록</span></div>
+            <div class="pipeline-step" data-step="3"><strong>PathCorridor</strong><span><code>FNavMeshPath</code>의 corridor를 기준으로 path part 처리</span></div>
+            <div class="pipeline-step" data-step="4"><strong>Steering/Avoidance</strong><span>corners, neighbors, velocity obstacles, smart link 갱신</span></div>
+            <div class="pipeline-step" data-step="5"><strong>ApplyVelocity</strong><span>movement component에 path move 또는 direct move 전달</span></div>
+          </div>
+        </section>
+
+        <section id="rvo" class="panel">
+          <h2>RVO Avoidance 런타임</h2>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-kicker">Register</span><strong>Movement 등록</strong><span><code>SetAvoidanceEnabled()</code>가 manager에 등록</span></div>
+            <div class="flow-step"><span class="flow-kicker">Tick</span><strong>CalcAvoidanceVelocity</strong><span>권한, 지상 이동, 속도 조건을 확인</span></div>
+            <div class="flow-step"><span class="flow-kicker">Manager</span><strong>Velocity 계산</strong><span>주변 avoidance object와 cone 기반 후보 속도 계산</span></div>
+            <div class="flow-step"><span class="flow-kicker">Update</span><strong>RVO 상태 갱신</strong><span>현재 위치/속도/반경 데이터를 manager에 반영</span></div>
+          </div>
+          <div class="callout warning">
+            <p class="callout-title">RVO는 authority-only 제약이 분명합니다</p>
+            <p>클라이언트에서는 등록 시 비활성화될 수 있고, 계산 함수도 <code>ROLE_Authority</code>가 아니면 바로 반환합니다.</p>
+          </div>
+        </section>
+
+        <section id="compare" class="panel">
+          <h2>실무 구분표</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead><tr><th>항목</th><th>CrowdFollowing</th><th>RVO Avoidance</th></tr></thead>
+              <tbody>
+                <tr><td>계층</td><td>AIModule / PathFollowing 확장</td><td>Engine / CharacterMovement 확장</td></tr>
+                <tr><td>인식 범위</td><td>path corridor, nav poly, smart link</td><td>현재 위치, 속도, 주변 avoidance object</td></tr>
+                <tr><td>출력</td><td>crowd simulation 결과 velocity를 movement에 전달</td><td>현재 velocity를 국소적으로 보정</td></tr>
+                <tr><td>디버깅 질문</td><td>agent 등록, corridor, dtCrowd, smart link 상태</td><td>authority, movement mode, avoidance group, lock time</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz"><strong>Q1. CrowdFollowing이 path-aware인 이유는?</strong><p class="answer">PathCorridor, nav poly, smart link 전환을 알고 path following 자체를 확장하기 때문입니다.</p></div>
+            <div class="quiz"><strong>Q2. RVO가 velocity-aware인 이유는?</strong><p class="answer">NavMesh 경로를 다시 만들지 않고 현재 속도와 주변 객체를 기준으로 새 velocity를 계산하기 때문입니다.</p></div>
+          </div>
+        </section>
+      </article>
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#visual">모델 구분</a>
+        <a href="#crowd">Crowd</a>
+        <a href="#rvo">RVO</a>
+        <a href="#compare">비교</a>
+        <a href="#review">복습</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">CrowdFollowing/RVO Markdown을 반응형 시각 자료로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>내적과 외적</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#visual">시각화</a>
+        <a href="#dot">내적</a>
+        <a href="#cross">외적</a>
+        <a href="#ue">UE 예제</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Math / FVector</p>
+      <h1>내적과 외적</h1>
+      <p class="lead">
+        내적은 두 벡터가 얼마나 같은 방향을 보는지 스칼라로 알려주고, 외적은 두 벡터가 만드는 평면의 수직 방향과 면적을 벡터로 알려줍니다.
+        언리얼에서는 <code>FVector::DotProduct</code>와 <code>FVector::CrossProduct</code>를 사용합니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 내적과 외적.md</span>
+        <span class="pill">난이도: 기초 수학</span>
+        <span class="pill">핵심: DotProduct, CrossProduct, Normalize, Degrees</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="visual" class="panel">
+          <h2>벡터 관계 시각화</h2>
+          <p>
+            아래 실험판은 정규화된 Forward 벡터와 Target 방향 벡터를 기준으로 내적과 외적을 동시에 보여줍니다.
+            슬라이더를 움직이면 각도, 내적 값, 외적 Z 부호, 투영 길이, 평행사변형 넓이가 함께 바뀝니다.
+          </p>
+
+          <div class="interactive-lab vector-lab" data-vector-lab>
+            <div class="lab-toolbar">
+              <div class="range-field">
+                <label for="vector-angle">Target 방향 각도</label>
+                <input id="vector-angle" type="range" min="-180" max="180" value="45" step="1" data-angle-input>
+              </div>
+              <div class="preset-row" aria-label="대표 각도 선택">
+                <button type="button" class="mini-button" data-angle-preset="0">0도</button>
+                <button type="button" class="mini-button" data-angle-preset="45">45도</button>
+                <button type="button" class="mini-button" data-angle-preset="90">90도</button>
+                <button type="button" class="mini-button" data-angle-preset="180">180도</button>
+                <button type="button" class="mini-button" data-angle-preset="-90">-90도</button>
+              </div>
+            </div>
+
+            <div class="vector-workbench">
+              <svg class="vector-diagram" viewBox="-130 -130 260 260" role="img" aria-labelledby="vector-title vector-desc">
+                <title id="vector-title">내적과 외적 벡터 시각화</title>
+                <desc id="vector-desc">Forward 벡터와 Target 벡터 사이의 각도 변화에 따른 내적, 외적, 투영, 면적을 보여주는 좌표 도형</desc>
+                <defs>
+                  <marker id="arrow-forward" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L8,4 L0,8 Z"></path>
+                  </marker>
+                  <marker id="arrow-target" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L8,4 L0,8 Z"></path>
+                  </marker>
+                </defs>
+                <line class="axis-line" x1="-112" y1="0" x2="112" y2="0"></line>
+                <line class="axis-line" x1="0" y1="112" x2="0" y2="-112"></line>
+                <text class="svg-label" x="98" y="-8">+X Forward</text>
+                <text class="svg-label" x="8" y="-102">+Y Right</text>
+                <path class="parallelogram-shape" data-parallelogram d=""></path>
+                <path class="angle-arc" data-angle-arc d=""></path>
+                <line class="projection-line" data-projection x1="0" y1="0" x2="0" y2="0"></line>
+                <line class="vector-line vector-forward" x1="0" y1="0" x2="88" y2="0" marker-end="url(#arrow-forward)"></line>
+                <line class="vector-line vector-target" data-vector-target x1="0" y1="0" x2="0" y2="0" marker-end="url(#arrow-target)"></line>
+                <circle class="origin-dot" cx="0" cy="0" r="4"></circle>
+                <circle class="target-dot" data-target-dot cx="0" cy="0" r="5"></circle>
+                <text class="svg-label vector-name" x="58" y="-10">A</text>
+                <text class="svg-label vector-name" data-target-label x="0" y="0">B</text>
+              </svg>
+
+              <div class="metric-grid vector-metrics" aria-live="polite">
+                <div class="metric-card">
+                  <span>각도 theta</span>
+                  <strong data-angle-readout>45도</strong>
+                  <small>두 방향이 벌어진 정도</small>
+                </div>
+                <div class="metric-card">
+                  <span>Dot(A, B)</span>
+                  <strong data-dot-readout>0.707</strong>
+                  <small data-dot-meaning>앞쪽 원뿔 안</small>
+                </div>
+                <div class="metric-card">
+                  <span>Cross(A, B).Z</span>
+                  <strong data-cross-readout>0.707</strong>
+                  <small data-cross-meaning>UE 기준 오른쪽</small>
+                </div>
+                <div class="metric-card">
+                  <span>외적 크기</span>
+                  <strong data-area-readout>0.707</strong>
+                  <small>두 단위 벡터가 만드는 넓이</small>
+                </div>
+              </div>
+              <div class="lab-state-row" aria-live="polite">
+                <span class="state-chip is-hot">시야 판정 <strong data-vector-sector>정면</strong></span>
+                <span class="state-chip">회전 방향 <strong data-vector-turn>오른쪽</strong></span>
+                <span class="state-chip">투영 길이 <strong data-vector-projection>0.707</strong></span>
+              </div>
+            </div>
+
+            <div class="game-example-grid" aria-live="polite">
+              <div class="game-example-card">
+                <strong>시야 원뿔</strong>
+                <svg class="game-example-svg" viewBox="0 0 220 140" role="img" aria-label="Dot product field of view example">
+                  <line class="game-floor-line" x1="18" y1="112" x2="202" y2="112"></line>
+                  <path class="game-vision-cone" d="M62 70 L174 26 A118 118 0 0 1 174 114 Z"></path>
+                  <line class="game-facing-line" x1="62" y1="70" x2="174" y2="70"></line>
+                  <circle class="game-actor-body" cx="62" cy="70" r="16"></circle>
+                  <circle class="game-actor-head" cx="62" cy="53" r="9"></circle>
+                  <circle class="game-target" data-game-vision-target cx="120" cy="38" r="13"></circle>
+                </svg>
+                <span class="game-example-status" data-game-vision-state>시야 안</span>
+                <small>Dot 값으로 정면 원뿔 안/밖을 나눕니다.</small>
+              </div>
+              <div class="game-example-card">
+                <strong>백어택 판정</strong>
+                <svg class="game-example-svg" viewBox="0 0 220 140" role="img" aria-label="Dot product back attack example">
+                  <line class="game-floor-line" x1="18" y1="112" x2="202" y2="112"></line>
+                  <line class="game-facing-line" x1="110" y1="70" x2="174" y2="70"></line>
+                  <circle class="game-actor-body" cx="110" cy="70" r="17"></circle>
+                  <circle class="game-actor-head" cx="110" cy="51" r="9"></circle>
+                  <line class="game-attack-line" data-game-backstab-line x1="110" y1="70" x2="66" y2="70"></line>
+                  <circle class="game-attacker" data-game-backstab-attacker cx="66" cy="70" r="14"></circle>
+                </svg>
+                <span class="game-example-status" data-game-backstab-state>측면</span>
+                <small>Dot이 음수로 커질수록 뒤쪽 공격에 가깝습니다.</small>
+              </div>
+              <div class="game-example-card">
+                <strong>회전 방향</strong>
+                <svg class="game-example-svg" viewBox="0 0 220 140" role="img" aria-label="Cross product turn direction example">
+                  <line class="game-floor-line" x1="18" y1="112" x2="202" y2="112"></line>
+                  <line class="game-facing-line" x1="72" y1="70" x2="154" y2="70"></line>
+                  <circle class="game-actor-body" cx="72" cy="70" r="16"></circle>
+                  <circle class="game-actor-head" cx="72" cy="53" r="9"></circle>
+                  <path class="game-turn-arrow" data-game-turn-arrow d="M112 102 C142 102 166 86 174 58 l-14 8 M174 58 l7 15"></path>
+                  <circle class="game-target" data-game-steer-target cx="154" cy="70" r="12"></circle>
+                </svg>
+                <span class="game-example-status" data-game-turn-state>오른쪽 회전</span>
+                <small>Cross Z 부호로 좌회전/우회전을 고릅니다.</small>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="dot" class="panel">
+          <h2>내적(Dot Product)</h2>
+          <p>
+            내적은 두 벡터의 크기와 두 벡터 사이 각도의 코사인 값을 곱한 값입니다.
+            결과는 방향이 없는 스칼라이며, 방향 판정과 시야각 계산에 자주 사용됩니다.
+          </p>
+
+          <pre class="code"><code>a · b = |a| |b| cos(theta)</code></pre>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>상황</th>
+                  <th>정규화된 벡터의 내적</th>
+                  <th>의미</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>같은 방향</td>
+                  <td><code>1</code></td>
+                  <td>각도 0도, 완전히 앞쪽</td>
+                </tr>
+                <tr>
+                  <td>수직</td>
+                  <td><code>0</code></td>
+                  <td>각도 90도, 옆쪽</td>
+                </tr>
+                <tr>
+                  <td>반대 방향</td>
+                  <td><code>-1</code></td>
+                  <td>각도 180도, 뒤쪽</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">원본 예제의 보정</p>
+            <p>
+              <code>FMath::Acos</code>에 넣는 값은 <code>-1</code>부터 <code>1</code> 범위여야 합니다.
+              적 위치까지의 방향 벡터를 정규화하지 않고 내적하면 거리까지 곱해져 범위를 벗어날 수 있으므로, 각도를 구할 때는 두 벡터를 정규화해야 합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="cross" class="panel">
+          <h2>외적(Cross Product)</h2>
+          <p>
+            외적은 두 벡터에 모두 수직인 벡터를 반환합니다.
+            외적의 길이는 두 벡터가 만드는 평행사변형의 넓이이고, 연산 순서를 바꾸면 방향이 반대로 바뀝니다.
+          </p>
+
+          <pre class="code"><code>a x b = |a| |b| sin(theta) n
+a x b = -(b x a)</code></pre>
+
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>법선 계산</h3>
+              <p>삼각형의 두 변을 외적하면 면의 법선 방향을 얻을 수 있습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>좌우 판정</h3>
+              <p>Forward와 TargetDirection의 외적 Z 부호로 대상이 왼쪽인지 오른쪽인지 판단할 수 있습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>평행 판정</h3>
+              <p>두 벡터가 평행하면 외적 길이는 0에 가까워집니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>토크 계산</h3>
+              <p>힘이 작용하는 위치 벡터와 힘 벡터의 외적으로 회전력을 표현할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="ue" class="panel">
+          <h2>언리얼 예제</h2>
+          <p>
+            정면/후면처럼 단순 방향 판정만 필요하면 각도를 구하지 않고 내적 임계값을 바로 비교하는 편이 빠르고 안정적입니다.
+            각도가 꼭 필요할 때만 <code>Acos</code>와 라디안-도 변환을 사용합니다.
+          </p>
+
+          <pre class="code"><code>const FVector ToEnemy = (EnemyActorLocation - GetActorLocation()).GetSafeNormal();
+const FVector Forward = GetActorForwardVector().GetSafeNormal();
+
+const float Dot = FVector::DotProduct(Forward, ToEnemy);
+
+// cos(45deg) ~= 0.707, cos(135deg) ~= -0.707
+const bool bInFrontCone = Dot >= FMath::Cos(FMath::DegreesToRadians(45.0f));
+const bool bBehindCone = Dot <= FMath::Cos(FMath::DegreesToRadians(135.0f));
+
+// 좌우 판정: Unreal의 일반 캐릭터 축 기준으로 Z 부호를 많이 사용한다.
+const FVector Cross = FVector::CrossProduct(Forward, ToEnemy);
+const bool bEnemyOnRight = Cross.Z > 0.0f;</code></pre>
+
+          <div class="callout">
+            <p class="callout-title">각도 계산이 필요할 때</p>
+            <p>
+              <code>FMath::Acos(Dot)</code>는 라디안을 반환합니다.
+              사람이 읽는 각도로 표시하려면 <code>FMath::RadiansToDegrees</code>로 변환합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. 정규화된 두 벡터의 내적이 0이면 어떤 관계인가?</strong>
+            <p class="answer">두 벡터가 서로 수직입니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. <code>FMath::Acos</code>에 넣기 전에 해야 할 일은?</strong>
+            <p class="answer">두 벡터를 정규화하거나 내적 값을 <code>-1..1</code>로 클램프해 유효 범위를 보장해야 합니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. 외적에서 연산 순서가 중요한 이유는?</strong>
+            <p class="answer"><code>A x B</code>와 <code>B x A</code>는 방향이 반대인 벡터를 반환하기 때문입니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Core/Math/TVector">UE API: TVector / FVector</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Core/Math/FMath/Acos">UE API: FMath::Acos</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#visual">시각화</a>
+        <a href="#dot">내적</a>
+        <a href="#cross">외적</a>
+        <a href="#ue">언리얼 예제</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-vector-lab]');
+      if (!lab) return;
+
+      const input = lab.querySelector('[data-angle-input]');
+      const targetLine = lab.querySelector('[data-vector-target]');
+      const targetDot = lab.querySelector('[data-target-dot]');
+      const targetLabel = lab.querySelector('[data-target-label]');
+      const projection = lab.querySelector('[data-projection]');
+      const parallelogram = lab.querySelector('[data-parallelogram]');
+      const angleArc = lab.querySelector('[data-angle-arc]');
+      const angleReadout = lab.querySelector('[data-angle-readout]');
+      const dotReadout = lab.querySelector('[data-dot-readout]');
+      const dotMeaning = lab.querySelector('[data-dot-meaning]');
+      const crossReadout = lab.querySelector('[data-cross-readout]');
+      const crossMeaning = lab.querySelector('[data-cross-meaning]');
+      const areaReadout = lab.querySelector('[data-area-readout]');
+      const sector = lab.querySelector('[data-vector-sector]');
+      const turn = lab.querySelector('[data-vector-turn]');
+      const projectionReadout = lab.querySelector('[data-vector-projection]');
+      const presets = lab.querySelectorAll('[data-angle-preset]');
+      const visionTarget = lab.querySelector('[data-game-vision-target]');
+      const visionState = lab.querySelector('[data-game-vision-state]');
+      const backstabAttacker = lab.querySelector('[data-game-backstab-attacker]');
+      const backstabLine = lab.querySelector('[data-game-backstab-line]');
+      const backstabState = lab.querySelector('[data-game-backstab-state]');
+      const steerTarget = lab.querySelector('[data-game-steer-target]');
+      const turnArrow = lab.querySelector('[data-game-turn-arrow]');
+      const turnState = lab.querySelector('[data-game-turn-state]');
+      const vectorLength = 88;
+
+      const format = (value) => Math.abs(value) < 0.0005 ? '0.000' : value.toFixed(3);
+
+      function describeDot(dot) {
+        if (dot >= 0.707) return '정면 시야 원뿔 안';
+        if (dot <= -0.707) return '후방에 가까움';
+        return '측면에 가까움';
+      }
+
+      function describeCross(cross) {
+        if (cross > 0.035) return 'UE 기준 오른쪽(+Y)';
+        if (cross < -0.035) return 'UE 기준 왼쪽(-Y)';
+        return '거의 같은 선상';
+      }
+
+      function moveCircle(circle, x, y) {
+        circle.setAttribute('cx', x.toFixed(1));
+        circle.setAttribute('cy', y.toFixed(1));
+      }
+
+      function updateGameExamples(rad, dot, cross) {
+        const visionX = 62 + Math.cos(rad) * 82;
+        const visionY = 70 - Math.sin(rad) * 56;
+        const attackerX = 110 + Math.cos(rad) * 58;
+        const attackerY = 70 - Math.sin(rad) * 42;
+        const steerX = 72 + Math.cos(rad) * 82;
+        const steerY = 70 - Math.sin(rad) * 48;
+        const inSight = dot >= 0.707;
+        const behind = dot <= -0.707;
+
+        moveCircle(visionTarget, visionX, visionY);
+        visionTarget.classList.toggle('is-visible', inSight);
+        visionTarget.classList.toggle('is-behind', behind);
+        visionState.textContent = inSight ? '시야 안' : behind ? '완전 후방' : '시야 밖';
+
+        moveCircle(backstabAttacker, attackerX, attackerY);
+        backstabLine.setAttribute('x2', attackerX.toFixed(1));
+        backstabLine.setAttribute('y2', attackerY.toFixed(1));
+        backstabAttacker.classList.toggle('is-backstab', behind);
+        backstabAttacker.classList.toggle('is-advantaged', dot < -0.25 && !behind);
+        backstabState.textContent = behind ? '백어택 가능' : dot < -0.25 ? '후방 측면' : '정면/측면';
+
+        moveCircle(steerTarget, steerX, steerY);
+        steerTarget.classList.toggle('is-visible', Math.abs(cross) <= 0.035);
+        turnArrow.classList.toggle('is-left', cross < -0.035);
+        turnState.textContent = cross > 0.035 ? '오른쪽 회전' : cross < -0.035 ? '왼쪽 회전' : '회전 없음';
+      }
+
+      function updateVector() {
+        const angle = Number(input.value);
+        const rad = angle * Math.PI / 180;
+        const x = Math.cos(rad) * vectorLength;
+        const y = -Math.sin(rad) * vectorLength;
+        const dot = Math.cos(rad);
+        const cross = Math.sin(rad);
+        const arcRadius = 34;
+        const arcX = Math.cos(rad) * arcRadius;
+        const arcY = -Math.sin(rad) * arcRadius;
+        const largeArc = Math.abs(angle) > 180 ? 1 : 0;
+        const sweep = angle >= 0 ? 0 : 1;
+
+        targetLine.setAttribute('x2', x.toFixed(2));
+        targetLine.setAttribute('y2', y.toFixed(2));
+        targetDot.setAttribute('cx', x.toFixed(2));
+        targetDot.setAttribute('cy', y.toFixed(2));
+        targetLabel.setAttribute('x', (x + 8).toFixed(2));
+        targetLabel.setAttribute('y', (y - 8).toFixed(2));
+        projection.setAttribute('x1', x.toFixed(2));
+        projection.setAttribute('y1', y.toFixed(2));
+        projection.setAttribute('x2', x.toFixed(2));
+        projection.setAttribute('y2', '0');
+        parallelogram.setAttribute('d', `M0,0 L88,0 L${(88 + x).toFixed(2)},${y.toFixed(2)} L${x.toFixed(2)},${y.toFixed(2)} Z`);
+        angleArc.setAttribute('d', `M${arcRadius},0 A${arcRadius},${arcRadius} 0 ${largeArc} ${sweep} ${arcX.toFixed(2)},${arcY.toFixed(2)}`);
+
+        angleReadout.textContent = `${angle}도`;
+        dotReadout.textContent = format(dot);
+        dotMeaning.textContent = describeDot(dot);
+        crossReadout.textContent = format(cross);
+        crossMeaning.textContent = describeCross(cross);
+        areaReadout.textContent = format(Math.abs(cross));
+        sector.textContent = dot >= 0.707 ? '정면' : dot <= -0.707 ? '후방' : '측면';
+        turn.textContent = cross > 0.035 ? '오른쪽' : cross < -0.035 ? '왼쪽' : '동일선';
+        projectionReadout.textContent = format(dot);
+        updateGameExamples(rad, dot, cross);
+        presets.forEach((button) => {
+          const selected = Number(button.dataset.anglePreset) === angle;
+          button.classList.toggle('is-selected', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+        input.setAttribute('aria-valuetext', `${angle}도`);
+      }
+
+      input.addEventListener('input', updateVector);
+      presets.forEach((button) => {
+        button.addEventListener('click', () => {
+          input.value = button.dataset.anglePreset;
+          updateVector();
+        });
+      });
+
+      updateVector();
+    })();
+  </script>
+  <script src="interactive-enhancements.js"></script>
+</body>
+</html>
+

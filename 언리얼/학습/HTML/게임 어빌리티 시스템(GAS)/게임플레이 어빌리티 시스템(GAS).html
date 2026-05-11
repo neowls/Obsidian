@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>게임플레이 어빌리티 시스템(GAS)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#overview">개요</a>
+        <a href="#parts">구성</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>게임플레이 어빌리티 시스템(GAS)</h1>
+      <p class="lead">
+        GAS는 액터가 보유하고 발동하는 능력, 수치 상태, 상태 효과, 태그 기반 조건, 네트워크 예측을 한 프레임워크 안에서 다루기 위한 언리얼 엔진 플러그인입니다.
+        처음에는 구성 요소가 많아 보이지만, ASC를 중심으로 각 요소가 어떤 책임을 갖는지 분리하면 전체 구조가 잡힙니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/게임플레이 어빌리티 시스템(GAS).md</span>
+        <span class="pill">난이도: 전체 개요</span>
+        <span class="pill">핵심: ASC 중심 사고</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="overview" class="panel">
+          <h2>GAS가 해결하려는 문제</h2>
+          <p>
+            게임 능력 시스템은 단순히 “스킬 버튼을 누르면 공격한다”에서 끝나지 않습니다.
+            비용, 쿨다운, 버프와 디버프, 타겟팅, 애니메이션, 사운드, UI, 네트워크 복제까지 이어집니다.
+            GAS는 이 흐름을 개별 기능으로 흩어 놓지 않고, 데이터 기반으로 조합할 수 있는 구조를 제공합니다.
+          </p>
+
+          <div class="split">
+            <div class="callout">
+              <p class="callout-title">강점</p>
+              <ul class="checklist">
+                <li>복잡한 액션, 패시브, 상태 효과를 범용적으로 표현할 수 있습니다.</li>
+                <li>GameplayTag와 GameplayEffect를 통해 데이터 중심 설계가 가능합니다.</li>
+                <li>멀티플레이어 복제와 로컬 예측을 고려한 구조를 제공합니다.</li>
+                <li>Fortnite 같은 상용 프로젝트에서 검증된 시스템입니다.</li>
+              </ul>
+            </div>
+            <div class="callout warning">
+              <p class="callout-title">비용</p>
+              <ul class="checklist">
+                <li>ASC, GA, GE, Attribute, Tag, Task 등 학습해야 할 용어가 많습니다.</li>
+                <li>작은 프로젝트에서는 구조가 과하게 느껴질 수 있습니다.</li>
+                <li>C++ 초기 설정과 네트워크 권한 흐름을 이해해야 안정적으로 쓸 수 있습니다.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="parts" class="panel">
+          <h2>핵심 구성 요소 관계도</h2>
+          <p>
+            GAS는 <code>Ability System Component</code>를 중심에 둡니다.
+            ASC가 액터의 능력, 속성, 효과, 태그를 관리하고 다른 ASC와 상호작용합니다.
+          </p>
+
+          <div class="system-map" aria-label="GAS 핵심 구성 요소 관계도">
+            <div class="system-node core">
+              <h3>ASC: Ability System Component</h3>
+              <p>액터가 GAS 세계와 연결되는 중심 컴포넌트입니다. 어빌리티 부여, 활성화, 이펙트 적용, 태그 보유, 속성 접근의 관문 역할을 합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>GA: Gameplay Ability</h3>
+              <p>점프, 대시, 공격, 패시브처럼 실행 가능한 능력의 로직입니다. 필요하면 Ability Task로 비동기 흐름을 구성합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>GE: Gameplay Effect</h3>
+              <p>체력 감소, 이동속도 증가, 쿨다운, 비용처럼 Attribute나 Tag에 변화를 주는 데이터 중심 효과입니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Attribute Set</h3>
+              <p>체력, 마나, 스태미나, 공격력 같은 숫자 상태를 모아 둡니다. 실제 값 변경은 주로 Gameplay Effect를 통해 일어납니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Gameplay Tag</h3>
+              <p><code>State.Stun</code>, <code>Ability.Fire</code> 같은 계층형 이름입니다. 조건, 차단, 분류, 이벤트 라우팅에 쓰입니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Gameplay Cue</h3>
+              <p>파티클, 사운드, 카메라 효과처럼 게임플레이 결과를 시각적, 청각적으로 표현하는 경로입니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Ability Task</h3>
+              <p>몽타주 재생 대기, 타겟 데이터 대기, 입력 대기 같은 비동기 작업을 어빌리티 안에서 다루는 빌딩 블록입니다.</p>
+            </div>
+          </div>
+
+          <div class="diagram" aria-label="GAS 입력부터 결과까지 흐름도">
+            <p class="diagram-title">시각화 요약: 입력에서 결과까지</p>
+            <div class="node-chain wide">
+              <div class="v-node">
+                <strong>Input / Event</strong>
+                <span>입력, AI 명령, 충돌, Gameplay Event가 ASC로 들어옵니다.</span>
+              </div>
+              <div class="v-node highlight">
+                <strong>ASC</strong>
+                <span>권한, 태그, 쿨다운, 비용 조건을 확인하고 AbilitySpec을 찾습니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>GA</strong>
+                <span>실행 로직을 시작하고 필요하면 Ability Task로 비동기 단계를 나눕니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>GE</strong>
+                <span>비용, 피해, 버프, 쿨다운 같은 상태 변화를 데이터로 적용합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Attribute / Tag</strong>
+                <span>수치와 상태 표지가 바뀌고, 조건 판단과 UI 갱신의 기준이 됩니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Gameplay Cue</strong>
+                <span>파티클, 사운드, 카메라 흔들림처럼 결과를 플레이어에게 보여줍니다.</span>
+              </div>
+            </div>
+            <div class="legend-row">
+              <span class="legend-item">핵심 판단 지점: ASC</span>
+              <span class="legend-item">지속 상태: GE, Attribute, Tag</span>
+              <span class="legend-item">순간 표현: Gameplay Cue</span>
+            </div>
+          </div>
+
+          <div class="callout">
+            <p class="callout-title">5.7 계열에서 GE는 컴포넌트 조립으로도 읽어야 합니다</p>
+            <p>
+              기본 개념은 여전히 GA가 실행 흐름, GE가 상태 변화, Tag가 조건과 분류를 담당한다는 구조입니다.
+              다만 5.7 공식 API에서는 <code>UGameplayEffect</code>의 여러 부가 기능이 <code>GameplayEffectComponent</code> 계열로 정리되어 있으므로,
+              GE를 볼 때 Modifier와 Duration뿐 아니라 어떤 컴포넌트가 조건, 면역, 추가 효과, 태그 처리를 담당하는지도 함께 확인해야 합니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>구성 요소별 책임</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>요소</th>
+                  <th>주요 책임</th>
+                  <th>처음 배울 때 보는 질문</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>ASC</strong></td>
+                  <td>GAS 객체들을 소유하고 상호작용을 중재합니다.</td>
+                  <td>이 액터는 어떤 ASC를 통해 능력과 효과를 주고받는가?</td>
+                </tr>
+                <tr>
+                  <td><strong>GA</strong></td>
+                  <td>능력의 실행 흐름을 정의합니다.</td>
+                  <td>이 행동은 언제 시작되고, 비용과 쿨다운은 언제 확정되는가?</td>
+                </tr>
+                <tr>
+                  <td><strong>GE</strong></td>
+                  <td>Attribute와 Tag 변화를 데이터로 표현합니다.</td>
+                  <td>이 효과는 즉시 적용인가, 지속인가, 무한인가?</td>
+                </tr>
+                <tr>
+                  <td><strong>Attribute</strong></td>
+                  <td>게임플레이 수치를 저장하고 복제합니다.</td>
+                  <td>이 값은 기본값과 현재값 중 어느 쪽이 바뀌어야 하는가?</td>
+                </tr>
+                <tr>
+                  <td><strong>Tag</strong></td>
+                  <td>상태와 조건을 계층형 이름으로 표현합니다.</td>
+                  <td>bool이나 enum 대신 태그로 표현하면 조합이 쉬워지는가?</td>
+                </tr>
+                <tr>
+                  <td><strong>Task</strong></td>
+                  <td>어빌리티 실행 중 비동기 단계를 담당합니다.</td>
+                  <td>몽타주, 타겟팅, 입력 대기처럼 완료 시점이 나중인 일이 있는가?</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>학습 순서</h2>
+          <p>구성 요소를 모두 한 번에 외우기보다, 아래 순서로 책임을 쌓아 가면 이해가 빠릅니다.</p>
+          <ol class="checklist">
+            <li><strong>ASC</strong>: 어떤 액터가 GAS에 참여하는지 결정합니다.</li>
+            <li><strong>Attribute Set</strong>: 체력, 마나 같은 숫자 상태를 정의합니다.</li>
+            <li><strong>Gameplay Effect</strong>: 수치와 태그를 바꾸는 규칙을 만듭니다.</li>
+            <li><strong>Gameplay Ability</strong>: 입력과 실행 흐름을 연결합니다.</li>
+            <li><a href="어빌리티 태스크(AT).html"><strong>Ability Task</strong></a>: 애니메이션, 타겟팅, 입력 대기 같은 비동기 흐름을 붙입니다.</li>
+            <li><strong>Gameplay Cue</strong>: 결과를 이펙트, 사운드, 카메라 연출로 표현합니다.</li>
+          </ol>
+
+          <div class="callout">
+            <p class="callout-title">초기 판단 기준</p>
+            <p>
+              프로젝트에 쿨다운, 비용, 버프/디버프, 태그 기반 차단, 네트워크 예측이 필요하다면 GAS가 유리합니다.
+              단순 싱글플레이 액션 몇 개만 필요하다면 일반 컴포넌트와 데이터 에셋이 더 가벼울 수 있습니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. GAS의 중심 컴포넌트는?</strong>
+              <p class="answer">정답: <code>Ability System Component</code>. 액터가 어빌리티, 이펙트, 태그, 속성을 주고받는 관문입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. Gameplay Ability와 Gameplay Effect의 차이는?</strong>
+              <p class="answer">정답: GA는 실행 흐름이고, GE는 수치와 태그 변화를 표현하는 효과 데이터입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. Gameplay Tag가 중요한 이유는?</strong>
+              <p class="answer">정답: 상태와 조건을 계층형 이름으로 표현해 차단, 허용, 분류, 이벤트 조건을 조합하기 쉽습니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. GAS가 작은 프로젝트에서 부담이 될 수 있는 이유는?</strong>
+              <p class="answer">정답: 구성 요소와 네트워크 권한 흐름이 많아 초기 학습 및 구조 설계 비용이 큽니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%96%B4%EB%B9%8C%EB%A6%AC%ED%8B%B0%20%EC%8A%A4%ED%8E%99(Spec).html">게임플레이 어빌리티 스펙(Spec)</a>: ASC가 어빌리티를 보유하는 단위</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%96%B4%EB%B9%8C%EB%A6%AC%ED%8B%B0%20%ED%83%80%EA%B2%9F%20%EC%95%A1%ED%84%B0(TA).html">게임플레이 어빌리티 타겟 액터(TA)</a>: 어빌리티 타겟 판정과 TargetData 생성</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%96%B4%EB%B9%8C%EB%A6%AC%ED%8B%B0(GA).html">게임플레이 어빌리티(GA)</a>: 실행 가능한 액션 명령과 생명주기</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%96%B4%EB%B9%8C%EB%A6%AC%ED%8B%B0(GA)%EC%9D%98%20%EC%9D%B8%EC%8A%A4%ED%84%B4%EC%8B%B1%20%EC%98%B5%EC%85%98.html">게임플레이 어빌리티(GA)의 인스턴싱 옵션</a>: GA 인스턴스 생성과 재사용 정책</li>
+            <li><a href="어빌리티 시스템 컴포넌트(ASC).html">어빌리티 시스템 컴포넌트(ASC)</a>: GAS의 중심 컴포넌트</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8(GE).html">게임플레이 이펙트(GE)</a>: Attribute와 Tag 변화</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%ED%81%90(GC).html">게임플레이 큐(GC)</a>: 파티클, 사운드, 카메라 효과 표현</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%ED%83%9C%EA%B7%B8(Tag).html">게임플레이 태그(Tag)</a>: 상태, 조건, 분류를 위한 계층형 표식</li>
+            <li><a href="어트리뷰트 세트(Attribute Set).html">어트리뷰트 세트(Attribute Set)</a>: 숫자 상태 묶음</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/gameplay-ability-system-for-unreal-engine" target="_blank" rel="noreferrer">Epic Developer Community: Gameplay Ability System</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-gameplay-abilities-in-unreal-engine" target="_blank" rel="noreferrer">Epic Developer Community: Using Gameplay Abilities</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayEffect?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayEffect Python API 5.7</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\게임플레이 어빌리티 시스템(GAS).md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#overview">GAS 개요</a>
+        <a href="#parts">핵심 구성</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

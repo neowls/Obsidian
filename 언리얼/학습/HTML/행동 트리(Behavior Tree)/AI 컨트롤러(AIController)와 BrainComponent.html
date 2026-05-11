@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 컨트롤러와 BrainComponent</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#visual">시각화</a>
+        <a href="#run">RunBT</a>
+        <a href="#message">메시지</a>
+        <a href="#lock">리소스</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">AI Controller / Brain</p>
+      <h1>AI 컨트롤러와 BrainComponent</h1>
+      <p class="lead">
+        AIController는 Pawn, Blackboard, Brain, PathFollowing을 묶는 소유자이고,
+        BrainComponent는 BehaviorTreeComponent 같은 실제 AI 논리 구현체로 연결되는 공통 인터페이스입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: AI 컨트롤러(AIController)와 BrainComponent.md</span>
+        <span class="pill">핵심: UseBlackboard, RunBehaviorTree, AI Message</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="visual" class="panel">
+          <h2>AI 실행 계층 지도</h2>
+          <div class="visual-board">
+            <div class="node-chain wide">
+              <div class="v-node highlight"><strong>AAIController</strong><span>Pawn을 Possess하고 Brain, Blackboard, PathFollowing을 조정합니다.</span></div>
+              <div class="v-node"><strong>UBrainComponent</strong><span>AI 로직의 start/stop/message/resource lock 공통 인터페이스입니다.</span></div>
+              <div class="v-node"><strong>UBehaviorTreeComponent</strong><span>BrainComponent의 Behavior Tree 구현체입니다.</span></div>
+              <div class="v-node"><strong>UBlackboardComponent</strong><span>Tree와 Task가 읽고 쓰는 상태 저장소입니다.</span></div>
+              <div class="v-node"><strong>UPathFollowingComponent</strong><span>MoveTo 요청을 실제 경로 추종으로 실행합니다.</span></div>
+            </div>
+          </div>
+          <div class="callout">
+            <p class="callout-title">BrainComponent 자체는 실행 로직이 거의 없습니다</p>
+            <p>Base class의 <code>StartLogic()</code>, <code>StopLogic()</code>는 비어 있고, 실제 동작은 <code>UBehaviorTreeComponent</code> 같은 하위 클래스가 구현합니다.</p>
+          </div>
+        </section>
+
+        <section id="run" class="panel">
+          <h2>RunBehaviorTree의 실제 의미</h2>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>BTAsset 검사</strong><span>실행할 Behavior Tree asset이 유효한지 확인</span></div>
+            <div class="pipeline-step" data-step="2"><strong>UseBlackboard</strong><span>트리에 Blackboard가 필요하면 component 생성/초기화 보장</span></div>
+            <div class="pipeline-step" data-step="3"><strong>Brain 확인</strong><span>현재 Brain이 <code>UBehaviorTreeComponent</code>인지 확인</span></div>
+            <div class="pipeline-step" data-step="4"><strong>BT Component 보장</strong><span>아니면 새 component를 만들고 Brain으로 교체</span></div>
+            <div class="pipeline-step" data-step="5"><strong>StartTree</strong><span><code>StartTree(*BTAsset, Looped)</code>로 실행 시작</span></div>
+          </div>
+          <div class="status-strip">
+            <div class="status-card key"><strong>UseBlackboard</strong><span>자산을 Controller의 런타임 BlackboardComponent에 연결합니다.</span></div>
+            <div class="status-card"><strong>OnPossess</strong><span>Pawn 준비, Blackboard 재초기화, 조건부 StartLogic 진입점입니다.</span></div>
+            <div class="status-card"><strong>Self Key</strong><span><code>SetPawn()</code> 경로에서 현재 Pawn 참조로 갱신됩니다.</span></div>
+          </div>
+        </section>
+
+        <section id="message" class="panel">
+          <h2>Brain 메시지 시스템</h2>
+          <p>BT Task의 비동기 완료는 <code>WaitForMessage()</code>와 BrainComponent의 message queue를 통해 이어집니다.</p>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-kicker">Task</span><strong>WaitForMessage</strong><span>MoveFinished, QueryFinished 같은 메시지를 기다림</span></div>
+            <div class="flow-step"><span class="flow-kicker">Brain</span><strong>MessagesToProcess</strong><span>즉시 처리하지 않고 큐에 쌓음</span></div>
+            <div class="flow-step"><span class="flow-kicker">Tick</span><strong>HandleMessage</strong><span>observer에게 메시지 전달</span></div>
+            <div class="flow-step"><span class="flow-kicker">BT</span><strong>FinishLatentTask</strong><span>비동기 task가 성공/실패로 종료</span></div>
+          </div>
+        </section>
+
+        <section id="lock" class="panel">
+          <h2>리소스 락과 Pause/Resume</h2>
+          <div class="diagram">
+            <p class="diagram-title">GameplayTask가 Logic 리소스를 점유할 때</p>
+            <div class="node-chain">
+              <div class="v-node"><strong>LockResource</strong><span>처음 잠기면 AI logic을 pause합니다.</span></div>
+              <div class="v-node warning"><strong>PauseLogic</strong><span>Brain이 현재 로직을 일시 중단합니다.</span></div>
+              <div class="v-node"><strong>ClearResourceLock</strong><span>락이 모두 풀리면 resume 후보가 됩니다.</span></div>
+              <div class="v-node highlight"><strong>ResumeLogic</strong><span>필요하면 예약된 restart도 처리합니다.</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz"><strong>Q1. BrainComponent와 BehaviorTreeComponent는 같은가?</strong><p class="answer">아닙니다. BehaviorTreeComponent는 BrainComponent의 한 구현체입니다.</p></div>
+            <div class="quiz"><strong>Q2. RunBehaviorTree가 보장하는 세 가지는?</strong><p class="answer">Blackboard 보장, BT용 Brain 구현체 보장, Tree 실행 시작입니다.</p></div>
+          </div>
+        </section>
+      </article>
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#visual">계층 지도</a>
+        <a href="#run">RunBehaviorTree</a>
+        <a href="#message">메시지</a>
+        <a href="#lock">리소스</a>
+        <a href="#review">복습</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">AIController와 BrainComponent Markdown을 반응형 시각 자료로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>레벨과 커브 테이블</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#flow">흐름</a>
+        <a href="#curve">커브</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>레벨과 커브 테이블</h1>
+      <p class="lead">
+        Gameplay Effect의 Level은 단순한 표시 값이 아니라, ScalableFloat가 커브 테이블에서 어떤 수치를 읽을지 결정하는 입력값입니다.
+        같은 GE라도 Level과 Row를 바꾸면 스킬 성장, 콤보 배율, 캐릭터 초기 스탯을 데이터 중심으로 조정할 수 있습니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/레벨과 커브 테이블.md</span>
+        <span class="pill">난이도: GE 수치 설계</span>
+        <span class="pill">핵심: GE Level, FScalableFloat, Curve Table</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>레벨과 커브 테이블은 GE에 전달된 Level로 커브 테이블의 값을 평가해 Modifier Magnitude를 결정하는 데이터 기반 수치 설계 방식</strong>입니다.
+            수치를 코드에 박아두지 않고 Curve Table에 분리하면 밸런싱, 레벨별 성장, 직업별 보정값을 에디터에서 조정하기 쉬워집니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">ScalableFloat의 감각</p>
+            <p>
+              <code>FScalableFloat</code>는 기본 값과 커브 참조를 함께 가질 수 있습니다.
+              커브가 연결된 경우 GE Spec의 Level을 X값처럼 사용해 Curve Table Row를 평가하고, 그 결과를 Modifier Magnitude에 반영합니다.
+            </p>
+          </div>
+
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>GE Level</h3>
+              <p><code>MakeOutgoingSpec</code>이나 Blueprint Apply 노드에서 전달되는 레벨입니다. 스킬 레벨, 캐릭터 레벨, 콤보 단계가 될 수 있습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>ScalableFloat</h3>
+              <p>고정값으로도 쓰고, Curve Table Row와 연결해 레벨별 값을 읽는 Magnitude 타입으로도 씁니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Curve Table</h3>
+              <p>행은 수치 이름, 열 또는 X축은 레벨 구간, 셀 또는 커브 값은 해당 레벨의 결과값이라고 보면 됩니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>밸런싱 포인트</h3>
+              <p>데미지, 비용, 쿨다운, 지속시간, 초기 스탯 같은 반복 조정 수치를 데이터로 분리합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="flow" class="panel">
+          <h2>레벨이 수치가 되는 흐름</h2>
+          <p>
+            중요한 연결점은 Spec 생성 시 전달되는 Level입니다. 이 값이 ScalableFloat 계산으로 들어가고, 커브 테이블이 있으면 해당 Row를 Level 위치에서 평가합니다.
+          </p>
+
+          <div class="flow" aria-label="GE Level과 Curve Table 계산 흐름">
+            <div class="flow-step">
+              <span class="flow-kicker">1. Source</span>
+              <strong>레벨 결정</strong>
+              <span>GA 레벨, 캐릭터 레벨, 콤보 단계 같은 입력 레벨을 정합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2. Spec</span>
+              <strong>GE Spec 생성</strong>
+              <span><code>MakeOutgoingSpec</code>에 Level을 넘깁니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3. Modifier</span>
+              <strong>ScalableFloat 평가</strong>
+              <span>Modifier Magnitude가 Spec Level을 사용해 값을 계산합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4. Table</span>
+              <strong>Curve Row 조회</strong>
+              <span>Curve Table Row가 있으면 Level 위치의 곡선 값을 읽습니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5. Apply</span>
+              <strong>Attribute 반영</strong>
+              <span>계산된 Magnitude가 AddBase, MultiplyAdditive, Override 같은 GE Modifier 연산으로 적용됩니다.</span>
+            </div>
+          </div>
+
+          <pre class="code"><code>const float AbilityLevel = GetAbilityLevel();
+
+FGameplayEffectContextHandle Context = ASC-&gt;MakeEffectContext();
+FGameplayEffectSpecHandle Spec =
+    ASC-&gt;MakeOutgoingSpec(DamageEffectClass, AbilityLevel, Context);
+
+// DamageEffectClass 안의 ScalableFloat Modifier가 AbilityLevel로 커브 값을 평가합니다.</code></pre>
+        </section>
+
+        <section id="curve" class="panel">
+          <h2>커브 테이블 예시</h2>
+          <p>
+            아래처럼 RowName을 기능별로 나누면 하나의 Curve Table에서 데미지, 비용, 쿨다운, 초기 스탯을 함께 관리할 수 있습니다.
+            ScalableFloat는 필요한 Row를 참조하고, GE Spec Level이 어느 열 또는 X값을 읽을지 결정합니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>RowName</th>
+                  <th>Level 1</th>
+                  <th>Level 2</th>
+                  <th>Level 3</th>
+                  <th>사용 예</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Fireball_Damage</strong></td>
+                  <td>80</td>
+                  <td>115</td>
+                  <td>155</td>
+                  <td>스킬 레벨별 피해량</td>
+                </tr>
+                <tr>
+                  <td><strong>Fireball_ManaCost</strong></td>
+                  <td>20</td>
+                  <td>28</td>
+                  <td>38</td>
+                  <td>레벨이 오를수록 증가하는 비용</td>
+                </tr>
+                <tr>
+                  <td><strong>Combo_DamageRate</strong></td>
+                  <td>1.0</td>
+                  <td>1.15</td>
+                  <td>1.35</td>
+                  <td>콤보 단계별 최종 데미지 배율</td>
+                </tr>
+                <tr>
+                  <td><strong>Initial_MaxHealth</strong></td>
+                  <td>300</td>
+                  <td>345</td>
+                  <td>395</td>
+                  <td>캐릭터 레벨별 초기 스탯</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>적용 시나리오</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>목표</th>
+                  <th>레벨 입력</th>
+                  <th>Curve Row</th>
+                  <th>설계 포인트</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>콤보 추가 피해</strong></td>
+                  <td>콤보 단계</td>
+                  <td><code>Combo_DamageRate</code></td>
+                  <td>ExecutionCalculation이나 SetByCaller와 조합해 최종 피해 배율로 쓰기 좋습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>캐릭터 초기 스탯</strong></td>
+                  <td>캐릭터 레벨</td>
+                  <td><code>Initial_MaxHealth</code></td>
+                  <td>스폰/초기화 시 Infinite 또는 Instant GE로 기본 스탯을 세팅합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>스킬 레벨별 비용</strong></td>
+                  <td>GA 레벨</td>
+                  <td><code>Fireball_ManaCost</code></td>
+                  <td>Cost GE의 Modifier Magnitude를 ScalableFloat로 두면 레벨별 비용을 코드 수정 없이 바꿀 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>쿨다운 성장</strong></td>
+                  <td>GA 레벨</td>
+                  <td><code>Fireball_Cooldown</code></td>
+                  <td>Duration Magnitude에 커브를 연결하면 레벨별 쿨다운 시간을 다르게 줄 수 있습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>설계 체크리스트</h2>
+          <ul class="checklist">
+            <li><strong>Level의 의미를 먼저 정합니다.</strong> 스킬 레벨인지, 캐릭터 레벨인지, 콤보 단계인지 섞이지 않게 이름으로 드러내야 합니다.</li>
+            <li><strong>RowName은 기능 단위로 명확히 둡니다.</strong> <code>Damage</code>보다 <code>Fireball_Damage</code>, <code>Initial_MaxHealth</code>처럼 검색 가능한 이름이 좋습니다.</li>
+            <li><strong>Curve Table의 보간 방식을 의식합니다.</strong> 정수 레벨만 쓸지, 1.5 같은 중간 레벨도 허용할지에 따라 Constant/Linear/Cubic 선택이 달라집니다.</li>
+            <li><strong>GE Level과 SetByCaller를 구분합니다.</strong> 성장 곡선은 Level/Curve, 실행 순간 값은 SetByCaller로 분리하면 추적이 쉽습니다.</li>
+          </ul>
+
+          <div class="callout">
+            <p class="callout-title">Level은 항상 정수처럼만 쓰지 않아도 됩니다</p>
+            <p>
+              GE Spec 생성 함수의 Level은 float로 전달되는 흐름이 많습니다.
+              정수 레벨만 허용할지, 1.5 같은 중간 값을 커브 보간으로 허용할지는 밸런스 정책입니다.
+              그래서 Curve Table의 보간 방식과 Level 입력의 의미를 문서화해 두는 것이 좋습니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. GE에 전달한 Level은 어디에 주로 사용되는가?</strong>
+              <p class="answer">정답: ScalableFloat Modifier나 Duration Magnitude가 커브 테이블 값을 평가할 때 사용됩니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. 콤보 단계별 배율을 데이터화하려면?</strong>
+              <p class="answer">정답: 콤보 단계를 Level처럼 넘기고, <code>Combo_DamageRate</code> 같은 Curve Row를 ScalableFloat에서 참조하게 만들 수 있습니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. 커브 테이블을 쓰는 가장 큰 장점은?</strong>
+              <p class="answer">정답: 수치를 코드와 분리해 에디터에서 레벨별 밸런스를 빠르게 조정할 수 있습니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. 성장 곡선과 런타임 변수는 어떻게 나누면 좋은가?</strong>
+              <p class="answer">정답: 레벨 기반 성장 수치는 Curve Table, 타겟 수나 충전 시간 같은 실행 순간 값은 SetByCaller로 나누는 편이 명확합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8(GE).html">게임플레이 이펙트(GE)</a>: ScalableFloat Modifier와 Magnitude 타입</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8%EC%9D%98%20%EC%83%9D%EC%84%B1%20%EA%B3%BC%EC%A0%95.html">게임플레이 이펙트의 생성 과정</a>: <code>MakeOutgoingSpec</code>에 Level을 전달하는 위치</li>
+            <li><a href="%EA%B8%B0%EA%B0%84%ED%98%95%20%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8.html">기간형 게임플레이 이펙트</a>: Duration Magnitude와 쿨다운 시간을 레벨별로 조정</li>
+            <li><a href="메타(Meta) 어트리뷰트.html">메타(Meta) 어트리뷰트</a>: 계산용 중간 Attribute와 최종 적용 수치 분리</li>
+            <li><a href="어트리뷰트 세트(Attribute Set).html">어트리뷰트 세트(Attribute Set)</a>: 초기 스탯과 레벨별 스탯 적용 대상</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/data-driven-gameplay-elements-in-unreal-engine" target="_blank" rel="noreferrer">Epic Developer Community: Data Driven Gameplay Elements</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/Engine/UCurveTable/FindCurve" target="_blank" rel="noreferrer">Epic Developer Community: UCurveTable::FindCurve API</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UGameplayAbility/GetAbilityLevel" target="_blank" rel="noreferrer">Epic Developer Community: UGameplayAbility::GetAbilityLevel API</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayAbility?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayAbility Python API 5.7</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\레벨과 커브 테이블.md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#flow">계산 흐름</a>
+        <a href="#curve">커브 예시</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

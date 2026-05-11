@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 지각(AI Perception)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#visual">시각화</a>
+        <a href="#runtime">런타임</a>
+        <a href="#memory">기억</a>
+        <a href="#bt">BT 연결</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Artificial Intelligence</p>
+      <h1>AI 지각(AI Perception)</h1>
+      <p class="lead">
+        AI Perception은 즉시 액션을 실행하는 노드가 아니라, Sense가 만든 자극을 Listener의 기억에 저장하고
+        gameplay 코드가 그 결과를 소비하도록 만드는 런타임 입력 계층입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: AI 지각(AI Perception).md</span>
+        <span class="pill">핵심: System, Sense, Stimulus, Listener Memory</span>
+        <span class="pill">연결: Blackboard, Behavior Tree, EQS</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="visual" class="panel">
+          <h2>Perception 입력 파이프라인</h2>
+          <p>중심 틱은 <code>UAIPerceptionComponent</code>가 아니라 <code>UAIPerceptionSystem</code>입니다. 시스템이 Sense를 틱하고, Sense가 만든 <code>FAIStimulus</code>를 Listener가 기억합니다.</p>
+          <div class="visual-board">
+            <div class="pipeline">
+              <div class="pipeline-step" data-step="1"><strong>Source 등록</strong><span>Pawn 자동 등록 또는 <code>StimuliSourceComponent</code> 명시 등록</span></div>
+              <div class="pipeline-step" data-step="2"><strong>Sense Tick</strong><span>Sight, Hearing, Custom Sense가 업데이트 필요 여부를 판단</span></div>
+              <div class="pipeline-step" data-step="3"><strong>Stimulus 생성</strong><span>위치, 강도, 성공 여부, 만료 시간을 담은 자극 생성</span></div>
+              <div class="pipeline-step" data-step="4"><strong>ProcessStimuli</strong><span>타깃별 <code>FActorPerceptionInfo</code>에 sense별 자극 저장</span></div>
+              <div class="pipeline-step" data-step="5"><strong>Gameplay 소비</strong><span>Delegate, 조회 API, AIController callback으로 블랙보드 갱신</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="runtime" class="panel">
+          <h2>런타임 처리 흐름</h2>
+          <div class="diagram">
+            <p class="diagram-title">시스템이 한 틱에서 하는 일</p>
+            <div class="node-chain wide">
+              <div class="v-node"><strong>SourcesToRegister</strong><span>다음 틱에 등록할 자극 source를 처리합니다.</span></div>
+              <div class="v-node"><strong>AgeStimuli</strong><span>활성 자극의 나이를 올리고 stale 여부를 판단합니다.</span></div>
+              <div class="v-node highlight"><strong>UAISense::Tick</strong><span>업데이트가 필요한 sense만 실제 감지 규칙을 수행합니다.</span></div>
+              <div class="v-node"><strong>DeliverDelayedStimuli</strong><span>지연된 청각 이벤트 같은 자극을 listener에게 전달합니다.</span></div>
+              <div class="v-node"><strong>ProcessStimuli</strong><span>Listener memory 갱신 후 delegate를 브로드캐스트합니다.</span></div>
+            </div>
+          </div>
+          <div class="callout">
+            <p class="callout-title">Sense마다 비용이 다르게 흐릅니다</p>
+            <p><code>ProgressTime()</code>과 <code>Update()</code>가 sense별 업데이트 타이밍을 나누므로, 모든 감각이 매 프레임 같은 비용으로 도는 모델로 보면 안 됩니다.</p>
+          </div>
+        </section>
+
+        <section id="memory" class="panel">
+          <h2>Stimulus와 타깃 기억</h2>
+          <div class="memory-board">
+            <div class="memory-list">
+              <div class="memory-slot key"><span class="layer-kicker">Unit</span><strong>FAIStimulus</strong><span>Age, ExpirationAge, Strength, Location, Type, bSuccessfullySensed를 가진 한 번의 감지 결과</span></div>
+              <div class="memory-slot"><span class="layer-kicker">Target</span><strong>FActorPerceptionInfo</strong><span>Target actor에 대해 sense ID별 마지막 stimulus 배열을 보관</span></div>
+              <div class="memory-slot"><span class="layer-kicker">Location</span><strong>DominantSense</strong><span>여러 sense가 있을 때 마지막 위치 해석 우선순위를 결정</span></div>
+            </div>
+            <div class="visual-board">
+              <div class="layer-card"><strong>현재 감지</strong><span><code>HasAnyCurrentStimulus()</code>는 아직 active한 자극을 봅니다.</span></div>
+              <div class="layer-card"><strong>알고 있는 대상</strong><span><code>HasAnyKnownStimulus()</code>는 현재 놓쳤어도 기억이 남은 대상을 포함합니다.</span></div>
+              <div class="layer-card danger"><strong>완전 망각</strong><span><code>bForgetStaleActors</code>가 꺼져 있으면 stale actor가 자동으로 완전히 지워지지 않을 수 있습니다.</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="bt" class="panel">
+          <h2>Blackboard / Behavior Tree 연결</h2>
+          <p>Perception은 블랙보드를 직접 바꾸지 않습니다. 보통 delegate를 받은 gameplay 코드가 감지 결과를 의사결정용 키로 옮깁니다.</p>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-kicker">Perception</span><strong>자극 수신</strong><span>Sight 성공, Hearing 이벤트, 감지 실패/만료</span></div>
+            <div class="flow-step"><span class="flow-kicker">Code</span><strong>결과 해석</strong><span><code>GetActorsPerception()</code> 또는 stimulus 상태 확인</span></div>
+            <div class="flow-step"><span class="flow-kicker">Blackboard</span><strong>키 갱신</strong><span><code>TargetActor</code>, <code>LastKnownLocation</code>, <code>InvestigateLocation</code></span></div>
+            <div class="flow-step"><span class="flow-kicker">Behavior Tree</span><strong>재평가</strong><span>Decorator observer abort나 Service 갱신으로 분기 변경</span></div>
+          </div>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead><tr><th>Delegate</th><th>사용 감각</th></tr></thead>
+              <tbody>
+                <tr><td><code>OnPerceptionUpdated</code></td><td>여러 액터를 한 번에 받은 배치 이벤트가 필요할 때</td></tr>
+                <tr><td><code>OnTargetPerceptionUpdated</code></td><td>액터와 stimulus 단위로 즉시 반응할 때</td></tr>
+                <tr><td><code>OnTargetPerceptionInfoUpdated</code></td><td>source actor가 무효화될 수 있어 TargetId 기반 bookkeeping이 필요할 때</td></tr>
+                <tr><td><code>OnTargetPerceptionForgotten</code></td><td>완전히 잊은 대상에 대한 정리가 필요할 때</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz"><strong>Q1. Perception의 중심 틱은 어느 객체가 담당하는가?</strong><p class="answer"><code>UAIPerceptionSystem</code>이 listener, source, sense를 관리하고 업데이트가 필요한 sense를 틱합니다.</p></div>
+            <div class="quiz"><strong>Q2. <code>DominantSense</code>는 무엇을 바꾸는가?</strong><p class="answer">감지 가능 여부가 아니라 여러 sense 자극 중 마지막 위치를 해석할 때의 우선순위를 바꿉니다.</p></div>
+          </div>
+        </section>
+      </article>
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#visual">입력 파이프라인</a>
+        <a href="#runtime">런타임 처리</a>
+        <a href="#memory">Stimulus 기억</a>
+        <a href="#bt">BT 연결</a>
+        <a href="#review">복습</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">AI Perception Markdown을 반응형 시각 자료로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

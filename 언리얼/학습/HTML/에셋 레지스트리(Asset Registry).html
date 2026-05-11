@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>에셋 레지스트리(Asset Registry)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#query">쿼리</a>
+        <a href="#filter">필터</a>
+        <a href="#tags">태그</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Asset Registry / Metadata</p>
+      <h1>에셋 레지스트리(Asset Registry)</h1>
+      <p class="lead">
+        Asset Registry는 에셋을 실제로 로드하지 않고도 경로, 클래스, 이름, 태그 같은 메타데이터로 검색할 수 있게 해 주는 인덱스입니다.
+        Content Browser, Asset Manager, 에디터 도구, 빌드 파이프라인의 기반 데이터로 사용됩니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 에셋 레지스트리(Asset Registry).md</span>
+        <span class="pill">난이도: 중급 에디터/런타임 데이터</span>
+        <span class="pill">핵심: FAssetData, FARFilter, AssetRegistrySearchable, Async Scan</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Asset Registry는 로드되지 않은 에셋을 포함해 프로젝트 에셋의 메타데이터를 검색 가능한 형태로 보관하는 시스템</strong>입니다.
+            에디터에서는 파일을 비동기로 스캔해 최신 상태를 유지하고, Cooked 빌드에서도 필요한 레지스트리 데이터가 사용됩니다.
+          </p>
+
+          <div class="callout warning">
+            <p class="callout-title">원본 내용의 최신화</p>
+            <p>
+              원본은 이전 문서 기반의 구식 클래스 필터와 <code>FName ObjectPath</code>, <code>AssetClass</code> 흐름이 섞여 있었습니다.
+              UE 5.x에서는 클래스 필터에 <code>ClassPaths</code>와 <code>FTopLevelAssetPath</code>를 사용하는 흐름을 우선으로 정리하는 것이 맞습니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="query" class="panel">
+          <h2>에셋 목록 구하기</h2>
+          <p>
+            C++에서는 AssetRegistry 모듈을 로드한 뒤 <code>IAssetRegistry</code>에 질의합니다.
+            전체 검색은 느릴 수 있으므로, 가능한 경로와 클래스 필터를 함께 쓰는 것이 좋습니다.
+          </p>
+
+          <pre class="code"><code>#include "AssetRegistry/AssetRegistryModule.h"
+
+FAssetRegistryModule& AssetRegistryModule =
+    FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
+IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+TArray<FAssetData> StaticMeshes;
+AssetRegistry.GetAssetsByClass(
+    UStaticMesh::StaticClass()->GetClassPathName(),
+    StaticMeshes,
+    true
+);</code></pre>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>함수</th>
+                  <th>용도</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>GetAssetsByClass</code></td>
+                  <td>특정 클래스 경로에 해당하는 에셋을 찾습니다. 5.x에서는 전체 클래스 경로를 사용하는 형태를 우선합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>GetAssetsByPath</code></td>
+                  <td>특정 패키지 경로 아래의 에셋을 찾습니다. 재귀 검색 여부를 지정할 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>GetAssetByObjectPath</code></td>
+                  <td>특정 오브젝트 경로의 에셋 데이터를 찾습니다. 5.x에서는 SoftObjectPath 기반 오버로드를 우선 고려합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>GetAllAssets</code></td>
+                  <td>레지스트리의 모든 에셋을 가져옵니다. 공식 API도 느릴 수 있으므로 필터 사용을 권장합니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="filter" class="panel">
+          <h2>FARFilter</h2>
+          <p>
+            <code>FARFilter</code>는 Asset Registry 쿼리용 필터 구조체입니다.
+            공식 5.7 API 설명처럼 각 필터 배열 내부는 OR로 처리되고, 서로 다른 필터 구성 요소는 AND로 결합됩니다.
+          </p>
+
+          <pre class="code"><code>FARFilter Filter;
+Filter.ClassPaths.Add(UStaticMesh::StaticClass()->GetClassPathName());
+Filter.PackagePaths.Add(FName("/Game/Meshes"));
+Filter.bRecursivePaths = true;
+Filter.bRecursiveClasses = true;
+
+TArray<FAssetData> Assets;
+AssetRegistry.GetAssets(Filter, Assets);</code></pre>
+
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>PackagePaths</h3>
+              <p>검색할 Content 경로입니다. 하위 폴더까지 보려면 <code>bRecursivePaths</code>를 켭니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>ClassPaths</h3>
+              <p>검색할 에셋 클래스 경로입니다. 구버전의 <code>ClassNames</code> 사용은 피합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>TagsAndValues</h3>
+              <p><code>AssetRegistrySearchable</code> 프로퍼티나 커스텀 태그 값으로 검색할 때 사용합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>On Disk Only</h3>
+              <p>디스크에서 수집된 데이터만 사용할지 정합니다. 로드된 UObject 상태와 구분해야 할 때 중요합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="tags" class="panel">
+          <h2>FAssetData와 태그</h2>
+          <p>
+            <code>FAssetData</code>는 에셋을 로드하기 전에 알 수 있는 패키지 이름, 경로, 에셋 이름, 클래스 경로, 태그 값을 담습니다.
+            <code>GetAsset()</code>을 호출하면 실제 UObject를 로드할 수 있지만, 단순 검색 단계에서는 가능하면 로드하지 않고 메타데이터만 사용합니다.
+          </p>
+
+          <pre class="code"><code>UPROPERTY(EditDefaultsOnly, AssetRegistrySearchable)
+FName ItemCategory;</code></pre>
+
+          <div class="callout">
+            <p class="callout-title">AssetRegistrySearchable</p>
+            <p>
+              이 메타 지정자는 에셋 저장 시 해당 프로퍼티 값을 레지스트리 태그로 기록하게 합니다.
+              UObject 직계 프로퍼티가 아닌 정보를 검색 가능하게 만들고 싶다면 클래스에서 Asset Registry Tag를 직접 제공하는 방식을 사용합니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>비동기 스캔과 이벤트</h2>
+          <p>
+            에디터 시작 중 Asset Registry는 파일을 비동기로 스캔합니다.
+            따라서 초기 시점에는 모든 에셋 정보가 아직 준비되지 않았을 수 있고, 도구 코드는 로딩 완료와 에셋 추가/삭제/이름 변경 이벤트를 고려해야 합니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>이벤트/함수</th>
+                  <th>의미</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>OnAssetAdded</code></td>
+                  <td>새 에셋이 발견되거나 생성되었을 때 호출됩니다.</td>
+                </tr>
+                <tr>
+                  <td><code>OnAssetRemoved</code></td>
+                  <td>레지스트리에서 에셋이 제거되었을 때 호출됩니다.</td>
+                </tr>
+                <tr>
+                  <td><code>OnAssetRenamed</code></td>
+                  <td>에셋 이름이나 경로가 바뀌었을 때 호출됩니다.</td>
+                </tr>
+                <tr>
+                  <td><code>OnFilesLoaded</code></td>
+                  <td>초기 파일 스캔이 완료되었을 때 사용합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>IsLoadingAssets</code></td>
+                  <td>현재 에셋 스캔이 진행 중인지 확인합니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">콜백은 짧게</p>
+            <p>
+              <code>OnAssetAdded</code> 같은 레지스트리 콜백에서 무거운 작업을 하면 스캔과 에디터 반응성이 나빠질 수 있습니다.
+              필요한 데이터만 큐에 넣고 실제 처리는 별도 타이밍에 넘기는 구조가 안전합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. <code>FAssetData::GetAsset()</code>을 남발하면 안 되는 이유는?</strong>
+            <p class="answer">메타데이터 검색만 하려던 에셋을 실제 UObject로 로드해 메모리와 로딩 시간을 증가시킬 수 있기 때문입니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. UE 5.x에서 클래스 필터를 작성할 때 구버전 <code>Classes</code> 대신 무엇을 우선해야 하는가?</strong>
+            <p class="answer"><code>ClassPaths</code>와 <code>FTopLevelAssetPath</code> 기반 흐름을 우선해야 합니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. <code>FARFilter</code>에서 배열 내부와 배열 간 조건 결합 방식은?</strong>
+            <p class="answer">같은 필터 배열 내부는 OR, 서로 다른 필터 구성 요소는 AND로 처리됩니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/AssetRegistry?application_version=5.7">Unreal Python 5.7: AssetRegistry</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/CoreUObject/FARFilter">UE 5.7 API: FARFilter</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/CoreUObject/AssetRegistry/FAssetData">UE API: FAssetData</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine">Asset Management in Unreal Engine</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#concept">개념</a>
+        <a href="#query">에셋 쿼리</a>
+        <a href="#filter">FARFilter</a>
+        <a href="#tags">FAssetData와 태그</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

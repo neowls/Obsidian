@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UPROPERTY UObject Reference Guide Implementation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#layers">레이어</a>
+        <a href="#gc">GC</a>
+        <a href="#serialize">Serialize</a>
+        <a href="#policy">정책</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">C++ / UObject Reference Internals</p>
+      <h1>UPROPERTY UObject Reference Guide Implementation</h1>
+      <p class="lead">
+        이 문서는 <code>UPROPERTY() TObjectPtr&lt;T&gt;</code>와 <code>UPROPERTY() T*</code>의 차이를 엔진 레이어별로 보는 상세 참고 문서입니다.
+        결론은 동일합니다. GC strong reference 여부는 둘 다 성립하지만, <code>TObjectPtr</code>는 현대적인 엔진 파이프라인과 더 많은 협력 지점을 가집니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: UPROPERTYObjectReferenceGuideImplementation.md</span>
+        <span class="pill">난이도: 고급 UObject 내부</span>
+        <span class="pill">핵심: ObjectPtr.h, FObjectProperty, GC barrier, Serialization, UHT policy</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="layers" class="panel">
+          <h2>엔진 레이어별 차이</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>레이어</th>
+                  <th>raw <code>UPROPERTY() T*</code></th>
+                  <th><code>UPROPERTY() TObjectPtr&lt;T&gt;</code></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>UHT / Reflection</td>
+                  <td>native pointer member로 파싱되며 object property가 됩니다.</td>
+                  <td>wrapper 기반 object pointer member로 인식되어 별도 플래그와 분기 대상이 됩니다.</td>
+                </tr>
+                <tr>
+                  <td>GC</td>
+                  <td>UPROPERTY이면 strong reference로 reference graph에 들어갑니다.</td>
+                  <td>마찬가지로 strong reference이며, 대입/복사에서 incremental GC barrier와 협력할 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td>Handle / Resolve</td>
+                  <td>resolved <code>UObject*</code> 중심으로 수렴합니다.</td>
+                  <td><code>FObjectPtr</code> / object handle 기반 wrapper 성격으로 editor build에서 lazy resolve와 tracking에 더 적합합니다.</td>
+                </tr>
+                <tr>
+                  <td>Serialization / Copy</td>
+                  <td>실제 pointer 값을 중심으로 복사/직렬화 경로를 탑니다.</td>
+                  <td>wrapper 상태를 보존하는 분기를 탈 수 있어 duplication, reinstancing, placeholder 처리에 유리합니다.</td>
+                </tr>
+                <tr>
+                  <td>Tooling / Cook</td>
+                  <td>dereference 시점을 엔진이 자동 추적하기 어렵습니다.</td>
+                  <td>resolve/dereference가 wrapper 경로를 지나므로 access tracking과 cook dependency 분석에 더 잘 맞습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="gc" class="panel">
+          <h2>GC와 strong reference</h2>
+          <p>
+            가장 중요한 내부 결론은 <code>UPROPERTY()</code>가 붙은 raw pointer와 <code>TObjectPtr</code>가 모두 GC reference graph에서 객체를 살리는 참조가 될 수 있다는 점입니다.
+            따라서 "GC 때문에 반드시 <code>TObjectPtr</code>만 써야 한다"는 설명은 부정확합니다.
+          </p>
+          <div class="callout">
+            <p class="callout-title">차이는 업데이트 경로</p>
+            <p>
+              <code>TObjectPtr</code>는 wrapper 대입과 복사 과정에서 엔진이 object handle과 incremental GC barrier를 연결할 수 있습니다.
+              raw pointer 멤버 대입은 일반 C++ pointer 대입에 가깝기 때문에 이런 협력 지점이 제한됩니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="serialize" class="panel">
+          <h2>Serialization, Copy, Access Tracking</h2>
+          <p>
+            저장 포맷 관점에서 둘은 모두 UObject reference property로 직렬화됩니다.
+            하지만 <code>FObjectProperty</code> 내부는 property flag와 wrapped pointer 여부에 따라 다른 helper를 사용할 수 있고,
+            <code>TObjectPtr</code>는 unresolved handle이나 editor placeholder 상태를 더 오래 보존할 수 있습니다.
+          </p>
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>Serialization</h3>
+              <p>둘 다 object reference로 저장되지만, <code>TObjectPtr</code>는 handle-aware 분기를 탈 수 있습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Reflection Copy</h3>
+              <p>raw pointer는 resolved pointer 값으로 수렴하기 쉽고, <code>TObjectPtr</code>는 wrapper 값을 복사할 수 있습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Access Tracking</h3>
+              <p>raw pointer는 단순 C++ read라 추적이 어렵고, <code>TObjectPtr</code>는 resolve/dereference 지점이 명시됩니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Cook Dependency</h3>
+              <p>실제 사용된 참조를 분석하는 editor/cook 파이프라인에서 <code>TObjectPtr</code>가 더 현대적인 경로와 맞습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="policy" class="panel">
+          <h2>UHT와 팀 정책</h2>
+          <p>
+            최신 UE 코드베이스는 UObject 멤버 선언에서 <code>TObjectPtr</code>를 기본으로 보는 쪽으로 이동했습니다.
+            기존 raw pointer 멤버가 즉시 잘못된 것은 아니지만, 새 reflected member를 만들 때는 팀 규칙으로 <code>TObjectPtr</code>를 사용하면 리뷰 기준이 단순해집니다.
+          </p>
+          <pre class="code"><code>// 멤버 strong reference
+UPROPERTY()
+TObjectPtr&lt;UMyObject&gt; ObjectRef = nullptr;
+
+// 함수 경계와 hot path
+UMyObject* GetObject() const
+{
+    return ObjectRef;
+}
+
+void UseObject(UMyObject* Object);</code></pre>
+          <div class="callout warning">
+            <p class="callout-title">범위를 넓히지 말 것</p>
+            <p>
+              <code>TObjectPtr</code>는 주로 UPROPERTY 멤버 선언용 기준으로 잡습니다.
+              파라미터, 반환값, 로컬 변수까지 모두 <code>TObjectPtr</code>로 통일하면 UHT 정책과 일반 UE C++ 관용에서 벗어납니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>참고 소스 위치</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>파일</th>
+                  <th>볼 내용</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>CoreUObject/Public/UObject/ObjectPtr.h</code></td>
+                  <td><code>FObjectPtr</code>, <code>TObjectPtr</code>, object handle, access tracking 관련 정의</td>
+                </tr>
+                <tr>
+                  <td><code>CoreUObject/Public/UObject/ObjectMacros.h</code></td>
+                  <td>object pointer 관련 property flag와 UPROPERTY 메타 정책</td>
+                </tr>
+                <tr>
+                  <td><code>CoreUObject/Public/UObject/UnrealType.h</code></td>
+                  <td><code>FObjectProperty</code>, property pointer helper, reflection property API</td>
+                </tr>
+                <tr>
+                  <td><code>CoreUObject/Private/UObject/PropertyObject.cpp</code></td>
+                  <td>object property serialization, copy, net serialization 분기</td>
+                </tr>
+                <tr>
+                  <td><code>CoreUObject/Private/UObject/GarbageCollection.cpp</code></td>
+                  <td>object property가 reference graph에 reference info를 내보내는 방식</td>
+                </tr>
+                <tr>
+                  <td><code>Programs/Shared/EpicGames.UHT</code></td>
+                  <td>raw pointer member와 <code>TObjectPtr</code> member를 파싱하고 정책화하는 경로</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. 내부 구현 관점에서 raw UPROPERTY pointer와 TObjectPtr의 공통 핵심은?</strong>
+            <p class="answer">둘 다 reflected object reference이며 GC strong reference 경로에 들어갈 수 있다는 점입니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. TObjectPtr의 차이가 가장 의미 있는 영역은?</strong>
+            <p class="answer">editor/cook/tooling, access tracking, object handle resolve, incremental GC barrier, property copy/reinstancing 같은 엔진 파이프라인 영역입니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. 함수 파라미터와 반환값은 무엇을 쓰는 것이 자연스러운가?</strong>
+            <p class="answer">일반 raw <code>T*</code>를 쓰는 것이 UE C++ 사용 패턴에 맞습니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-5-migration-guide">Unreal Engine 5 Migration Guide: C++ Object Pointer Properties</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/CoreUObject/TDereferenceWrapper_TObjectPtr_T-">UE 5.7 API: TObjectPtr Dereference Wrapper</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/CoreUObject/EPropertyPointerType">UE 5.7 API: EPropertyPointerType</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/CoreUObject/FObjectPropertyBase/GetExportPath">UE 5.7 API: FObjectPropertyBase::GetExportPath</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#layers">레이어별 차이</a>
+        <a href="#gc">GC</a>
+        <a href="#serialize">Serialization</a>
+        <a href="#policy">UHT와 팀 정책</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

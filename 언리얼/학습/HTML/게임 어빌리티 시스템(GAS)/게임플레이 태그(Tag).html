@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>게임플레이 태그(Tag)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#container">컨테이너</a>
+        <a href="#ability">GA 조건</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>게임플레이 태그(Tag)</h1>
+      <p class="lead">
+        Gameplay Tag는 <code>State.Debuff.Stun</code>처럼 계층 구조를 가진 경량 표식입니다.
+        boolean이나 enum보다 조합과 검색이 유연해서 상태, 행동, 이벤트, Cue, Ability 조건을 표현하는 공통 언어로 쓰입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/게임플레이 태그(Tag).md</span>
+        <span class="pill">난이도: GAS 공통 기초</span>
+        <span class="pill">핵심: FGameplayTag, FGameplayTagContainer, Exact Match</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Gameplay Tag는 프로젝트 전역에서 검증되고 계층 검색이 가능한 이름표</strong>입니다.
+            내부적으로는 <code>FName</code> 기반의 가벼운 데이터지만, 일반 Actor Tag와 달리 GameplayTags 시스템에 등록되어 관리됩니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">저장 위치</p>
+            <p>
+              에디터의 Project Settings에서 태그를 생성하면 보통 <code>DefaultGameplayTags.ini</code>에 저장됩니다.
+              서버와 클라이언트가 같은 태그 사전을 공유해야 복제와 검색이 안정적으로 동작합니다.
+            </p>
+          </div>
+
+          <div class="system-map" aria-label="Gameplay Tag 사용 예">
+            <div class="system-node core">
+              <h3>Gameplay Tags</h3>
+              <p>행동, 상태, 이벤트, Cue, Ability 조건을 계층형 이름으로 표현합니다. 점으로 구분된 부모/자식 구조를 이용해 범주 단위 검색이 가능합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Actor.Action.Rotate</h3>
+              <p>액터가 수행하는 행동이나 가능한 액션 범주를 표현합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Actor.State.IsRotating</h3>
+              <p>액터의 현재 상태를 표현합니다. 상태 기반 차단이나 UI 표시 조건에 쓰기 좋습니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>GameplayCue.Status.Stun</h3>
+              <p>Gameplay Cue 라우팅에 쓰는 태그입니다. Cue 태그는 반드시 GameplayCue로 시작해야 합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="container" class="panel">
+          <h2>GameplayTagContainer 검색</h2>
+          <p>
+            여러 태그는 <code>FGameplayTagContainer</code>에 담습니다.
+            일반 검색은 부모 태그까지 고려하고, <code>Exact</code> 검색은 컨테이너에 정확히 들어 있는 태그만 인정합니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>컨테이너 보유 태그</th>
+                  <th>검사</th>
+                  <th>결과</th>
+                  <th>이유</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>A.1</code></td>
+                  <td><code>HasTag(A)</code></td>
+                  <td>true</td>
+                  <td>일반 검색은 부모 태그 <code>A</code>와 매칭됩니다.</td>
+                </tr>
+                <tr>
+                  <td><code>A.1</code></td>
+                  <td><code>HasTagExact(A)</code></td>
+                  <td>false</td>
+                  <td>컨테이너에 정확히 <code>A</code>가 들어 있지 않습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>A.1</code></td>
+                  <td><code>HasAny(A, B)</code></td>
+                  <td>true</td>
+                  <td><code>A.1</code>이 <code>A</code>의 자식이므로 하나 이상 매칭됩니다.</td>
+                </tr>
+                <tr>
+                  <td><code>A.1</code></td>
+                  <td><code>HasAnyExact(A, B)</code></td>
+                  <td>false</td>
+                  <td>정확히 <code>A</code> 또는 <code>B</code>를 가진 것이 아닙니다.</td>
+                </tr>
+                <tr>
+                  <td><code>A.1</code>, <code>B.1</code></td>
+                  <td><code>HasAll(A, B)</code></td>
+                  <td>true</td>
+                  <td>부모 태그 기준으로 둘 다 매칭됩니다.</td>
+                </tr>
+                <tr>
+                  <td><code>A.1</code>, <code>B.1</code></td>
+                  <td><code>HasAllExact(A, B)</code></td>
+                  <td>false</td>
+                  <td>정확히 <code>A</code>와 <code>B</code>가 들어 있지는 않습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">빈 컨테이너 주의</p>
+            <p>
+              빈 입력 컨테이너를 검사할 때 대부분의 Any 계열은 false지만, All 계열은 “빠진 태그가 없다”는 의미로 true가 될 수 있습니다.
+              조건식에서 빈 컨테이너가 들어올 가능성을 명확히 처리해야 합니다.
+            </p>
+          </div>
+
+          <div class="callout">
+            <p class="callout-title">ASC의 태그는 Count로 관리됩니다</p>
+            <p>
+              같은 태그가 여러 GE나 여러 경로에서 들어오면 ASC는 단순한 Set처럼 한 번만 저장하고 끝내지 않고 Tag Count를 관리합니다.
+              그래서 한 효과가 제거되어도 다른 효과가 같은 태그를 아직 부여 중이면 태그는 남습니다.
+              태그 조건이 예상과 다르면 Exact 여부와 함께 Tag Count, Loose Tag, GE가 부여한 태그의 수명을 같이 확인해야 합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="ability" class="panel">
+          <h2>Gameplay Ability에서의 태그</h2>
+          <p>
+            GA는 태그를 통해 “어떤 어빌리티인가”, “무엇을 취소할 것인가”, “어떤 상태에서 실행 가능한가”를 정의합니다.
+            실행 조건이 데이터로 드러나므로 디자이너와 프로그래머가 같은 기준으로 확인하기 쉽습니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>태그 설정</th>
+                  <th>대상</th>
+                  <th>의미</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>AbilityTags</strong></td>
+                  <td>어빌리티 자체</td>
+                  <td>이 어빌리티가 어떤 종류인지 분류합니다. 다른 취소/차단 규칙의 검색 대상이 됩니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>CancelAbilitiesWithTag</strong></td>
+                  <td>다른 활성 어빌리티</td>
+                  <td>여기에 등록한 태그를 AbilityTags로 가진 어빌리티를 취소합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>BlockAbilitiesWithTag</strong></td>
+                  <td>다른 어빌리티 활성화</td>
+                  <td>특정 태그를 가진 어빌리티가 새로 실행되지 못하게 막습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>ActivationOwnedTags</strong></td>
+                  <td>소유 ASC</td>
+                  <td>어빌리티가 실행 중일 때 ASC에 부여되는 태그입니다. 예: <code>State.Casting</code></td>
+                </tr>
+                <tr>
+                  <td><strong>ActivationRequiredTags</strong></td>
+                  <td>소유 ASC</td>
+                  <td>소유자가 이 태그를 가지고 있어야 어빌리티가 실행됩니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>ActivationBlockedTags</strong></td>
+                  <td>소유 ASC</td>
+                  <td>소유자가 이 태그를 가지고 있으면 어빌리티 실행이 막힙니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>SourceRequiredTags / SourceBlockedTags</strong></td>
+                  <td>시전자</td>
+                  <td>효과를 발생시키는 쪽의 태그 조건을 검사합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>TargetRequiredTags / TargetBlockedTags</strong></td>
+                  <td>시전 대상</td>
+                  <td>대상에게 특정 태그가 있거나 없을 때만 어빌리티가 유효하게 만듭니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>태그 설계 감각</h2>
+          <p>
+            태그는 코드보다 콘텐츠와 운영에서 더 많이 만지는 데이터가 될 수 있습니다.
+            이름 체계가 흔들리면 검색과 조건식이 빠르게 복잡해지므로, 루트 범주를 먼저 정해 두는 것이 좋습니다.
+          </p>
+
+          <div class="flow" aria-label="Gameplay Tag 설계 흐름">
+            <div class="flow-step">
+              <span class="flow-kicker">1. Root</span>
+              <strong>루트 범주</strong>
+              <span><code>State</code>, <code>Ability</code>, <code>Effect</code>, <code>GameplayCue</code>처럼 큰 범주를 정합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2. Meaning</span>
+              <strong>의미 분리</strong>
+              <span>상태 태그와 행동 태그, 이벤트 태그를 섞지 않습니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3. Query</span>
+              <strong>검색 기준</strong>
+              <span>부모 검색을 쓸지 Exact 검색을 쓸지 사용처별로 정합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4. Source</span>
+              <strong>부여 주체</strong>
+              <span>GE가 주는 태그인지, ASC가 직접 주는 Loose Tag인지 구분합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5. Debug</span>
+              <strong>디버깅</strong>
+              <span>태그가 “있어 보이는데 조건이 실패”하면 Exact 여부와 Tag Count를 확인합니다.</span>
+            </div>
+          </div>
+
+          <pre class="code"><code>// C++에서 등록된 GameplayTag 참조를 가져오는 기본 형태
+FGameplayTag StunTag =
+    FGameplayTag::RequestGameplayTag(FName("State.Debuff.Stun"));
+
+// ASC에서 태그 변경을 감지하는 형태
+AbilitySystemComponent
+    -&gt;RegisterGameplayTagEvent(StunTag, EGameplayTagEventType::NewOrRemoved)
+    .AddUObject(this, &amp;AMyCharacter::OnStunTagChanged);</code></pre>
+        </section>
+
+        <section class="panel">
+          <h2>Loose Tag와 GE Tag</h2>
+          <div class="split">
+            <div class="callout">
+              <p class="callout-title">GameplayEffect가 부여하는 태그</p>
+              <p>
+                Duration/Infinite GE가 유지되는 동안 태그를 부여하고, GE가 제거되면 태그도 같이 사라지게 만들 수 있습니다.
+                상태 지속 시간과 태그 수명이 맞아야 할 때 적합합니다.
+              </p>
+            </div>
+            <div class="callout warning">
+              <p class="callout-title">Loose Gameplay Tag</p>
+              <p>
+                ASC에 직접 추가하는 태그입니다. GE 수명과 묶이지 않으므로 직접 추가/제거를 관리해야 합니다.
+                복제와 예측 요구사항을 확인하고 신중하게 사용해야 합니다.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. Gameplay Tag와 일반 Actor Tag의 차이는?</strong>
+              <p class="answer">정답: Gameplay Tag는 GameplayTags 시스템에 등록되고 계층 검색과 컨테이너 쿼리를 지원하는 전역 표식입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. <code>A.1</code>이 있을 때 <code>HasTag(A)</code>와 <code>HasTagExact(A)</code>의 결과는?</strong>
+              <p class="answer">정답: <code>HasTag(A)</code>는 true, <code>HasTagExact(A)</code>는 false입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. 어빌리티 실행 중 소유자에게 붙는 태그 설정은?</strong>
+              <p class="answer">정답: <code>ActivationOwnedTags</code>입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. Gameplay Cue 태그의 필수 루트는?</strong>
+              <p class="answer">정답: <code>GameplayCue</code>입니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%96%B4%EB%B9%8C%EB%A6%AC%ED%8B%B0(GA).html">게임플레이 어빌리티(GA)</a>: 태그 기반 실행 조건과 취소/차단</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%ED%81%90(GC).html">게임플레이 큐(GC)</a>: GameplayCue 루트 태그를 사용하는 연출 라우팅</li>
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8(GE).html">게임플레이 이펙트(GE)</a>: 태그 부여와 면역/차단 조건</li>
+            <li><a href="%EA%B8%B0%EA%B0%84%ED%98%95%20%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8.html">기간형 게임플레이 이펙트</a>: GE가 활성인 동안 유지되는 Granted Tag</li>
+            <li>어빌리티 시스템 컴포넌트(ASC): 보유 태그와 Tag Count 관리</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-gameplay-tags-in-unreal-engine" target="_blank" rel="noreferrer">Epic Developer Community: Using Gameplay Tags 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/GameplayTags/FGameplayTagContainer/HasTagExact" target="_blank" rel="noreferrer">Epic Developer Community: FGameplayTagContainer::HasTagExact</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/GameplayTags/FGameplayTagContainer/HasAllExact" target="_blank" rel="noreferrer">Epic Developer Community: FGameplayTagContainer::HasAllExact</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\게임플레이 태그(Tag).md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#container">컨테이너 검색</a>
+        <a href="#ability">GA 조건</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

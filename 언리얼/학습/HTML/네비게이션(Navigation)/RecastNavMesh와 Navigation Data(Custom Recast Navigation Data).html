@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RecastNavMesh와 Navigation Data</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#visual">시각화</a>
+        <a href="#query">Query</a>
+        <a href="#build">Build</a>
+        <a href="#tiles">타일</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Navigation Data / Recast</p>
+      <h1>RecastNavMesh와 Navigation Data</h1>
+      <p class="lead">
+        NavigationData는 nav data와 generator의 수명 주기를 조정하고, RecastNavMesh는 실제 recast/detour query와
+        tiled navmesh build를 연결하는 구현체입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: RecastNavMesh와 Navigation Data.md</span>
+        <span class="pill">핵심: ANavigationData, ARecastNavMesh, FRecastNavMeshGenerator</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="visual" class="panel">
+          <h2>NavData와 Generator 계층</h2>
+          <div class="visual-board">
+            <div class="node-chain wide">
+              <div class="v-node"><strong>UNavigationSystemV1</strong><span>agent props에 맞는 nav data를 선택합니다.</span></div>
+              <div class="v-node highlight"><strong>ANavigationData</strong><span>config, runtime generation, rebuild, generator 수명 관리를 담당합니다.</span></div>
+              <div class="v-node"><strong>ARecastNavMesh</strong><span>ProjectPoint, FindPath, random point query를 recast impl에 위임합니다.</span></div>
+              <div class="v-node"><strong>FRecastNavMeshGenerator</strong><span>bounds, dirty area, tile task, async build를 관리합니다.</span></div>
+              <div class="v-node"><strong>dtNavMesh</strong><span>실제 타일과 polygon 데이터가 저장되는 detour mesh입니다.</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="query" class="panel">
+          <h2>Query 경로</h2>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>FindPathSync</strong><span>NavigationSystem이 NavData를 채우고 query를 넘김</span></div>
+            <div class="pipeline-step" data-step="2"><strong>ARecastNavMesh</strong><span><code>FindPath</code>, <code>ProjectPoint</code> 같은 public API 진입</span></div>
+            <div class="pipeline-step" data-step="3"><strong>Recast Impl</strong><span>실제 navmesh polygon 질의 수행</span></div>
+            <div class="pipeline-step" data-step="4"><strong>Result</strong><span>path, projected point, random reachable point 반환</span></div>
+          </div>
+          <div class="callout">
+            <p class="callout-title">Query와 Build는 다른 경로입니다</p>
+            <p>Pathfinding 실패를 볼 때 dirty area rebuild 문제와 query filter 문제를 같은 층으로 섞지 않아야 합니다.</p>
+          </div>
+        </section>
+
+        <section id="build" class="panel">
+          <h2>Build / Rebuild 경로</h2>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-kicker">RebuildAll</span><strong>전체 재빌드</strong><span>전처리 후 generator를 구성하고 모든 bounds를 dirty 처리</span></div>
+            <div class="flow-step"><span class="flow-kicker">Dirty Areas</span><strong>부분 재빌드</strong><span>변경 bounds를 dirty area로 모음</span></div>
+            <div class="flow-step"><span class="flow-kicker">MarkDirtyTiles</span><strong>타일 변환</strong><span>dirty bounds를 tile 좌표와 pending tile로 변환</span></div>
+            <div class="flow-step"><span class="flow-kicker">TickAsyncBuild</span><strong>비동기 빌드</strong><span>task 완료 후 generation finished 알림</span></div>
+          </div>
+          <div class="callout warning">
+            <p class="callout-title">Suspend는 공짜가 아닙니다</p>
+            <p><code>SetRebuildingSuspended()</code> 상태에서 dirty area가 너무 많이 쌓이면 부분 재생성 대신 전체 rebuild로 승격될 수 있습니다.</p>
+          </div>
+        </section>
+
+        <section id="tiles" class="panel">
+          <h2>타일 단위 사고</h2>
+          <div class="visual-board two-col">
+            <div class="tile-map">
+              <div class="tile">T0</div><div class="tile hot">Dirty</div><div class="tile hot">Dirty</div><div class="tile">T3</div><div class="tile">T4</div><div class="tile">T5</div>
+              <div class="tile path">Built</div><div class="tile path">Built</div><div class="tile blocked">Pending</div><div class="tile hot">Dirty</div><div class="tile">T10</div><div class="tile">T11</div>
+            </div>
+            <div class="memory-list">
+              <div class="memory-slot key"><strong>ConstructTiledNavMesh</strong><span>origin, tile size, max tiles, max polys 같은 전역 파라미터를 결정합니다.</span></div>
+              <div class="memory-slot"><strong>MarkDirtyTiles</strong><span>작은 dirty area도 여러 tile 경계를 건드리면 비용이 커질 수 있습니다.</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz"><strong>Q1. ANavigationData와 ARecastNavMesh의 차이는?</strong><p class="answer">ANavigationData는 공통 수명 주기와 rebuild 관리 기반이고, ARecastNavMesh는 Recast 기반 실제 nav data 구현체입니다.</p></div>
+            <div class="quiz"><strong>Q2. 런타임 navmesh 비용의 직접 기준은?</strong><p class="answer">dirty area 개수보다 최종적으로 몇 개 tile이 다시 빌드되는지가 더 직접적입니다.</p></div>
+          </div>
+        </section>
+      </article>
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#visual">계층</a>
+        <a href="#query">Query</a>
+        <a href="#build">Build</a>
+        <a href="#tiles">타일</a>
+        <a href="#review">복습</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">RecastNavMesh Markdown을 반응형 시각 자료로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

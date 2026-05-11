@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UE 5.7 엔진 생명주기 학습자료</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#visual">시각화</a>
+        <a href="#world">월드</a>
+        <a href="#actor">액터</a>
+        <a href="#uobject">UObject</a>
+        <a href="#hooks">훅 선택</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Engine Lifecycle / UE 5.7</p>
+      <h1>UE 5.7 엔진 생명주기</h1>
+      <p class="lead">
+        언리얼 생명주기는 하나가 아니라 프로세스/엔진 루프, 게임 세션, 액터, UObject/GC 생명주기가 겹쳐 돌아가는 구조입니다.
+        핵심은 훅 이름보다 어떤 경로에서 그 훅에 도달하는지를 보는 것입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: UE 5.7 엔진 생명주기 학습자료.md</span>
+        <span class="pill">분석 기준: 로컬 UE 5.7 소스</span>
+        <span class="pill">핵심: EngineLoop, LoadMap, BeginPlay, GC</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="visual" class="panel">
+          <h2>4개의 생명주기 축</h2>
+          <div class="visual-board four-axis">
+            <div class="lane-grid">
+              <div class="lane-card key"><span class="layer-kicker">Process</span><strong>엔진 루프</strong><span>WinMain -> GuardedMain -> PreInit -> Init -> Tick -> Exit</span></div>
+              <div class="lane-card"><span class="layer-kicker">Session</span><strong>게임 세션</strong><span>UGameInstance -> Browse -> LoadMap -> UWorld -> StartPlay</span></div>
+              <div class="lane-card"><span class="layer-kicker">Actor</span><strong>액터</strong><span>Load / PIE Duplicate / Spawn -> Initialize -> BeginPlay -> EndPlay</span></div>
+              <div class="lane-card"><span class="layer-kicker">UObject</span><strong>객체와 GC</strong><span>NewObject / PostLoad -> 사용 -> BeginDestroy -> FinishDestroy</span></div>
+            </div>
+          </div>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>WinMain</strong><span>운영체제 시작점</span></div>
+            <div class="pipeline-step" data-step="2"><strong>GuardedMain</strong><span>PreInit, Init, Tick, Exit 라우팅</span></div>
+            <div class="pipeline-step" data-step="3"><strong>GEngine 생성</strong><span>FEngineLoop::Init이 엔진 구현체 결정</span></div>
+            <div class="pipeline-step" data-step="4"><strong>GameInstance</strong><span>맵보다 먼저 세션 객체 생성</span></div>
+            <div class="pipeline-step" data-step="5"><strong>LoadMap</strong><span>월드 생성/교체와 플레이 준비</span></div>
+            <div class="pipeline-step" data-step="6"><strong>Tick / GC</strong><span>프레임 루프와 조건부 garbage collection</span></div>
+          </div>
+        </section>
+
+        <section id="world" class="panel">
+          <h2>LoadMap에서 BeginPlay까지</h2>
+          <div class="flow">
+            <div class="flow-step"><span class="flow-kicker">LoadMap</span><strong>InitWorld</strong><span>월드를 루트에 붙이고 초기화합니다.</span></div>
+            <div class="flow-step"><span class="flow-kicker">Rule</span><strong>SetGameMode</strong><span>서버 기준 GameMode를 세팅합니다.</span></div>
+            <div class="flow-step"><span class="flow-kicker">AI</span><strong>CreateAISystem</strong><span>월드 AI 시스템을 준비합니다.</span></div>
+            <div class="flow-step"><span class="flow-kicker">Actor</span><strong>InitializeActorsForPlay</strong><span>네트워크 액터, GameMode InitGame, 컴포넌트 초기화 루프</span></div>
+            <div class="flow-step"><span class="flow-kicker">Player</span><strong>SpawnPlayActor</strong><span>로컬 플레이어용 pawn/controller 흐름</span></div>
+            <div class="flow-step"><span class="flow-kicker">Play</span><strong>BeginPlay</strong><span>GameMode -> GameState -> WorldSettings -> Actor로 라우팅</span></div>
+          </div>
+          <div class="callout">
+            <p class="callout-title">BeginPlay는 World가 직접 모든 Actor를 바로 호출하는 모델이 아닙니다</p>
+            <p><code>UWorld::BeginPlay -> GameModeBase::StartPlay -> GameStateBase::HandleBeginPlay -> WorldSettings::NotifyBeginPlay -> Actor::DispatchBeginPlay</code> 체인으로 이해해야 합니다.</p>
+          </div>
+        </section>
+
+        <section id="actor" class="panel">
+          <h2>액터의 세 가지 진입 경로</h2>
+          <div class="visual-board three-col">
+            <div class="route-card"><span class="layer-kicker">Disk Load</span><strong>PostLoad</strong><span>레벨/패키지에서 로드된 액터는 저장 데이터 보정이 핵심입니다.</span></div>
+            <div class="route-card"><span class="layer-kicker">PIE</span><strong>PostDuplicate</strong><span>에디터 월드의 액터를 PIE 월드로 복제해 플레이용으로 준비합니다.</span></div>
+            <div class="route-card key"><span class="layer-kicker">Runtime Spawn</span><strong>PostActorCreated</strong><span>새로 스폰된 액터는 construction과 component initialization을 거칩니다.</span></div>
+          </div>
+          <div class="pipeline">
+            <div class="pipeline-step" data-step="1"><strong>PostSpawnInitialize</strong><span>Owner, Instigator, NetRole, native component 준비</span></div>
+            <div class="pipeline-step" data-step="2"><strong>FinishSpawning</strong><span>deferred spawn 마무리, construction 실행</span></div>
+            <div class="pipeline-step" data-step="3"><strong>OnConstruction</strong><span>BP construction script와 컴포넌트 재구성</span></div>
+            <div class="pipeline-step" data-step="4"><strong>PostInitializeComponents</strong><span>액터와 컴포넌트가 실질적으로 조립 완료</span></div>
+            <div class="pipeline-step" data-step="5"><strong>DispatchBeginPlay</strong><span>조건 만족 시 컴포넌트 BeginPlay와 ReceiveBeginPlay 전파</span></div>
+          </div>
+        </section>
+
+        <section id="uobject" class="panel">
+          <h2>UObject와 GC</h2>
+          <div class="memory-board">
+            <div class="memory-list">
+              <div class="memory-slot key"><strong>NewObject 경로</strong><span>StaticConstructObject_Internal -> C++ 생성자 -> PostInitProperties</span></div>
+              <div class="memory-slot"><strong>로드 경로</strong><span>ConditionalPostLoad -> PostLoad. 저장된 옛 값 보정은 주로 여기서 수행합니다.</span></div>
+              <div class="memory-slot danger"><strong>파괴 경로</strong><span>Destroy는 제거 요청이고, 실제 메모리 해제는 GC 파이프라인에서 일어납니다.</span></div>
+            </div>
+            <div class="visual-board">
+              <div class="pipeline">
+                <div class="pipeline-step" data-step="1"><strong>CollectGarbage</strong><span>GC 요청</span></div>
+                <div class="pipeline-step" data-step="2"><strong>Reachability</strong><span>도달 가능성 분석</span></div>
+                <div class="pipeline-step" data-step="3"><strong>BeginDestroy</strong><span>도달 불가 객체 파괴 시작</span></div>
+                <div class="pipeline-step" data-step="4"><strong>IncrementalPurge</strong><span>시간 제한 기반 purge</span></div>
+                <div class="pipeline-step" data-step="5"><strong>FinishDestroy</strong><span>최종 파괴와 메모리 회수</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="hooks" class="panel">
+          <h2>어떤 훅에 코드를 넣을까</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead><tr><th>훅</th><th>맞는 용도</th><th>주의</th></tr></thead>
+              <tbody>
+                <tr><td>생성자</td><td>기본 서브오브젝트 생성, 기본값 설정</td><td>월드/게임플레이 상태를 가정하지 않음</td></tr>
+                <tr><td><code>PostLoad</code></td><td>저장 데이터 마이그레이션, deprecated property fixup</td><td>스폰 액터에서는 호출되지 않음</td></tr>
+                <tr><td><code>OnConstruction</code></td><td>에디터 배치/런타임 스폰 construction 결과 조정</td><td>게임플레이 시작 훅이 아님</td></tr>
+                <tr><td><code>PostInitializeComponents</code></td><td>컴포넌트 간 참조 연결, 런타임 준비, 복제 설정</td><td>Super 호출 누락 주의</td></tr>
+                <tr><td><code>BeginPlay</code></td><td>타이머 시작, AI 시작, 외부 시스템 등록</td><td>construction과 구분</td></tr>
+                <tr><td><code>EndPlay</code></td><td>delegate 해제, 타이머 중지, gameplay cleanup</td><td>대부분의 gameplay cleanup은 여기</td></tr>
+                <tr><td><code>BeginDestroy/FinishDestroy</code></td><td>low-level 자원 정리</td><td>gameplay logic cleanup 용도로 쓰지 않음</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz"><strong>Q1. LoadMap의 핵심 순서는?</strong><p class="answer"><code>InitWorld -> SetGameMode -> CreateAISystem -> InitializeActorsForPlay -> SpawnPlayActor -> BeginPlay</code>입니다.</p></div>
+            <div class="quiz"><strong>Q2. Destroy 직후 메모리가 바로 사라지는가?</strong><p class="answer">아닙니다. <code>Destroy()</code>는 제거 요청이고 실제 해제는 GC의 <code>BeginDestroy -> FinishDestroy</code> 파이프라인에서 일어납니다.</p></div>
+          </div>
+        </section>
+      </article>
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#visual">4개 축</a>
+        <a href="#world">월드 흐름</a>
+        <a href="#actor">액터 경로</a>
+        <a href="#uobject">UObject/GC</a>
+        <a href="#hooks">훅 선택</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">UE 5.7 엔진 생명주기 Markdown을 반응형 시각 자료로 재구성했습니다.</div>
+  </footer>
+</body>
+</html>

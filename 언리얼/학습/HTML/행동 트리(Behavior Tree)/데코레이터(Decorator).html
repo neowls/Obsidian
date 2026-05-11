@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>데코레이터(Decorator)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#decorator-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#abort">Abort</a>
+        <a href="#patterns">패턴</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Behavior Tree</p>
+      <h1>데코레이터(Decorator)</h1>
+      <p class="lead">
+        Decorator는 Behavior Tree의 조건문입니다.
+        Composite 또는 Task에 붙어서 해당 브랜치나 노드가 실행 가능한지 판단하고, 조건 변화에 따라 실행 중인 행동을 중단시킬 수도 있습니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 행동 트리(Behavior Tree)/데코레이터(Decorator).md</span>
+        <span class="pill">난이도: BT 조건 분기</span>
+        <span class="pill">핵심: Condition, Blackboard, Observer Aborts</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="decorator-visual" class="panel">
+          <h2>Observer Aborts 실험판</h2>
+          <p>
+            Decorator는 조건을 검사할 뿐 아니라, Observer Aborts 설정에 따라 실행 중인 낮은 우선순위 브랜치를 중단하거나 자기 브랜치를 멈출 수 있습니다.
+          </p>
+
+          <div class="interactive-lab decorator-lab" data-decorator-sim>
+            <div class="lab-toolbar stacked-toolbar">
+              <label class="toggle-chip"><input type="checkbox" data-decorator-target> TargetActor Is Set</label>
+              <div class="control-group">
+                <span class="control-label">Observer Aborts</span>
+                <div class="segmented-control" role="group" aria-label="Observer abort mode">
+                  <button type="button" class="mini-button is-selected" data-decorator-mode="none">None</button>
+                  <button type="button" class="mini-button" data-decorator-mode="self">Self</button>
+                  <button type="button" class="mini-button" data-decorator-mode="lower">Lower Priority</button>
+                  <button type="button" class="mini-button" data-decorator-mode="both">Both</button>
+                </div>
+              </div>
+              <button type="button" class="primary-button" data-decorator-apply>Blackboard 변경 적용</button>
+            </div>
+
+            <div class="bt-tree-board">
+              <div class="bt-node selector is-active"><strong>Selector</strong><small>Chase 브랜치가 Patrol보다 높은 우선순위</small></div>
+              <div class="bt-branches">
+                <div class="bt-branch">
+                  <div class="bt-node decorator" data-decorator-node="condition"><strong>Decorator</strong><small>TargetActor Is Set</small></div>
+                  <div class="bt-node task" data-decorator-node="chase"><strong>Task: Chase</strong><small>높은 우선순위</small></div>
+                </div>
+                <div class="bt-branch">
+                  <div class="bt-node decorator is-success" data-decorator-node="fallback"><strong>Fallback</strong><small>조건 없음</small></div>
+                  <div class="bt-node task is-success" data-decorator-node="patrol"><strong>Task: Patrol</strong><small>현재 실행 중</small></div>
+                </div>
+              </div>
+            </div>
+            <div class="event-log" data-decorator-log>
+              <p>초기 상태는 Patrol 실행 중입니다. TargetActor와 Abort 모드를 바꿔 전환 여부를 확인하세요.</p>
+            </div>
+          </div>
+        </section>
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Decorator는 브랜치 진입 가능 여부와 실행 중단 조건을 정의하는 Behavior Tree 보조 노드</strong>입니다.
+            조건을 Task 리프 노드로 만들지 않고 Decorator로 붙이면, 트리에서 실제 행동과 판단 조건을 분명히 구분할 수 있습니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">가장 흔한 Decorator</p>
+            <p>
+              Blackboard Decorator는 특정 Blackboard Key가 설정되어 있는지, 특정 값과 같은지, Object가 유효한지 등을 검사합니다.
+              예를 들어 <code>TargetActor Is Set</code>이면 추격 브랜치를 열고, 비어 있으면 순찰 브랜치로 내려가게 만들 수 있습니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="abort" class="panel">
+          <h2>Observer Aborts</h2>
+          <p>
+            Decorator가 단순히 진입 시점만 검사한다면 이벤트 주도형 Behavior Tree의 장점을 제대로 쓰기 어렵습니다.
+            Observer Aborts는 조건이 바뀌었을 때 현재 실행 중인 브랜치를 중단하거나 낮은 우선순위 브랜치를 밀어낼 수 있게 합니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>옵션</th>
+                  <th>의미</th>
+                  <th>사용 예</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>None</strong></td>
+                  <td>조건 변화가 실행 중인 트리를 중단하지 않습니다.</td>
+                  <td>한 번 시작하면 끝까지 가도 되는 단순 행동</td>
+                </tr>
+                <tr>
+                  <td><strong>Self</strong></td>
+                  <td>자기 브랜치 조건이 깨지면 현재 브랜치를 중단합니다.</td>
+                  <td>타겟을 잃으면 추격 Task 중단</td>
+                </tr>
+                <tr>
+                  <td><strong>Lower Priority</strong></td>
+                  <td>조건이 참이 되면 더 낮은 우선순위 브랜치를 중단하고 이 브랜치로 전환합니다.</td>
+                  <td>순찰 중 플레이어를 발견하면 추격으로 즉시 전환</td>
+                </tr>
+                <tr>
+                  <td><strong>Both</strong></td>
+                  <td>Self와 Lower Priority를 모두 적용합니다.</td>
+                  <td>전투/추격처럼 조건 변화에 민감한 핵심 브랜치</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="patterns" class="panel">
+          <h2>설계 패턴</h2>
+          <div class="split">
+            <div class="callout">
+              <p class="callout-title">좋은 사용</p>
+              <ul class="checklist">
+                <li>Blackboard Key 기반 분기 조건</li>
+                <li>쿨다운, 거리, 시야, 상태 태그 같은 실행 가능 조건</li>
+                <li>조건 변화 시 브랜치 중단 또는 우선순위 전환</li>
+              </ul>
+            </div>
+            <div class="callout warning">
+              <p class="callout-title">피해야 할 사용</p>
+              <ul class="checklist">
+                <li>긴 시간 걸리는 작업을 Decorator 안에서 처리</li>
+                <li>Blackboard 값을 계속 갱신하는 로직을 Decorator에 넣기</li>
+                <li>실제 이동/공격 같은 액션을 Decorator에서 수행</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">Blueprint Decorator 주의</p>
+            <p>
+              5.7 API에서 Blueprint 기반 Decorator는 Task와 Service보다 수명주기와 latent action 정리가 까다롭다고 설명됩니다.
+              복잡한 대기나 비동기 처리는 Decorator보다 Service/Task 또는 C++ 구현을 검토하는 편이 안전합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. Decorator의 기본 역할은?</strong>
+              <p class="answer">정답: 브랜치나 노드가 실행 가능한지 조건을 검사하는 것입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. 순찰 중 타겟 발견 시 추격으로 즉시 바꾸려면?</strong>
+              <p class="answer">정답: 높은 우선순위 추격 브랜치의 Decorator에 Lower Priority Abort를 검토합니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. 조건이 깨졌을 때 자기 브랜치를 중단하는 옵션은?</strong>
+              <p class="answer">정답: Self Abort입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. 조건 값을 주기적으로 갱신하는 역할은 Decorator보다 무엇에 적합한가?</strong>
+              <p class="answer">정답: Service입니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="비헤이비어 트리(Behavior Tree).html">비헤이비어 트리(Behavior Tree)</a>: BT 전체 구조</li>
+            <li><a href="컴포짓(Composite).html">컴포짓(Composite)</a>: Decorator가 붙는 브랜치 루트</li>
+            <li><a href="서비스(Service).html">서비스(Service)</a>: 조건 판단에 필요한 Blackboard 값 갱신</li>
+            <li><a href="태스크(Task).html">태스크(Task)</a>: 조건을 통과한 뒤 수행할 실제 작업</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/behavior-tree-in-unreal-engine---overview" target="_blank" rel="noreferrer">Epic Developer Community: Behavior Tree Overview</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/BehaviorTree/UBTDecorator" target="_blank" rel="noreferrer">Epic Developer Community: UBTDecorator API</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/BehaviorTree/Decorators/UBTDecorator_BlueprintBase" target="_blank" rel="noreferrer">Epic Developer Community: UBTDecorator_BlueprintBase API</a></li>
+            <li>로컬 원본 노트: <code>행동 트리(Behavior Tree)\데코레이터(Decorator).md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#decorator-visual">시각화</a>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#abort">Observer Aborts</a>
+        <a href="#patterns">설계 패턴</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 행동 트리(Behavior Tree) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-decorator-sim]');
+      if (!lab) return;
+      let mode = 'none';
+      let active = 'patrol';
+      const target = lab.querySelector('[data-decorator-target]');
+      const log = lab.querySelector('[data-decorator-log]');
+      function clear() { lab.querySelectorAll('[data-decorator-node]').forEach((node) => node.classList.remove('is-success', 'is-failed', 'is-active')); }
+      function render(lines) {
+        clear();
+        const hasTarget = target.checked;
+        lab.querySelector('[data-decorator-node="condition"]').classList.add(hasTarget ? 'is-success' : 'is-failed');
+        lab.querySelector('[data-decorator-node="fallback"]').classList.add(active === 'patrol' ? 'is-success' : 'is-active');
+        lab.querySelector(`[data-decorator-node="${active}"]`).classList.add('is-success');
+        log.innerHTML = lines.map((line) => `<p>${line}</p>`).join('');
+      }
+      lab.querySelectorAll('[data-decorator-mode]').forEach((button) => button.addEventListener('click', () => {
+        mode = button.dataset.decoratorMode;
+        lab.querySelectorAll('[data-decorator-mode]').forEach((candidate) => candidate.classList.toggle('is-selected', candidate === button));
+      }));
+      lab.querySelector('[data-decorator-apply]').addEventListener('click', () => {
+        const hasTarget = target.checked;
+        const lines = [`Observer Aborts: ${mode}`];
+        if (hasTarget && active === 'patrol') {
+          if (mode === 'lower' || mode === 'both') { active = 'chase'; lines.push('TargetActor가 생겼고 Lower Priority Abort가 켜져 Patrol을 중단하고 Chase로 전환합니다.'); }
+          else lines.push('TargetActor는 생겼지만 낮은 우선순위 Patrol을 즉시 중단하지 않습니다. 다음 탐색 때 Chase가 열립니다.');
+        } else if (!hasTarget && active === 'chase') {
+          if (mode === 'self' || mode === 'both') { active = 'patrol'; lines.push('Chase 조건이 깨졌고 Self Abort가 켜져 자기 브랜치를 중단합니다.'); }
+          else lines.push('조건은 깨졌지만 Self Abort가 없어 현재 Chase가 즉시 중단되지 않습니다.');
+        } else {
+          lines.push(`현재 실행 브랜치: ${active === 'chase' ? 'Chase' : 'Patrol'}`);
+        }
+        render(lines);
+      });
+      render(['초기 상태는 Patrol 실행 중입니다.']);
+    })();
+  </script>
+  <script src="../interactive-enhancements.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RPC(Remote Procedure Call)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#rpc-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#types">종류</a>
+        <a href="#ownership">Ownership</a>
+        <a href="#reliable">Reliable</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Networking / RPC</p>
+      <h1>RPC(Remote Procedure Call)</h1>
+      <p class="lead">
+        RPC는 함수를 로컬에서 호출했을 때 네트워크 반대편의 서버나 클라이언트에서 실행되도록 하는 기능입니다.
+        상태를 저장하는 도구가 아니라 요청, 응답, 일회성 연출을 전달하는 도구입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: RPC(Remote Procedure Call).md</span>
+        <span class="pill">난이도: 중급 네트워킹</span>
+        <span class="pill">핵심: Server, Client, Remote, NetMulticast, Reliable, Ownership</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="rpc-visual" class="panel">
+          <h2>RPC 라우팅 실험판</h2>
+          <p>
+            RPC는 호출한 머신, 함수 종류, Actor ownership에 따라 실행 위치가 달라집니다. 아래에서 조건을 바꾼 뒤 호출하면 어느 머신에서 <code>_Implementation</code>이 실행되는지 확인할 수 있습니다.
+          </p>
+
+          <div class="interactive-lab rpc-sim-lab" data-rpc-sim>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="control-group">
+                <span class="control-label">호출 위치</span>
+                <div class="segmented-control" role="group" aria-label="RPC caller">
+                  <button type="button" class="mini-button is-selected" data-rpc-caller="owner">Owner Client</button>
+                  <button type="button" class="mini-button" data-rpc-caller="other">Other Client</button>
+                  <button type="button" class="mini-button" data-rpc-caller="server">Server</button>
+                </div>
+              </div>
+              <div class="control-group">
+                <span class="control-label">RPC 종류</span>
+                <div class="segmented-control" role="group" aria-label="RPC type">
+                  <button type="button" class="mini-button is-selected" data-rpc-type="server">Server</button>
+                  <button type="button" class="mini-button" data-rpc-type="client">Client</button>
+                  <button type="button" class="mini-button" data-rpc-type="multicast">NetMulticast</button>
+                  <button type="button" class="mini-button" data-rpc-type="remote">Remote</button>
+                </div>
+              </div>
+              <div class="control-group">
+                <span class="control-label">Actor 문맥</span>
+                <div class="segmented-control" role="group" aria-label="RPC actor ownership">
+                  <button type="button" class="mini-button is-selected" data-rpc-actor="owned">Owned Pawn</button>
+                  <button type="button" class="mini-button" data-rpc-actor="world">World Door</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="rpc-network-board rpc-world-scene" data-rpc-scene>
+              <div class="net-machine rpc-server-rack" data-rpc-node="server">
+                <span class="node-kicker">Authority</span>
+                <strong>Server</strong>
+                <small>상태 확정, Server RPC 실행</small>
+              </div>
+              <div class="net-wire-column" aria-hidden="true">
+                <span class="signal-wire" data-rpc-wire></span>
+                <span class="rpc-packet" data-rpc-packet>RPC</span>
+                <span class="signal-wire" data-rpc-wire></span>
+                <span class="signal-wire" data-rpc-wire></span>
+              </div>
+              <div class="client-cluster">
+                <div class="net-machine rpc-client-pod" data-rpc-node="owner">
+                  <span class="rpc-avatar owner" aria-hidden="true"></span>
+                  <span>
+                    <span class="node-kicker">Owning Connection</span>
+                    <strong>Client A</strong>
+                    <small>Owned Pawn의 owner</small>
+                  </span>
+                </div>
+                <div class="net-machine rpc-client-pod" data-rpc-node="other">
+                  <span class="rpc-avatar" aria-hidden="true"></span>
+                  <span>
+                    <span class="node-kicker">Relevant Client</span>
+                    <strong>Client B</strong>
+                    <small>소유자는 아니지만 관찰 가능</small>
+                  </span>
+                </div>
+                <div class="rpc-actor-stage">
+                  <div class="rpc-actor-token is-selected" data-rpc-actor-token="owned">
+                    <span class="rpc-pawn-figure" aria-hidden="true"></span>
+                    <span>
+                      <strong>Owned Pawn</strong>
+                      <small>Client A가 소유한 캐릭터</small>
+                    </span>
+                  </div>
+                  <div class="rpc-actor-token is-muted" data-rpc-actor-token="world">
+                    <span class="rpc-door-figure" aria-hidden="true"></span>
+                    <span>
+                      <strong>World Door</strong>
+                      <small>소유 연결이 없는 월드 오브젝트</small>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="broadcast-controls">
+              <button type="button" class="primary-button" data-rpc-call>Call RPC</button>
+            </div>
+            <div class="lab-state-row" aria-live="polite">
+              <span class="state-chip is-hot">실행 위치 <strong data-rpc-target-summary>Server</strong></span>
+              <span class="state-chip">권한 조건 <strong data-rpc-rule-summary>Owner OK</strong></span>
+              <span class="state-chip">호출 횟수 <strong data-rpc-count>0</strong></span>
+            </div>
+            <div class="event-log" data-rpc-log>
+              <p>Owner Client가 Owned Pawn에서 Server RPC를 호출하면 Server에서 실행됩니다.</p>
+            </div>
+          </div>
+        </section>
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>RPC는 Actor 또는 Actor Component에 선언한 네트워크 함수를 호출 위치, 함수 플래그, ownership, relevancy에 따라 원격 머신에서 실행하게 하는 메커니즘</strong>입니다.
+            공식 5.7 문서가 말하듯 RPC는 단방향 호출이므로 반환값을 가질 수 없습니다.
+          </p>
+          <pre class="code"><code>UFUNCTION(Server, Reliable)
+void ServerTryFire();
+
+void AMyCharacter::ServerTryFire_Implementation()
+{
+    TryFireOnServer();
+}</code></pre>
+          <div class="callout">
+            <p class="callout-title">상태는 Replication으로 남긴다</p>
+            <p>
+              <code>ServerTryFire()</code>는 요청이고, 서버가 줄인 <code>Ammo</code>와 피해를 입은 <code>Health</code>는 replicated state입니다.
+              RPC만으로 영속 결과를 유지하면 late joiner가 현재 상태를 알 수 없습니다.
+            </p>
+          </div>
+          <div class="diagram" aria-label="RPC 호출이 원격 실행으로 이어지는 흐름">
+            <p class="diagram-title">시각화 요약: RPC 라우팅</p>
+            <div class="node-chain wide">
+              <div class="v-node">
+                <strong>Call Site</strong>
+                <span>Actor 또는 Actor Component에서 RPC 함수를 호출합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>UFUNCTION Flags</strong>
+                <span>Server, Client, Remote, NetMulticast와 Reliable 여부가 기준이 됩니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Callspace</strong>
+                <span>현재 머신에서 실행할지, 네트워크로 보낼지 판단합니다.</span>
+              </div>
+              <div class="v-node highlight">
+                <strong>Owning Connection</strong>
+                <span>Unicast RPC는 이 연결을 찾지 못하면 의도한 대상에 도착하지 않습니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Network Send</strong>
+                <span>relevancy, channel, reliable buffer 상태의 영향을 받습니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>_Implementation</strong>
+                <span>원격 머신에서 실제 함수 본문이 실행됩니다.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="types" class="panel">
+          <h2>RPC 네 종류</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>Specifier</th>
+                  <th>실행 대상</th>
+                  <th>주 용도</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Server</code></td>
+                  <td>서버</td>
+                  <td>클라이언트가 발사, 구매, 상호작용 같은 요청을 서버에 보낼 때</td>
+                </tr>
+                <tr>
+                  <td><code>Client</code></td>
+                  <td>해당 Actor의 owning client</td>
+                  <td>서버가 개인 UI, 히트마커, 카메라 연출을 특정 owner에게 보낼 때</td>
+                </tr>
+                <tr>
+                  <td><code>Remote</code></td>
+                  <td>호출한 쪽이 아닌 연결 반대편</td>
+                  <td>C++에서 Client/Server 양방향 호출 형태를 단일 함수로 표현해야 할 때. Blueprint에는 노출되지 않습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>NetMulticast</code></td>
+                  <td>서버와 해당 Actor가 relevant한 클라이언트</td>
+                  <td>폭발, 공용 사운드, 짧은 월드 VFX 같은 순간 연출</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout warning">
+            <p class="callout-title">원본 최신화 포인트</p>
+            <p>
+              원본은 RPC를 Server, Client, NetMulticast 세 종류 중심으로 설명했습니다.
+              UE 5.7 공식 문서는 <code>Remote</code> RPC까지 포함해 네 종류를 설명하므로, 이 문서에서는 Remote와 실행 매트릭스 관점을 추가했습니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="ownership" class="panel">
+          <h2>Ownership이 RPC를 결정한다</h2>
+          <p>
+            Unicast RPC는 결국 어느 <code>UNetConnection</code>으로 보낼지를 알아야 합니다.
+            Actor의 owner chain을 따라 owning connection을 찾을 수 없으면 Server RPC나 Client RPC가 드롭되거나 로컬 실행으로 끝날 수 있습니다.
+          </p>
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>Server RPC</h3>
+              <p>클라이언트가 호출하려면 보통 그 클라이언트가 소유한 PlayerController, possessed Pawn, owned Component에서 호출해야 합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Client RPC</h3>
+              <p>서버가 호출할 때 대상 Actor의 owning connection이 있어야 특정 클라이언트로 보낼 수 있습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>NetMulticast</h3>
+              <p>서버에서 호출해야 의미가 있고, 모든 클라이언트가 아니라 Actor가 relevant한 클라이언트에게 갑니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>ActorComponent</h3>
+              <p>Component RPC는 owner Actor의 네트워크 문맥을 타므로, Component 자체보다 소유 Actor를 먼저 확인합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="reliable" class="panel">
+          <h2>Reliable과 Send Policy</h2>
+          <p>
+            5.7 공식 문서 기준 RPC는 기본적으로 unreliable이며, reliable은 수신 확인 전까지 재전송되고 이후 reliable RPC 실행을 막을 수 있으므로 신중하게 써야 합니다.
+            또한 RPC는 <code>ERemoteFunctionSendPolicy</code>로 전송 시점을 조절할 수 있습니다.
+          </p>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>옵션</th>
+                  <th>의미</th>
+                  <th>사용 감각</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Reliable</code></td>
+                  <td>수신 확인될 때까지 재전송, 순서 보장</td>
+                  <td>장착 확정, 구매 요청, 라운드 시작처럼 잃으면 안 되는 호출</td>
+                </tr>
+                <tr>
+                  <td><code>Unreliable</code></td>
+                  <td>패킷이 드롭되면 실행되지 않을 수 있음</td>
+                  <td>자주 발생하고 조금 잃어도 되는 cosmetic 이벤트</td>
+                </tr>
+                <tr>
+                  <td><code>Default</code></td>
+                  <td>현재 bunch에 직렬화되고 프레임 끝 net update에서 전송</td>
+                  <td>일반적인 RPC 전송 정책</td>
+                </tr>
+                <tr>
+                  <td><code>ForceSend</code></td>
+                  <td>특정 tick 구간에서 즉시 전송해 지연을 줄임</td>
+                  <td>Replication Graph 또는 Iris 조건에서 중요한 저지연 이벤트에 제한적으로 검토</td>
+                </tr>
+                <tr>
+                  <td><code>ForceQueue</code></td>
+                  <td>net update 끝에 bandwidth가 남으면 전송</td>
+                  <td>중요도가 낮은 RPC를 뒤로 미루고 싶을 때</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>검증과 응답</h2>
+          <p>
+            Server RPC는 신뢰할 수 없는 클라이언트 입력이 들어오는 경계입니다.
+            <code>WithValidation</code>을 사용하면 <code>_Validate</code>에서 기본 입력 검사를 수행할 수 있고, 실패하면 호출 클라이언트가 서버에서 끊길 수 있습니다.
+            다만 실제 게임 규칙 검사는 <code>_Implementation</code>에서도 반드시 수행해야 합니다.
+          </p>
+          <pre class="code"><code>UFUNCTION(Server, Reliable, WithValidation)
+void ServerEquipSlot(int32 Slot);
+
+bool AMyCharacter::ServerEquipSlot_Validate(int32 Slot)
+{
+    return Slot >= 0 && Slot < MaxSlots;
+}
+
+void AMyCharacter::ServerEquipSlot_Implementation(int32 Slot)
+{
+    if (!CanEquipSlot(Slot))
+    {
+        return;
+    }
+
+    EquipSlotInternal(Slot);
+}</code></pre>
+          <div class="callout">
+            <p class="callout-title">응답 패턴</p>
+            <p>
+              RPC에는 반환값과 out parameter를 쓰지 않습니다.
+              결과가 영속 상태면 replicated property로 남기고, 즉시 개인 응답이 필요하면 <code>Client RPC</code>로 돌려보냅니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. Client가 World placed Door Actor에 직접 Server RPC를 호출하면 왜 실패할 수 있는가?</strong>
+            <p class="answer">그 Door Actor를 클라이언트가 소유하지 않으면 owning connection이 맞지 않아 Server RPC가 드롭될 수 있습니다. 보통 Character나 PlayerController에서 요청하고 서버가 Door를 검증합니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. Client가 NetMulticast를 호출하면 모두에게 퍼지는가?</strong>
+            <p class="answer">아닙니다. 클라이언트에서 호출한 Multicast는 그 클라이언트 로컬 실행으로 끝납니다. 전체 전파는 서버 호출이 기준입니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. Reliable RPC를 남발하면 안 되는 이유는?</strong>
+            <p class="answer">acknowledgement 전까지 재전송과 순서 보장을 요구해 buffer가 밀리고, 심하면 연결 안정성에 영향을 줄 수 있기 때문입니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/remote-procedure-calls-in-unreal-engine?application_version=5.7">Remote Procedure Calls</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/actor-owner-and-owning-connection-in-unreal-engine?application_version=5.7">Actor Owner and Owning Connection</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/replicated-object-execution-order-in-unreal-engine?application_version=5.7">Replicated Object Execution Order</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/replicating-actor-components-in-unreal-engine?application_version=5.7">Actor Component Replication</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#rpc-visual">시각화</a>
+        <a href="#concept">핵심 개념</a>
+        <a href="#types">RPC 종류</a>
+        <a href="#ownership">Ownership</a>
+        <a href="#reliable">Reliable / Send Policy</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-rpc-sim]');
+      if (!lab) return;
+      const state = { caller: 'owner', type: 'server', actor: 'owned' };
+      const callButton = lab.querySelector('[data-rpc-call]');
+      const log = lab.querySelector('[data-rpc-log]');
+      const scene = lab.querySelector('[data-rpc-scene]');
+      const packet = lab.querySelector('[data-rpc-packet]');
+      const actorTokens = lab.querySelectorAll('[data-rpc-actor-token]');
+      const wires = lab.querySelectorAll('[data-rpc-wire]');
+      const targetSummary = lab.querySelector('[data-rpc-target-summary]');
+      const ruleSummary = lab.querySelector('[data-rpc-rule-summary]');
+      const countSummary = lab.querySelector('[data-rpc-count]');
+      let callCount = 0;
+      function bindButtons(selector, key, dataName) {
+        const buttons = lab.querySelectorAll(selector);
+        buttons.forEach((button) => button.addEventListener('click', () => {
+          state[key] = button.dataset[dataName];
+          buttons.forEach((candidate) => {
+            const selected = candidate === button;
+            candidate.classList.toggle('is-selected', selected);
+            candidate.setAttribute('aria-pressed', String(selected));
+          });
+          preview();
+        }));
+      }
+      function clear() {
+        lab.querySelectorAll('[data-rpc-node]').forEach((node) => node.classList.remove('is-active', 'is-failed', 'is-success'));
+        wires.forEach((wire) => wire.classList.remove('is-signal'));
+        packet.classList.remove('is-moving', 'is-blocked');
+      }
+      function evaluate() {
+        const owned = state.actor === 'owned';
+        const callerName = state.caller === 'server' ? 'Server' : state.caller === 'owner' ? 'Client A' : 'Client B';
+        if (state.type === 'server') {
+          if (state.caller === 'server') return { targets: ['server'], lines: [`${callerName}: Server RPC를 서버에서 호출했으므로 서버 로컬에서 실행됩니다.`] };
+          if (state.caller === 'owner' && owned) return { targets: ['server'], lines: ['Client A -> Server: owning connection이 맞아 Server RPC가 서버에 도착합니다.'] };
+          return { targets: [], failed: [state.caller], lines: [`${callerName}: 이 Actor의 owner가 아니므로 Server RPC가 원격 실행되지 않습니다.`] };
+        }
+        if (state.type === 'client') {
+          if (state.caller === 'server' && owned) return { targets: ['owner'], lines: ['Server -> Client A: Actor의 owning client에서 Client RPC가 실행됩니다.'] };
+          if (state.caller === 'server') return { targets: [], failed: ['server'], lines: ['World Door에는 owning connection이 없어 특정 클라이언트로 보낼 수 없습니다.'] };
+          return { targets: [state.caller], lines: [`${callerName}: 클라이언트에서 Client RPC를 호출하면 원격 요청이 아니라 호출한 쪽 로컬 실행으로 끝납니다.`] };
+        }
+        if (state.type === 'multicast') {
+          if (state.caller === 'server') return { targets: ['server', 'owner', 'other'], lines: ['Server NetMulticast: 서버와 relevant client들에서 실행됩니다.'] };
+          return { targets: [state.caller], lines: [`${callerName}: 클라이언트에서 호출한 NetMulticast는 전체 전파가 아니라 로컬 실행으로 끝납니다.`] };
+        }
+        if (state.type === 'remote') {
+          if (!owned) return { targets: [], failed: [state.caller], lines: ['Remote RPC도 owning connection이 없으면 반대편을 특정할 수 없습니다.'] };
+          if (state.caller === 'server') return { targets: ['owner'], lines: ['Server Remote RPC: owning client 쪽에서 실행됩니다.'] };
+          if (state.caller === 'owner') return { targets: ['server'], lines: ['Owner Client Remote RPC: 서버 쪽에서 실행됩니다.'] };
+          return { targets: [], failed: ['other'], lines: ['Other Client는 owner가 아니므로 Remote RPC를 보낼 수 없습니다.'] };
+        }
+        return { targets: [], lines: ['조건을 선택하세요.'] };
+      }
+      function preview() {
+        const result = evaluate();
+        scene.dataset.caller = state.caller;
+        scene.dataset.type = state.type;
+        scene.dataset.actor = state.actor;
+        actorTokens.forEach((token) => {
+          const selected = token.dataset.rpcActorToken === state.actor;
+          token.classList.toggle('is-selected', selected);
+          token.classList.toggle('is-muted', !selected);
+        });
+        log.innerHTML = result.lines.map((line) => `<p>${line}</p>`).join('');
+        targetSummary.textContent = result.targets?.length ? result.targets.map((target) => target === 'owner' ? 'Client A' : target === 'other' ? 'Client B' : 'Server').join(', ') : '실행 안 됨';
+        ruleSummary.textContent = result.failed?.length ? '차단' : '통과';
+        ruleSummary.closest('.state-chip')?.classList.toggle('is-danger', Boolean(result.failed?.length));
+      }
+      function callRpc() {
+        clear();
+        const result = evaluate();
+        callCount += 1;
+        countSummary.textContent = String(callCount);
+        lab.querySelector(`[data-rpc-node="${state.caller}"]`)?.classList.add('is-active');
+        packet.textContent = result.failed?.length ? 'BLOCK' : state.type.toUpperCase();
+        packet.classList.remove('is-moving', 'is-blocked');
+        packet.getBoundingClientRect();
+        packet.classList.add(result.failed?.length ? 'is-blocked' : 'is-moving');
+        wires.forEach((wire, index) => setTimeout(() => wire.classList.add('is-signal'), index * 90));
+        result.targets.forEach((target, index) => setTimeout(() => lab.querySelector(`[data-rpc-node="${target}"]`)?.classList.add('is-success'), 260 + index * 130));
+        (result.failed || []).forEach((target) => lab.querySelector(`[data-rpc-node="${target}"]`)?.classList.add('is-failed'));
+        preview();
+        setTimeout(clear, 1800);
+      }
+      bindButtons('[data-rpc-caller]', 'caller', 'rpcCaller');
+      bindButtons('[data-rpc-type]', 'type', 'rpcType');
+      bindButtons('[data-rpc-actor]', 'actor', 'rpcActor');
+      callButton.addEventListener('click', callRpc);
+      preview();
+    })();
+  </script>
+  <script src="interactive-enhancements.js"></script>
+</body>
+</html>
+

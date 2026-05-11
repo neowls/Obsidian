@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>리플리케이션(Replication)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#replication-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#property">Property</a>
+        <a href="#flow">흐름</a>
+        <a href="#advanced">고급</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Networking / Replication</p>
+      <h1>리플리케이션(Replication)</h1>
+      <p class="lead">
+        Replication은 서버가 가진 authoritative state를 각 클라이언트의 Actor 복사본에 동기화하는 시스템입니다.
+        함수 호출이 아니라 상태 동기화이며, 나중에 접속한 플레이어도 현재 서버 상태를 받을 수 있다는 점이 RPC와 다릅니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 리플리케이션(Replication).md</span>
+        <span class="pill">난이도: 중급 네트워크 상태 동기화</span>
+        <span class="pill">핵심: DOREPLIFETIME, RepNotify, Relevancy, Dormancy, Fast Array</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="replication-visual" class="panel">
+          <h2>Replication 전송 실험판</h2>
+          <p>
+            Replication은 서버 값이 바뀌었다고 즉시 모든 클라이언트에 가는 기능이 아닙니다. Net Tick 때 connection별 relevancy, condition, dormancy를 통과한 값만 클라이언트 복사본에 도착합니다.
+          </p>
+
+          <div class="interactive-lab replication-sim-lab" data-rep-sim>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="range-field">
+                <label for="rep-health">Server Health</label>
+                <input id="rep-health" type="range" min="0" max="100" value="80" step="5" data-rep-health>
+              </div>
+              <div class="control-group">
+                <span class="control-label">Condition</span>
+                <div class="segmented-control" role="group" aria-label="Replication condition">
+                  <button type="button" class="mini-button is-selected" data-rep-condition="all">COND_None</button>
+                  <button type="button" class="mini-button" data-rep-condition="owner">COND_OwnerOnly</button>
+                </div>
+              </div>
+              <label class="toggle-chip"><input type="checkbox" data-rep-relevant checked> Client B relevant</label>
+              <label class="toggle-chip"><input type="checkbox" data-rep-dormant> Dormant</label>
+            </div>
+
+            <div class="replication-board">
+              <div class="rep-card server-card" data-rep-node="server">
+                <span class="node-kicker">Authoritative</span>
+                <strong>Server Actor</strong>
+                <div class="health-meter"><span data-rep-bar="server"></span></div>
+                <small data-rep-server-value>Health 80</small>
+              </div>
+              <div class="rep-filter-stack">
+                <div class="filter-step" data-rep-gate="dirty">Dirty Check</div>
+                <div class="filter-step" data-rep-gate="condition">Condition</div>
+                <div class="filter-step" data-rep-gate="relevancy">Relevancy</div>
+                <div class="filter-step" data-rep-gate="dormancy">Dormancy</div>
+              </div>
+              <div class="client-cluster">
+                <div class="rep-card" data-rep-node="clientA">
+                  <span class="node-kicker">Owner Client</span>
+                  <strong>Client A Copy</strong>
+                  <div class="health-meter"><span data-rep-bar="clientA"></span></div>
+                  <small data-rep-client-a>Health 80</small>
+                </div>
+                <div class="rep-card" data-rep-node="clientB">
+                  <span class="node-kicker">Simulated Proxy</span>
+                  <strong>Client B Copy</strong>
+                  <div class="health-meter"><span data-rep-bar="clientB"></span></div>
+                  <small data-rep-client-b>Health 80</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="broadcast-controls">
+              <button type="button" class="primary-button" data-rep-change>Server 값 변경</button>
+              <button type="button" class="mini-button" data-rep-tick>Net Tick</button>
+              <button type="button" class="mini-button" data-rep-flush>Flush Dormancy</button>
+            </div>
+            <div class="event-log" data-rep-log>
+              <p>서버 값을 바꾼 뒤 Net Tick을 누르면 조건을 통과한 클라이언트만 갱신됩니다.</p>
+            </div>
+          </div>
+        </section>
+        <section id="concept" class="panel">
+          <h2>Replication 한 줄 정의</h2>
+          <p>
+            <strong>Replication은 서버의 현재 Actor 상태를 connection별 relevancy, priority, dormancy, update frequency 조건에 따라 클라이언트로 보내는 시스템</strong>입니다.
+            서버가 바꾼 값만 의미가 있고, 클라이언트가 replicated 변수를 직접 바꿔도 서버 상태는 바뀌지 않습니다.
+          </p>
+          <div class="callout">
+            <p class="callout-title">RPC와의 경계</p>
+            <p>
+              <code>Health = 42</code>, <code>bIsOpen = true</code>처럼 현재 상태는 Replication입니다.
+              <code>ServerTryOpenDoor()</code>, <code>ClientShowHitMarker()</code>처럼 요청과 순간 응답은 RPC입니다.
+            </p>
+          </div>
+          <div class="diagram" aria-label="서버 상태가 클라이언트 복제 값으로 도착하는 흐름">
+            <p class="diagram-title">시각화 요약: 서버 상태가 클라이언트에 보이는 과정</p>
+            <div class="node-chain">
+              <div class="v-node highlight">
+                <strong>Server Actor</strong>
+                <span>권위 있는 상태가 바뀝니다. 클라이언트 로컬 변경은 기준 상태가 아닙니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>NetDriver</strong>
+                <span>Connection별로 복제 대상 Actor를 평가합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Relevancy / Dormancy</strong>
+                <span>거리, 소유권, dormancy, update frequency 조건으로 전송 여부를 줄입니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Actor Channel</strong>
+                <span>RepLayout과 condition에 맞는 변경 property를 보냅니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Client OnRep</strong>
+                <span>클라이언트 값이 갱신되고 RepNotify에서 UI나 연출을 반영합니다.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="property" class="panel">
+          <h2>가장 기본적인 Property Replication</h2>
+          <p>
+            공식 5.7 문서 기준 replicated property는 <code>Replicated</code> 또는 <code>ReplicatedUsing</code> specifier로 표시하고,
+            <code>GetLifetimeReplicatedProps</code>에서 <code>DOREPLIFETIME</code> 계열 매크로로 등록합니다.
+          </p>
+          <pre class="code"><code>// MyActor.h
+UCLASS()
+class AMyActor : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    AMyActor();
+
+    UPROPERTY(ReplicatedUsing=OnRep_Health)
+    int32 Health = 100;
+
+    UFUNCTION()
+    void OnRep_Health(int32 OldHealth);
+
+    virtual void GetLifetimeReplicatedProps(TArray&lt;FLifetimeProperty&gt;&amp; OutLifetimeProps) const override;
+};
+
+// MyActor.cpp
+#include "Net/UnrealNetwork.h"
+
+AMyActor::AMyActor()
+{
+    bReplicates = true;
+}
+
+void AMyActor::GetLifetimeReplicatedProps(TArray&lt;FLifetimeProperty&gt;&amp; OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME(AMyActor, Health);
+}</code></pre>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>요소</th>
+                  <th>빠지면 생기는 문제</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>bReplicates = true</code></td>
+                  <td>Actor가 네트워크 복제 대상이 되지 않습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>UPROPERTY(Replicated)</code></td>
+                  <td>리플렉션 시스템이 이 변수를 replicated property로 알지 못합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>GetLifetimeReplicatedProps</code></td>
+                  <td>어떤 property를 어떤 조건으로 보낼지 등록되지 않습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>DOREPLIFETIME</code></td>
+                  <td>해당 property가 lifetime replication list에 들어가지 않습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>RepNotify와 조건</h2>
+          <p>
+            <code>ReplicatedUsing</code>은 값이 클라이언트에 도착했을 때 <code>OnRep</code> 함수를 실행합니다.
+            <code>OnRep</code>는 서버에서 대입하는 순간 자동 호출되는 서버 콜백이 아니라, 수신 후처리입니다.
+          </p>
+          <div class="term-grid">
+            <div class="study-card">
+              <h3><code>REPNOTIFY_OnChanged</code></h3>
+              <p>기본 동작입니다. 수신 측 기존 값과 다를 때만 <code>OnRep</code>가 호출됩니다.</p>
+            </div>
+            <div class="study-card">
+              <h3><code>REPNOTIFY_Always</code></h3>
+              <p>값 차이와 무관하게 property가 복제될 때마다 <code>OnRep</code>를 호출합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>이전 값 파라미터</h3>
+              <p><code>OnRep_Health(int32 OldHealth)</code>처럼 같은 타입 파라미터를 받으면 이전 값을 받을 수 있습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>서버 로컬 처리</h3>
+              <p>서버에서도 UI나 로컬 후처리가 필요하면 상태 변경 직후 직접 함수를 호출해야 합니다.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>Condition</th>
+                  <th>사용 감각</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>COND_None</code></td>
+                  <td>relevant한 모든 connection에 보냅니다.</td>
+                </tr>
+                <tr>
+                  <td><code>COND_InitialOnly</code></td>
+                  <td>초기 복제 때만 필요한 설정값에 사용합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>COND_OwnerOnly</code></td>
+                  <td>개인 HUD, 개인 리소스처럼 owner에게만 필요한 값에 사용합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>COND_SkipOwner</code></td>
+                  <td>owner는 이미 예측/로컬 처리했고 다른 클라이언트만 알아야 할 때 사용합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>COND_SimulatedOnly</code></td>
+                  <td>simulated proxy에게만 필요한 보정값에 사용합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>COND_Dynamic</code></td>
+                  <td>런타임에 조건 자체를 바꿔야 하는 고급 상황에서만 신중하게 사용합니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="flow" class="panel">
+          <h2>Actor Replication 흐름</h2>
+          <p>
+            5.7의 Detailed Actor Replication Flow 문서 기준으로, 대부분의 Actor 복제는 NetDriver가 복제 대상 Actor를 고르고,
+            connection별 relevancy와 priority를 판단한 뒤 <code>UActorChannel::ReplicateActor</code>가 실제 Actor와 Component property를 보냅니다.
+          </p>
+          <div class="flow">
+            <div class="flow-step">
+              <span class="flow-kicker">1</span>
+              <strong>대상 선별</strong>
+              <span><code>SetReplicates(true)</code>, dormancy, update frequency를 확인합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2</span>
+              <strong>PreReplication</strong>
+              <span>복제 직전 값 계산과 active override를 처리합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3</span>
+              <strong>Connection별 검사</strong>
+              <span>level loaded, relevancy, dormancy, channel 상태를 봅니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4</span>
+              <strong>Priority 정렬</strong>
+              <span>연결이 포화될 수 있으므로 우선순위가 높은 Actor부터 처리합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5</span>
+              <strong>ReplicateActor</strong>
+              <span>Actor, Component, subobject의 변경 property를 전송합니다.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Relevancy, Frequency, Dormancy</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>개념</th>
+                  <th>질문</th>
+                  <th>대표 설정/API</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Relevancy</td>
+                  <td>이 Actor를 이 connection에 지금 보낼 가치가 있는가?</td>
+                  <td><code>IsNetRelevantFor</code>, <code>bAlwaysRelevant</code>, <code>bOnlyRelevantToOwner</code>, <code>NetCullDistanceSquared</code></td>
+                </tr>
+                <tr>
+                  <td>Frequency</td>
+                  <td>이 Actor가 얼마나 자주 복제 기회를 얻는가?</td>
+                  <td><code>NetUpdateFrequency</code>, <code>MinNetUpdateFrequency</code>, <code>ForceNetUpdate</code></td>
+                </tr>
+                <tr>
+                  <td>Dormancy</td>
+                  <td>한동안 바뀌지 않는 Actor를 네트워크 비용에서 쉬게 할 것인가?</td>
+                  <td><code>SetNetDormancy</code>, <code>FlushNetDormancy</code>, <code>ForceNetUpdate</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout warning">
+            <p class="callout-title">Dormant Actor 실수</p>
+            <p>
+              dormant Actor의 replicated property를 바꾸고 깨우지 않으면 클라이언트가 새 값을 받지 못할 수 있습니다.
+              문, 상자, 채집물처럼 자주 안 바뀌는 Actor는 dormancy와 <code>ForceNetUpdate</code> 호출 타이밍을 함께 설계합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="advanced" class="panel">
+          <h2>고급 Replication 선택지</h2>
+          <div class="split">
+            <div class="study-card">
+              <h3>Push Model</h3>
+              <p><code>bIsPushBased = true</code>로 등록하고 변경 시 dirty mark합니다. 큰 데이터에서 비교 비용을 줄일 수 있지만 dirty mark 누락이 곧 버그입니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Fast Array</h3>
+              <p>큰 <code>TArray&lt;UStruct&gt;</code>의 add/remove/change를 delta로 보내는 패턴입니다. 인벤토리, 버프 목록, ability spec list에 적합합니다.</p>
+            </div>
+          </div>
+          <div class="split">
+            <div class="study-card">
+              <h3>Component Replication</h3>
+              <p>Actor가 replicate하고 Component도 replicate 설정되어야 합니다. Component는 자신의 property와 RPC, subobject를 가질 수 있습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Registered Subobject List</h3>
+              <p>UObject subobject를 Actor/Component 아래에서 복제할 때 현대적인 등록 리스트 방식을 우선 검토합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. <code>OnRep</code>가 서버에서 자동 호출되지 않는 이유는?</strong>
+            <p class="answer"><code>OnRep</code>는 클라이언트가 replicated property를 수신했을 때의 후처리이기 때문입니다. 서버 로컬 후처리는 직접 호출해야 합니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. <code>UPROPERTY(Replicated)</code>만 붙였는데 값이 안 가는 대표 원인은?</strong>
+            <p class="answer"><code>bReplicates</code> 누락, <code>GetLifetimeReplicatedProps</code> 등록 누락, relevancy 없음, dormancy, 서버가 생성한 Actor가 아님 등이 있습니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. 큰 인벤토리 배열에 Fast Array를 검토하는 이유는?</strong>
+            <p class="answer">배열 전체가 아니라 item add/remove/change를 delta로 보내고 콜백을 받을 수 있어 큰 배열의 변경 전송에 유리하기 때문입니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/replicate-actor-properties-in-unreal-engine?application_version=5.7">Replicate Actor Properties</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/detailed-actor-replication-flow-in-unreal-engine?application_version=5.7">Detailed Actor Replication Flow</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/actor-relevancy-in-unreal-engine?application_version=5.7">Actor Relevancy</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/replicating-actor-components-in-unreal-engine?application_version=5.7">Actor Component Replication</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/NetCore/Net/Serialization/FFastArraySerializer">UE API: FFastArraySerializer</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#replication-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#property">Property Replication</a>
+        <a href="#flow">Actor 복제 흐름</a>
+        <a href="#advanced">고급 선택지</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-rep-sim]');
+      if (!lab) return;
+      const state = { server: 80, clientA: 80, clientB: 80, dirty: false, condition: 'all' };
+      const input = lab.querySelector('[data-rep-health]');
+      const relevantB = lab.querySelector('[data-rep-relevant]');
+      const dormant = lab.querySelector('[data-rep-dormant]');
+      const log = lab.querySelector('[data-rep-log]');
+      function setBar(name, value) { lab.querySelector(`[data-rep-bar="${name}"]`).style.width = `${value}%`; }
+      function render(lines) {
+        setBar('server', state.server); setBar('clientA', state.clientA); setBar('clientB', state.clientB);
+        lab.querySelector('[data-rep-server-value]').textContent = `Health ${state.server}`;
+        lab.querySelector('[data-rep-client-a]').textContent = `Health ${state.clientA}`;
+        lab.querySelector('[data-rep-client-b]').textContent = `Health ${state.clientB}`;
+        if (lines) log.innerHTML = lines.map((line) => `<p>${line}</p>`).join('');
+      }
+      function flash(selector, className = 'is-success') {
+        const element = lab.querySelector(selector);
+        if (!element) return;
+        element.classList.add(className);
+        setTimeout(() => element.classList.remove(className), 1200);
+      }
+      lab.querySelector('[data-rep-change]').addEventListener('click', () => {
+        state.server = Number(input.value); state.dirty = true;
+        flash('[data-rep-node="server"]', 'is-active');
+        render([`Server Actor의 Health가 ${state.server}(으)로 바뀌었습니다. 아직 클라이언트 값은 그대로입니다.`]);
+      });
+      lab.querySelector('[data-rep-tick]').addEventListener('click', () => {
+        lab.querySelectorAll('[data-rep-gate]').forEach((gate) => gate.classList.remove('is-active', 'is-failed', 'is-success'));
+        lab.querySelector('[data-rep-gate="dirty"]').classList.add(state.dirty ? 'is-success' : 'is-failed');
+        if (!state.dirty) { render(['Dirty property가 없어 이번 Net Tick에서는 전송할 값이 없습니다.']); return; }
+        if (dormant.checked) { lab.querySelector('[data-rep-gate="dormancy"]').classList.add('is-failed'); render(['Actor가 Dormant 상태라 변경값이 보류됩니다. Flush Dormancy 또는 ForceNetUpdate가 필요합니다.']); return; }
+        lab.querySelector('[data-rep-gate="condition"]').classList.add('is-success');
+        lab.querySelector('[data-rep-gate="relevancy"]').classList.add(relevantB.checked ? 'is-success' : 'is-active');
+        lab.querySelector('[data-rep-gate="dormancy"]').classList.add('is-success');
+        const lines = [];
+        state.clientA = state.server; flash('[data-rep-node="clientA"]');
+        lines.push(`Client A: OnRep_Health(${state.server}) 실행`);
+        if (state.condition === 'all' && relevantB.checked) { state.clientB = state.server; flash('[data-rep-node="clientB"]'); lines.push('Client B: relevant하고 COND_None이라 값 수신'); }
+        else if (state.condition === 'owner') lines.push('Client B: COND_OwnerOnly 때문에 전송 대상에서 제외');
+        else lines.push('Client B: relevancy 조건을 통과하지 못해 이번 tick에서 제외');
+        state.dirty = false; render(lines);
+      });
+      lab.querySelector('[data-rep-flush]').addEventListener('click', () => { dormant.checked = false; state.dirty = true; flash('[data-rep-gate="dormancy"]'); render(['Dormancy를 깨웠습니다. 다음 Net Tick에서 dirty property를 다시 평가합니다.']); });
+      lab.querySelectorAll('[data-rep-condition]').forEach((button) => button.addEventListener('click', () => {
+        state.condition = button.dataset.repCondition;
+        lab.querySelectorAll('[data-rep-condition]').forEach((candidate) => candidate.classList.toggle('is-selected', candidate === button));
+        render([state.condition === 'owner' ? 'OwnerOnly: Client A만 Health 복제 대상입니다.' : 'COND_None: relevant한 모든 클라이언트가 대상입니다.']);
+      }));
+      render();
+    })();
+  </script>
+  <script src="interactive-enhancements.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>어빌리티 시스템 컴포넌트(ASC)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#owner">소유</a>
+        <a href="#responsibility">책임</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>어빌리티 시스템 컴포넌트(ASC)</h1>
+      <p class="lead">
+        Ability System Component는 GAS가 액터와 만나는 중심 컴포넌트입니다.
+        어빌리티 부여, 활성화, Gameplay Effect 적용, Attribute 접근, Gameplay Tag 보유와 복제 대부분이 ASC를 통해 흐릅니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/어빌리티 시스템 컴포넌트(ASC).md</span>
+        <span class="pill">난이도: GAS 핵심 구조</span>
+        <span class="pill">핵심: ASC, OwnerActor, AvatarActor, Spec, Active GE</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>ASC는 액터가 GAS 기능을 사용하기 위한 런타임 허브</strong>입니다.
+            공식 5.7 API에서도 <code>AbilitySystemComponent</code>는 GameplayAbilities 시스템과 상호작용하는 핵심 ActorComponent로 정의됩니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">원본 노트의 핵심을 최신 기준으로 정리</p>
+            <p>
+              ASC는 게임플레이 어빌리티와 이펙트를 관리하는 중앙 처리 장치라는 설명이 맞습니다.
+              다만 “액터에 단 하나만 부착할 수 있다”는 표현은 엔진이 절대적으로 막는 규칙이라기보다, 하나의 게임플레이 주체에 하나의 권위 있는 ASC를 두는 설계 관례로 이해하는 편이 안전합니다.
+              여러 ASC로 상태를 쪼개면 태그, Attribute, GE, 입력 라우팅의 기준점이 흐려집니다.
+            </p>
+          </div>
+
+          <div class="system-map" aria-label="ASC 중심 관계도">
+            <div class="system-node core">
+              <h3>ASC</h3>
+              <p>어빌리티, 이펙트, 태그, 어트리뷰트의 관문입니다. 다른 GAS 객체들은 대부분 ASC를 통해 적용되거나 조회됩니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Activatable Abilities</h3>
+              <p><code>FGameplayAbilitySpec</code> 목록을 보관하고, 입력이나 태그 조건에 맞는 GA를 활성화합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Active Gameplay Effects</h3>
+              <p>Duration/Infinite GE의 남은 시간, 스택, Granted Tag, Modifier 상태를 추적합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Gameplay Tags</h3>
+              <p>Loose Tag, GE가 부여한 태그, Ability가 소유한 태그를 Count 기반으로 관리합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>Attribute Sets</h3>
+              <p>체력, 마나, 이동속도 같은 Attribute Set 인스턴스를 찾아 GE 계산과 UI 조회의 기준으로 사용합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="owner" class="panel">
+          <h2>OwnerActor와 AvatarActor</h2>
+          <p>
+            ASC를 배울 때 가장 먼저 헷갈리는 부분은 ASC가 붙은 액터와 실제 몸체가 항상 같지는 않다는 점입니다.
+            플레이어 캐릭터에서는 ASC를 PlayerState에 두고, 현재 조종 중인 Pawn을 AvatarActor로 쓰는 구조가 흔합니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>구분</th>
+                  <th>의미</th>
+                  <th>대표 예</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>OwnerActor</strong></td>
+                  <td>ASC를 소유하고 장기 상태를 유지하는 액터입니다.</td>
+                  <td>PlayerState, 캐릭터 Actor, AI Pawn</td>
+                </tr>
+                <tr>
+                  <td><strong>AvatarActor</strong></td>
+                  <td>월드에서 실제로 움직이고 애니메이션, 타겟팅, 충돌에 쓰이는 액터입니다.</td>
+                  <td>현재 조종 중인 Character/Pawn</td>
+                </tr>
+                <tr>
+                  <td><strong>ActorInfo</strong></td>
+                  <td>Owner, Avatar, Controller, Mesh, MovementComponent 같은 실행 문맥을 캐시합니다.</td>
+                  <td>GA의 <code>GetAvatarActorFromActorInfo</code>, <code>GetAbilitySystemComponentFromActorInfo</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">초기화 타이밍이 중요합니다</p>
+            <p>
+              ASC가 제대로 초기화되지 않으면 GA가 Owner, Avatar, Controller, AnimInstance를 찾지 못합니다.
+              Possess, Pawn 교체, 리스폰처럼 Avatar가 바뀌는 구조에서는 ActorInfo를 갱신하는 흐름을 명확히 둬야 합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="responsibility" class="panel">
+          <h2>ASC의 주요 책임</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>책임</th>
+                  <th>대표 함수/데이터</th>
+                  <th>학습 포인트</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>어빌리티 부여/제거</strong></td>
+                  <td><code>GiveAbility</code>, <code>ClearAbility</code>, <code>ClearAllAbilities</code></td>
+                  <td>공식 문서 기준으로 어빌리티 부여와 제거는 서버 권한에서 처리해야 합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>어빌리티 활성화</strong></td>
+                  <td><code>TryActivateAbility</code>, <code>TryActivateAbilitiesByTag</code></td>
+                  <td>조건 검사, 비용, 쿨다운, 원격 활성화 허용 여부가 함께 얽힙니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>GE 생성/적용</strong></td>
+                  <td><code>MakeEffectContext</code>, <code>MakeOutgoingSpec</code>, <code>ApplyGameplayEffectSpecToSelf</code></td>
+                  <td>GE 자산이 아니라 Spec을 만들어 ASC에 적용한다는 흐름을 기억합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>Attribute 조회</strong></td>
+                  <td><code>GetGameplayAttributeValue</code>, <code>GetAttributeSet</code></td>
+                  <td>클라이언트의 예측 값은 상황에 따라 최신 서버 값과 다를 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>Tag Count 관리</strong></td>
+                  <td><code>GetGameplayTagCount</code>, <code>HasMatchingGameplayTag</code></td>
+                  <td>같은 태그가 여러 출처에서 들어오면 Count가 남아 있는 동안 태그는 계속 존재합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>입력/타겟 확인</strong></td>
+                  <td><code>PressInputID</code>, <code>ReleaseInputID</code>, <code>InputConfirm</code>, <code>InputCancel</code></td>
+                  <td>입력은 GAS의 게임플레이 조건이 아니라 활성화 요청과 Task 신호로 나눠 봅니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>권한과 복제 감각</h2>
+          <p>
+            ASC는 멀티플레이어에서 특히 중요합니다. 어빌리티를 누가 줄 수 있는지, 누가 활성화를 요청하는지, 어떤 GE와 태그가 클라이언트에 보이는지의 기준점이 ASC이기 때문입니다.
+          </p>
+
+          <div class="split">
+            <div class="callout">
+              <p class="callout-title">서버가 결정하는 것</p>
+              <ul class="checklist">
+                <li>어빌리티 부여와 제거</li>
+                <li>최종 GE 적용과 Attribute 변경</li>
+                <li>권위 있는 상태 태그와 Active GE</li>
+              </ul>
+            </div>
+            <div class="callout warning">
+              <p class="callout-title">클라이언트가 요청/예측하는 것</p>
+              <ul class="checklist">
+                <li>입력에 따른 활성화 요청</li>
+                <li>Local Predicted GA의 즉시 반응</li>
+                <li>UI 표시용 로컬 입력 차단과 확인/취소 신호</li>
+              </ul>
+            </div>
+          </div>
+
+          <pre class="code"><code>// 개념 예시: 서버 권한에서 어빌리티 부여
+if (HasAuthority())
+{
+    AbilitySystemComponent-&gt;GiveAbility(
+        FGameplayAbilitySpec(AbilityClass, AbilityLevel, InputID, SourceObject)
+    );
+}
+
+// GE 적용은 Context와 Spec을 만든 뒤 ASC에 적용한다.
+FGameplayEffectContextHandle Context = AbilitySystemComponent-&gt;MakeEffectContext();
+FGameplayEffectSpecHandle Spec =
+    AbilitySystemComponent-&gt;MakeOutgoingSpec(EffectClass, EffectLevel, Context);</code></pre>
+        </section>
+
+        <section class="panel">
+          <h2>설계 체크리스트</h2>
+          <ul class="checklist">
+            <li><strong>ASC 위치를 먼저 정합니다.</strong> 리스폰 후에도 스킬과 쿨다운을 유지하려면 PlayerState, 몸체와 함께 사라져도 되면 Pawn/Character를 검토합니다.</li>
+            <li><strong>Owner와 Avatar를 분리해서 생각합니다.</strong> UI, 입력, 애니메이션, 타겟팅이 어느 액터를 기준으로 움직이는지 명확해야 합니다.</li>
+            <li><strong>어빌리티 부여는 서버 흐름으로 둡니다.</strong> 클라이언트 입력은 활성화 요청이지 능력 부여 권한이 아닙니다.</li>
+            <li><strong>태그는 Count를 확인합니다.</strong> 태그가 지워지지 않는 문제는 같은 태그를 주는 다른 GE나 Loose Tag가 남아 있는 경우가 많습니다.</li>
+            <li><strong>ASC를 여러 개로 나누기 전에 질문합니다.</strong> 이 액터의 상태, 입력, GE, Attribute의 권위 있는 기준점을 분리할 이유가 정말 있는지 확인합니다.</li>
+          </ul>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. ASC의 핵심 역할은?</strong>
+              <p class="answer">정답: 어빌리티, 이펙트, 태그, 어트리뷰트가 액터와 상호작용하는 중심 컴포넌트입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. OwnerActor와 AvatarActor를 나누는 이유는?</strong>
+              <p class="answer">정답: 장기 상태를 가진 소유자와 월드에서 실제로 움직이는 몸체가 다를 수 있기 때문입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. 어빌리티 부여는 어느 쪽 권한에서 처리해야 하는가?</strong>
+              <p class="answer">정답: 서버 권한에서 처리해야 합니다. 클라이언트는 주로 활성화 요청과 예측을 담당합니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. 같은 태그가 제거되지 않는 것처럼 보일 때 확인할 것은?</strong>
+              <p class="answer">정답: ASC의 Tag Count, Loose Tag, 같은 태그를 부여하는 다른 Gameplay Effect가 남아 있는지 확인합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="게임플레이 어빌리티 시스템(GAS).html">게임플레이 어빌리티 시스템(GAS)</a>: ASC가 속한 전체 프레임워크</li>
+            <li><a href="게임플레이 어빌리티 스펙(Spec).html">게임플레이 어빌리티 스펙(Spec)</a>: ASC가 보유하는 어빌리티 등록 단위</li>
+            <li><a href="어빌리티 시스템 컴포넌트의 입력 처리.html">어빌리티 시스템 컴포넌트의 입력 처리</a>: InputID와 ASC 입력 라우팅</li>
+            <li><a href="게임플레이 이펙트의 생성 과정.html">게임플레이 이펙트의 생성 과정</a>: Context와 Spec을 만들어 ASC에 적용하는 흐름</li>
+            <li><a href="게임플레이 태그(Tag).html">게임플레이 태그(Tag)</a>: ASC가 관리하는 태그와 Tag Count</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/gameplay-ability-system-for-unreal-engine" target="_blank" rel="noreferrer">Epic Developer Community: Gameplay Ability System 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAbilitySystemComponent" target="_blank" rel="noreferrer">Epic Developer Community: UAbilitySystemComponent API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/AbilitySystemComponent?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: AbilitySystemComponent Python API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-gameplay-abilities-in-unreal-engine" target="_blank" rel="noreferrer">Epic Developer Community: Using Gameplay Abilities 5.7</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\어빌리티 시스템 컴포넌트(ASC).md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#owner">Owner/Avatar</a>
+        <a href="#responsibility">주요 책임</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

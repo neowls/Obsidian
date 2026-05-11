@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>어빌리티 태스크(AT)</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#flow">흐름</a>
+        <a href="#types">종류</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>어빌리티 태스크(AT)</h1>
+      <p class="lead">
+        Ability Task는 Gameplay Ability 안에서 몽타주 재생, 타겟 데이터 대기, 입력 대기, 태그 변화 대기처럼 시간이 걸리는 작업을 비동기로 처리하는 빌딩 블록입니다.
+        GA는 한 번 활성화된 뒤 Task의 델리게이트 결과를 기다리고, 결과에 따라 후속 로직이나 EndAbility로 이어집니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/어빌리티 태스크(AT).md</span>
+        <span class="pill">난이도: GA 비동기 흐름</span>
+        <span class="pill">핵심: UAbilityTask, Delegate, ReadyForActivation, EndAbility</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Ability Task는 GA의 실행 중 비동기 작업을 담당하고, 완료/취소/중단 결과를 델리게이트로 GA에 돌려주는 객체</strong>입니다.
+            공식 5.7 API에서 <code>UAbilityTask</code>는 <code>UGameplayTask</code>를 상속하며, 생성한 GA와 ASC를 참조합니다.
+          </p>
+
+          <div class="callout">
+            <p class="callout-title">GA는 Tick으로 오래 버티는 구조가 아닙니다</p>
+            <p>
+              원본 노트처럼 GA의 활성화 함수 자체는 한 번 호출되고 끝납니다.
+              하지만 <code>EndAbility</code>가 호출되기 전까지 GA는 활성 상태로 남을 수 있고, 그 사이의 대기와 이벤트 처리를 Ability Task가 맡습니다.
+            </p>
+          </div>
+
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>Task 생성</h3>
+              <p>GA가 Task 노드나 static factory 함수를 통해 Task 인스턴스를 만듭니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Delegate 구독</h3>
+              <p>완료, 취소, 중단, 입력, 태그 변경 같은 결과 델리게이트에 GA가 콜백을 연결합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>ReadyForActivation</h3>
+              <p>구독이 끝난 뒤 Task를 실제로 시작합니다. Blueprint 노드는 내부적으로 이 흐름을 감춰 줍니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>EndTask / EndAbility</h3>
+              <p>Task는 자신을 끝내고, GA는 필요한 모든 작업이 끝났을 때 Ability를 종료합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="flow" class="panel">
+          <h2>기본 실행 흐름</h2>
+          <p>
+            Ability Task는 “작업 시작 후 결과 통보” 구조입니다.
+            GA는 Task를 만든 뒤 바로 끝나는 것이 아니라, Task 결과를 받아 다음 결정을 내립니다.
+          </p>
+
+          <div class="flow" aria-label="Ability Task 실행 흐름">
+            <div class="flow-step">
+              <span class="flow-kicker">1. ActivateAbility</span>
+              <strong>GA 시작</strong>
+              <span>비용, 쿨다운, 타겟팅, 애니메이션 시작 시점을 정합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2. Create Task</span>
+              <strong>AT 생성</strong>
+              <span><code>PlayMontageAndWait</code>, <code>WaitTargetData</code> 같은 Task를 만듭니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3. Bind</span>
+              <strong>Delegate 연결</strong>
+              <span>완료/취소/중단/입력 이벤트에 콜백을 연결합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4. Ready</span>
+              <strong>Task 활성화</strong>
+              <span>구독이 끝난 뒤 <code>ReadyForActivation</code>으로 실제 작업을 시작합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5. Result</span>
+              <strong>결과 처리</strong>
+              <span>Task 결과에 따라 GE 적용, 다음 Task 실행, CancelAbility, EndAbility를 결정합니다.</span>
+            </div>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">Task 종료와 Ability 종료는 다릅니다</p>
+            <p>
+              하나의 Task가 끝났다고 항상 Ability가 끝나는 것은 아닙니다.
+              콤보, 조준 후 발사, 몽타주 후 GE 적용처럼 여러 Task가 순서대로 이어질 수 있으므로, GA의 모든 성공/실패/취소 경로가 최종적으로 <code>EndAbility</code>로 이어지는지 확인해야 합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="types" class="panel">
+          <h2>대표 Task 종류</h2>
+          <p>
+            5.7의 <code>UAbilityTask</code> 파생 클래스는 몽타주, 입력, Attribute 변화, Gameplay Event, TargetData, Root Motion 등 다양한 대기 작업을 제공합니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>역할</th>
+                  <th>사용 예</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>PlayMontageAndWait</strong></td>
+                  <td>애니메이션 몽타주를 재생하고 완료/블렌드아웃/중단/취소를 기다립니다.</td>
+                  <td>공격 모션이 끝난 뒤 데미지 적용 또는 콤보 창 열기</td>
+                </tr>
+                <tr>
+                  <td><strong>WaitInputPress / WaitInputRelease</strong></td>
+                  <td>활성 GA 안에서 입력 눌림/뗌 이벤트를 기다립니다.</td>
+                  <td>차징 스킬, 홀드형 조준, 버튼을 떼면 발사</td>
+                </tr>
+                <tr>
+                  <td><strong>WaitTargetData</strong></td>
+                  <td>Target Actor가 만든 TargetData를 기다립니다.</td>
+                  <td>장판 위치 선택, 락온 타겟 확정, 범위 판정</td>
+                </tr>
+                <tr>
+                  <td><strong>WaitGameplayEvent</strong></td>
+                  <td>Gameplay Event Tag와 Payload를 기다립니다.</td>
+                  <td>애니메이션 노티파이, 피격 이벤트, 외부 시스템 트리거</td>
+                </tr>
+                <tr>
+                  <td><strong>WaitAttributeChange</strong></td>
+                  <td>Attribute 값 변화를 기다립니다.</td>
+                  <td>체력이 일정 이하일 때 패시브 발동, 스태미나 회복 대기</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>설계 감각</h2>
+          <div class="split">
+            <div class="callout">
+              <p class="callout-title">Task로 빼기 좋은 작업</p>
+              <ul class="checklist">
+                <li>시간이 걸리고 완료 이벤트가 필요한 작업</li>
+                <li>입력, 애니메이션, 타겟팅, 네트워크 동기화처럼 비동기인 작업</li>
+                <li>여러 GA에서 재사용할 수 있는 대기 패턴</li>
+              </ul>
+            </div>
+            <div class="callout warning">
+              <p class="callout-title">Task로 만들기 애매한 작업</p>
+              <ul class="checklist">
+                <li>즉시 계산하고 끝나는 단순 수치 계산</li>
+                <li>GA와 무관한 일반 컴포넌트 Tick 로직</li>
+                <li>서버 권한 판정을 우회하려는 로컬 전용 게임플레이 결정</li>
+              </ul>
+            </div>
+          </div>
+
+          <pre class="code"><code>// 개념 예시: C++ GA에서 Task 결과를 기다리는 흐름
+UAbilityTask_PlayMontageAndWait* Task =
+    UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+        this, NAME_None, AttackMontage);
+
+Task-&gt;OnCompleted.AddDynamic(this, &amp;UAttackAbility::OnMontageCompleted);
+Task-&gt;OnInterrupted.AddDynamic(this, &amp;UAttackAbility::OnMontageInterrupted);
+Task-&gt;OnCancelled.AddDynamic(this, &amp;UAttackAbility::OnMontageCancelled);
+
+Task-&gt;ReadyForActivation();</code></pre>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. Ability Task가 필요한 이유는?</strong>
+              <p class="answer">정답: GA 안에서 애니메이션, 입력, 타겟팅처럼 시간이 걸리는 비동기 작업을 기다리기 위해서입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. GA가 Task를 만든 뒤 바로 해야 할 일은?</strong>
+              <p class="answer">정답: 완료/취소/중단 같은 델리게이트를 구독한 뒤 Task를 활성화해야 합니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. Task가 끝나면 Ability도 자동으로 끝나는가?</strong>
+              <p class="answer">정답: 아닙니다. GA가 콜백에서 후속 처리와 <code>EndAbility</code> 호출 여부를 결정해야 합니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. 몽타주 재생과 완료 대기에 적합한 Task는?</strong>
+              <p class="answer">정답: <code>PlayMontageAndWait</code> 계열 Ability Task입니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="게임플레이 어빌리티(GA).html">게임플레이 어빌리티(GA)</a>: Task를 생성하고 결과를 받아 종료하는 주체</li>
+            <li><a href="어빌리티 태스크(AT)의 제작 규칙.html">어빌리티 태스크(AT)의 제작 규칙</a>: 커스텀 Task 구현 규칙</li>
+            <li><a href="어빌리티 시스템 컴포넌트의 입력 처리.html">어빌리티 시스템 컴포넌트의 입력 처리</a>: WaitInputPress/Release와 InputID 흐름</li>
+            <li><a href="게임플레이 어빌리티 타겟 액터(TA).html">게임플레이 어빌리티 타겟 액터(TA)</a>: WaitTargetData와 Target Actor 연결</li>
+            <li><a href="게임플레이 이펙트(GE).html">게임플레이 이펙트(GE)</a>: Task 완료 후 적용하는 비용, 쿨다운, 피해 효과</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAbilityTask" target="_blank" rel="noreferrer">Epic Developer Community: UAbilityTask API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/BlueprintAPI/Ability/Tasks/PlayMontageAndWait" target="_blank" rel="noreferrer">Epic Developer Community: PlayMontageAndWait Blueprint API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-gameplay-abilities-in-unreal-engine" target="_blank" rel="noreferrer">Epic Developer Community: Using Gameplay Abilities 5.7</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\어빌리티 태스크(AT).md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#flow">실행 흐름</a>
+        <a href="#types">대표 Task</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

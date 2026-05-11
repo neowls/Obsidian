@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>게임플레이 이펙트의 생성 과정</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#flow">흐름</a>
+        <a href="#code">코드</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>게임플레이 이펙트의 생성 과정</h1>
+      <p class="lead">
+        Gameplay Effect는 GE 자산을 바로 대상에게 던지는 방식이 아니라, 실행 문맥인 Context와 런타임 인스턴스인 Spec을 만든 뒤 ASC에 적용됩니다.
+        이 순서를 이해하면 SetByCaller, HitResult, SourceObject, 투사체 전달 흐름이 훨씬 명확해집니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/게임플레이 이펙트의 생성 과정.md</span>
+        <span class="pill">난이도: GE 적용 흐름</span>
+        <span class="pill">핵심: ContextHandle, SpecHandle, MakeOutgoingSpec</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>GE 생성 과정은 “Context를 만들고, 그 Context로 Spec을 만든 뒤, Spec을 ASC에 적용하는 과정”</strong>입니다.
+            GE 자산은 설계 데이터이고, 실제 적용 단위는 <code>FGameplayEffectSpec</code>입니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../../IMG/Pasted%20image%2020250131194735.png" alt="GameplayEffectSpecHandle 안에 GameplayEffectSpec과 GameplayEffectContextHandle, GameplayEffectContext가 포함되는 구조도">
+            <figcaption>원본 노트의 GE 생성 구조도. Spec은 레벨, Modifier, Tag 정보를 포함하고 ContextHandle을 통해 적용 문맥을 참조합니다.</figcaption>
+          </figure>
+
+          <div class="term-grid">
+            <div class="study-card">
+              <h3>GameplayEffectContext</h3>
+              <p>누가 만들었는지, 어떤 수단으로 만들었는지, 어떤 HitResult나 TargetData가 있는지 담는 실행 문맥입니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>GameplayEffectContextHandle</h3>
+              <p>Context를 직접 들고 다니지 않고 GAS가 핸들로 간접 관리하기 위한 포장 객체입니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>GameplayEffectSpec</h3>
+              <p>GE 자산에서 만들어지는 런타임 적용 정보입니다. 레벨, Modifier Magnitude, 태그, ContextHandle을 담습니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>GameplayEffectSpecHandle</h3>
+              <p>Spec을 안전하게 전달하고 유효성을 검사하기 위한 핸들입니다. 적용 전 SetByCaller 값을 추가할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="flow" class="panel">
+          <h2>생성 순서</h2>
+          <p>
+            순서는 중요합니다. Spec이 ContextHandle을 포함하므로, 먼저 Context를 만들고 필요한 정보를 채운 뒤 Spec을 생성해야 합니다.
+          </p>
+
+          <div class="flow" aria-label="Gameplay Effect 생성과 적용 흐름">
+            <div class="flow-step">
+              <span class="flow-kicker">1. Context</span>
+              <strong>문맥 생성</strong>
+              <span><code>MakeEffectContext</code>로 ContextHandle을 만듭니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2. Data</span>
+              <strong>추가 정보 기록</strong>
+              <span>SourceObject, Instigator, Causer, HitResult, TargetData 등을 넣습니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3. Spec</span>
+              <strong>Spec 생성</strong>
+              <span><code>MakeOutgoingSpec</code>으로 GE 클래스, 레벨, Context를 묶습니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4. Runtime</span>
+              <strong>런타임 값 보강</strong>
+              <span>SetByCaller, Dynamic Tag, Stack 같은 적용 직전 값을 넣을 수 있습니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5. Apply</span>
+              <strong>ASC에 적용</strong>
+              <span>Self 또는 Target ASC에 Spec을 적용하고 결과 Handle을 받습니다.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Context와 Spec의 책임 분리</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>구분</th>
+                  <th>담는 정보</th>
+                  <th>대표 사용처</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Context</strong></td>
+                  <td>Instigator, EffectCauser, SourceObject, HitResult, TargetData</td>
+                  <td>누가 어떤 상황에서 이 효과를 만들었는지 Execution, Cue, AttributeSet에서 참조합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>Spec</strong></td>
+                  <td>GE 클래스, 레벨, 계산된 Modifier, SetByCaller, 동적 태그, ContextHandle</td>
+                  <td>실제 대상 ASC에 적용되는 런타임 GE 인스턴스 역할을 합니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>Active GE</strong></td>
+                  <td>대상 ASC에 적용되어 유지 중인 Spec, 남은 시간, 스택 상태</td>
+                  <td>Duration 또는 Infinite GE가 적용된 후 ASC의 ActiveGameplayEffects에 보관됩니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="code" class="panel">
+          <h2>기본 코드 흐름</h2>
+          <p>
+            원본 노트의 코드는 자기 자신에게 GE를 적용하는 가장 기본적인 형태입니다.
+            타겟에게 적용할 때는 마지막 단계에서 대상 ASC의 <code>ApplyGameplayEffectSpecToSelf</code> 계열 함수를 호출한다고 보면 됩니다.
+          </p>
+          <pre class="code"><code>FGameplayEffectContextHandle EffectContextHandle = ASC-&gt;MakeEffectContext();
+EffectContextHandle.AddSourceObject(this);
+
+FGameplayEffectSpecHandle EffectSpecHandle =
+    ASC-&gt;MakeOutgoingSpec(EffectToApply, 1.0f, EffectContextHandle);
+
+if (EffectSpecHandle.IsValid())
+{
+    ASC-&gt;BP_ApplyGameplayEffectSpecToSelf(EffectSpecHandle);
+}</code></pre>
+
+          <div class="callout">
+            <p class="callout-title">확장 지점</p>
+            <p>
+              충전 시간, 타겟팅 결과, 무기 데이터처럼 실행 중에 결정되는 값은 Spec 생성 후 적용 전에
+              <code>SetByCaller</code>나 Context의 SourceObject/HitResult를 통해 전달하는 식으로 설계합니다.
+            </p>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">5.7 어빌리티 헬퍼 기준으로 읽기</p>
+            <p>
+              <code>UGameplayAbility</code>에는 <code>make_outgoing_gameplay_effect_spec</code>,
+              <code>apply_gameplay_effect_spec_to_owner</code>, <code>apply_gameplay_effect_spec_to_target</code> 같은 Spec 생성/적용 헬퍼가 제공됩니다.
+              핵심은 적용 전에 Spec이 유효한지 확인하고, <code>SetByCaller</code> 같은 런타임 값은 Apply 전에 채워야 한다는 점입니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>자주 헷갈리는 지점</h2>
+          <div class="split">
+            <div class="callout">
+              <p class="callout-title">GE 자산과 Spec은 다릅니다</p>
+              <p>
+                GE 자산은 기본 규칙입니다. Spec은 그 규칙을 특정 레벨, 특정 문맥, 특정 런타임 값으로 적용하기 위해 만든 객체입니다.
+              </p>
+            </div>
+            <div class="callout warning">
+              <p class="callout-title">Context를 나중에 끼워 넣는 구조가 아닙니다</p>
+              <p>
+                Spec이 ContextHandle을 포함하므로 Context를 먼저 만들고 필요한 문맥을 채운 뒤 Spec을 만드는 흐름을 기본으로 잡아야 합니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>상황</th>
+                  <th>어디에 넣을까?</th>
+                  <th>이유</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>이 효과를 발생시킨 무기</strong></td>
+                  <td>Context의 SourceObject 또는 EffectCauser</td>
+                  <td>ExecutionCalculation, Cue, AttributeSet에서 원인 객체를 참조할 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>라인 트레이스 적중 정보</strong></td>
+                  <td>Context의 HitResult 또는 TargetData</td>
+                  <td>GameplayCue 위치, 헤드샷 판정, 물리 표면 반응에 활용할 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>충전 시간 기반 피해량</strong></td>
+                  <td>Spec의 SetByCaller</td>
+                  <td>GE 자산에는 고정할 수 없는 런타임 수치이기 때문입니다.</td>
+                </tr>
+                <tr>
+                  <td><strong>스킬 레벨</strong></td>
+                  <td>MakeOutgoingSpec의 Level</td>
+                  <td>ScalableFloat와 레벨 기반 Modifier 계산에 사용됩니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. GE 적용 전에 Context를 먼저 만드는 이유는?</strong>
+              <p class="answer">정답: Spec이 ContextHandle을 포함하므로, 적용 문맥을 먼저 만든 뒤 그 문맥으로 Spec을 생성해야 합니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. GameplayEffectSpec은 무엇인가?</strong>
+              <p class="answer">정답: GE 자산을 특정 레벨, 문맥, 런타임 값으로 적용하기 위해 만든 런타임 적용 정보입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. HitResult는 Context와 Spec 중 어디에 가까운가?</strong>
+              <p class="answer">정답: Context입니다. 적중 위치와 판정 정보는 효과가 발생한 문맥에 해당합니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. Spec을 만든 후 적용 전에 할 수 있는 대표 작업은?</strong>
+              <p class="answer">정답: SetByCaller 값 추가, 동적 태그 추가, 적용 전 유효성 검사를 할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8(GE).html">게임플레이 이펙트(GE)</a>: GE의 타입과 Modifier 구조</li>
+            <li><a href="%EA%B8%B0%EA%B0%84%ED%98%95%20%EA%B2%8C%EC%9E%84%ED%94%8C%EB%A0%88%EC%9D%B4%20%EC%9D%B4%ED%8E%99%ED%8A%B8.html">기간형 게임플레이 이펙트</a>: 적용된 Spec이 Active GE로 유지되는 흐름</li>
+            <li>게임플레이 어빌리티(GA): 어빌리티 내부에서 GE Spec을 만들고 적용하는 주체</li>
+            <li>게임플레이 어빌리티 타겟 액터(TA): TargetData를 만들어 Context/Spec 흐름으로 전달</li>
+            <li><a href="%EB%A0%88%EB%B2%A8%EA%B3%BC%20%EC%BB%A4%EB%B8%8C%20%ED%85%8C%EC%9D%B4%EB%B8%94.html">레벨과 커브 테이블</a>: Spec 레벨이 ScalableFloat 계산에 반영되는 방식</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/FGameplayEffectSpec/__ctor" target="_blank" rel="noreferrer">Epic Developer Community: FGameplayEffectSpec API</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/FGameplayEffectContextHandle/__ctor/1" target="_blank" rel="noreferrer">Epic Developer Community: FGameplayEffectContextHandle API</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayAbility?application_version=5.7" target="_blank" rel="noreferrer">Epic Developer Community: GameplayAbility Python API 5.7</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\게임플레이 이펙트의 생성 과정.md</code></li>
+            <li>로컬 이미지: <code>IMG\Pasted image 20250131194735.png</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#flow">생성 순서</a>
+        <a href="#code">코드 흐름</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

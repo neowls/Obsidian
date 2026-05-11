@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>어빌리티 태스크(AT)의 제작 규칙</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="../index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#concept">개념</a>
+        <a href="#steps">절차</a>
+        <a href="#lifecycle">수명</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Gameplay Ability System</p>
+      <h1>어빌리티 태스크(AT)의 제작 규칙</h1>
+      <p class="lead">
+        커스텀 Ability Task는 GA에서 반복되는 비동기 패턴을 재사용 가능한 노드로 분리하는 방법입니다.
+        static 생성 함수, 델리게이트, Activate, OnDestroy, 대기 상태, Tick 여부를 일관되게 설계해야 누수와 중복 브로드캐스트를 피할 수 있습니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 게임 어빌리티 시스템(GAS)/어빌리티 태스크(AT)의 제작 규칙.md</span>
+        <span class="pill">난이도: 커스텀 Task 구현</span>
+        <span class="pill">핵심: NewAbilityTask, Activate, OnDestroy, Delegate</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>커스텀 Ability Task는 <code>UAbilityTask</code>를 상속해 GA 전용 비동기 작업을 Blueprint/C++에서 재사용 가능하게 만든 클래스</strong>입니다.
+            5.7 API에는 <code>NewAbilityTask</code>, <code>SetWaitingOnAvatar</code>, <code>ShouldBroadcastAbilityTaskDelegates</code>, <code>OnDestroy</code> 같은 제작에 필요한 기본 도구가 있습니다.
+          </p>
+
+          <div class="callout warning">
+            <p class="callout-title">Task는 한 번 만들고 끝나는 UObject입니다</p>
+            <p>
+              Task는 GA의 활성화 흐름에 붙어 있는 일시적 객체입니다.
+              외부 Delegate, Timer, Actor 참조, Tick을 사용했다면 <code>OnDestroy</code>에서 반드시 해제해야 합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="steps" class="panel">
+          <h2>제작 절차</h2>
+          <p>
+            원본 노트의 규칙을 실제 구현 순서로 풀면 아래와 같습니다.
+            핵심은 “생성 함수에서 준비하고, Activate에서 시작하고, 결과를 델리게이트로 알리고, OnDestroy에서 정리한다”입니다.
+          </p>
+
+          <div class="flow" aria-label="커스텀 Ability Task 제작 절차">
+            <div class="flow-step">
+              <span class="flow-kicker">1. Class</span>
+              <strong>UAbilityTask 상속</strong>
+              <span>GA에서만 쓰는 비동기 작업은 <code>UAbilityTask</code>를 기반으로 만듭니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">2. Factory</span>
+              <strong>static 생성 함수</strong>
+              <span>Blueprint 노드로 보일 static 함수를 만들고 내부에서 <code>NewAbilityTask</code>를 호출합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">3. Delegate</span>
+              <strong>결과 델리게이트 선언</strong>
+              <span>완료, 실패, 취소, 데이터 도착 같은 결과를 GA에 알릴 델리게이트를 둡니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">4. Activate</span>
+              <strong>작업 시작</strong>
+              <span>Timer, 바인딩, 타겟팅, 이동, 대기 상태 설정을 시작합니다.</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-kicker">5. OnDestroy</span>
+              <strong>정리</strong>
+              <span>Delegate 해제, Timer 정리, 외부 참조 해제, Tick 중단을 처리합니다.</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="lifecycle" class="panel">
+          <h2>수명주기와 안전장치</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>규칙</th>
+                  <th>이유</th>
+                  <th>확인 지점</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>static factory 함수</strong></td>
+                  <td>Blueprint 노드 형태로 Task를 만들고 입력 파라미터를 저장합니다.</td>
+                  <td><code>BlueprintInternalUseOnly</code>, <code>DefaultToSelf</code> 메타 사용 여부</td>
+                </tr>
+                <tr>
+                  <td><strong>Activate override</strong></td>
+                  <td>Task의 실제 작업 시작 지점입니다.</td>
+                  <td>외부 Delegate/Timer 바인딩, 대기 상태 설정, 즉시 실패 처리</td>
+                </tr>
+                <tr>
+                  <td><strong>ShouldBroadcastAbilityTaskDelegates</strong></td>
+                  <td>Ability가 이미 끝난 뒤 잘못 브로드캐스트하는 것을 막습니다.</td>
+                  <td>결과 델리게이트 호출 직전 검사</td>
+                </tr>
+                <tr>
+                  <td><strong>SetWaitingOnAvatar</strong></td>
+                  <td>Avatar/Movement 같은 상태를 기다리는 Task임을 표시합니다.</td>
+                  <td>이동, 애니메이션, 캐릭터 상태 대기형 Task</td>
+                </tr>
+                <tr>
+                  <td><strong>bTickingTask</strong></td>
+                  <td>매 프레임 확인이 필요할 때만 켭니다.</td>
+                  <td>Timer나 Delegate로 대체할 수 없는지 먼저 확인</td>
+                </tr>
+                <tr>
+                  <td><strong>OnDestroy override</strong></td>
+                  <td>Task 종료, Ability 종료, 취소, 복제 정리 경로에서 호출됩니다.</td>
+                  <td>외부 바인딩 해제, Timer 정리, Super 호출</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>C++ 뼈대</h2>
+          <p>
+            아래는 일정 시간 후 완료를 알리는 Task의 축약 예시입니다.
+            실제 프로젝트에서는 Prediction, 서버/클라이언트 실행 위치, Ability 종료 시 정리 정책을 더 엄격히 다뤄야 합니다.
+          </p>
+
+          <pre class="code"><code>DECLARE_DYNAMIC_MULTICAST_DELEGATE(FProjectAbilityTaskDelegate);
+
+UCLASS()
+class UAT_WaitSimpleDelay : public UAbilityTask
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(BlueprintAssignable)
+    FProjectAbilityTaskDelegate OnFinished;
+
+    UFUNCTION(BlueprintCallable, Category="Ability|Tasks",
+        meta=(HidePin="OwningAbility", DefaultToSelf="OwningAbility",
+              BlueprintInternalUseOnly="true"))
+    static UAT_WaitSimpleDelay* WaitSimpleDelay(
+        UGameplayAbility* OwningAbility,
+        float Duration);
+
+    virtual void Activate() override;
+    virtual void OnDestroy(bool bInOwnerFinished) override;
+
+private:
+    float Duration = 0.0f;
+    FTimerHandle TimerHandle;
+    void HandleTimerFinished();
+};</code></pre>
+
+          <pre class="code"><code>UAT_WaitSimpleDelay* UAT_WaitSimpleDelay::WaitSimpleDelay(
+    UGameplayAbility* OwningAbility,
+    float InDuration)
+{
+    UAT_WaitSimpleDelay* Task =
+        NewAbilityTask&lt;UAT_WaitSimpleDelay&gt;(OwningAbility);
+    Task-&gt;Duration = InDuration;
+    return Task;
+}
+
+void UAT_WaitSimpleDelay::Activate()
+{
+    SetWaitingOnAvatar();
+    GetWorld()-&gt;GetTimerManager().SetTimer(
+        TimerHandle, this,
+        &amp;UAT_WaitSimpleDelay::HandleTimerFinished,
+        Duration, false);
+}
+
+void UAT_WaitSimpleDelay::HandleTimerFinished()
+{
+    if (ShouldBroadcastAbilityTaskDelegates())
+    {
+        OnFinished.Broadcast();
+    }
+    EndTask();
+}
+
+void UAT_WaitSimpleDelay::OnDestroy(bool bInOwnerFinished)
+{
+    if (UWorld* World = GetWorld())
+    {
+        World-&gt;GetTimerManager().ClearTimer(TimerHandle);
+    }
+
+    Super::OnDestroy(bInOwnerFinished);
+}</code></pre>
+        </section>
+
+        <section class="panel">
+          <h2>제작 체크리스트</h2>
+          <ul class="checklist">
+            <li><strong>Task가 무엇을 기다리는지 한 문장으로 설명합니다.</strong> 애니메이션인지, 입력인지, 서버 데이터인지 불명확하면 GA 본문이 더 낫습니다.</li>
+            <li><strong>Delegate는 결과별로 분리합니다.</strong> 완료, 취소, 실패, 데이터 도착을 하나의 bool로 뭉개면 Blueprint 사용성이 떨어집니다.</li>
+            <li><strong>브로드캐스트 직전 <code>ShouldBroadcastAbilityTaskDelegates</code>를 확인합니다.</strong> Ability가 이미 끝난 뒤 이벤트가 튀어나오는 문제를 줄입니다.</li>
+            <li><strong>외부 바인딩은 반드시 해제합니다.</strong> ASC Delegate, Anim Delegate, Timer, Actor 이벤트는 <code>OnDestroy</code>에서 정리합니다.</li>
+            <li><strong>Tick은 마지막 선택지로 둡니다.</strong> Timer, Delegate, Gameplay Event로 해결할 수 있으면 Tick Task를 피합니다.</li>
+          </ul>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="term-grid">
+            <div class="quiz">
+              <strong>1. 커스텀 AT는 어떤 클래스를 상속하는가?</strong>
+              <p class="answer">정답: <code>UAbilityTask</code>를 상속합니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>2. static 생성 함수가 필요한 이유는?</strong>
+              <p class="answer">정답: GA/Blueprint에서 Task를 생성하는 노드 역할을 하며 입력 파라미터를 Task에 저장하기 위해서입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>3. 결과 Delegate를 브로드캐스트하기 전에 확인할 함수는?</strong>
+              <p class="answer">정답: <code>ShouldBroadcastAbilityTaskDelegates</code>입니다.</p>
+            </div>
+            <div class="quiz">
+              <strong>4. OnDestroy에서 해야 할 일은?</strong>
+              <p class="answer">정답: 외부 Delegate, Timer, 참조, Tick 관련 정리를 하고 <code>Super::OnDestroy</code>를 호출합니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>관련 노트</h2>
+          <ul class="relation-list">
+            <li><a href="어빌리티 태스크(AT).html">어빌리티 태스크(AT)</a>: Task가 필요한 이유와 실행 흐름</li>
+            <li><a href="게임플레이 어빌리티(GA).html">게임플레이 어빌리티(GA)</a>: Task를 소유하고 결과를 처리하는 실행 주체</li>
+            <li><a href="어빌리티 시스템 컴포넌트의 입력 처리.html">어빌리티 시스템 컴포넌트의 입력 처리</a>: 입력 대기형 Task와 ASC 신호</li>
+            <li><a href="게임플레이 어빌리티 타겟 액터(TA).html">게임플레이 어빌리티 타겟 액터(TA)</a>: TargetData 대기형 Task 제작 시 주의점</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>참고 자료</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/UAbilityTask" target="_blank" rel="noreferrer">Epic Developer Community: UAbilityTask API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/GameplayTasks/UGameplayTask" target="_blank" rel="noreferrer">Epic Developer Community: UGameplayTask API 5.7</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-gameplay-abilities-in-unreal-engine" target="_blank" rel="noreferrer">Epic Developer Community: Using Gameplay Abilities 5.7</a></li>
+            <li>로컬 원본 노트: <code>게임 어빌리티 시스템(GAS)\어빌리티 태스크(AT)의 제작 규칙.md</code></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc" aria-label="목차">
+        <p class="toc-title">목차</p>
+        <a href="#concept">한 줄 정의</a>
+        <a href="#steps">제작 절차</a>
+        <a href="#lifecycle">수명주기</a>
+        <a href="#review">복습 질문</a>
+        <a href="../index.html">목록으로</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">다음 변환 대상: 게임 어빌리티 시스템(GAS) 폴더의 다음 Markdown 파일.</div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,2269 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>트레이스(Trace)</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --bg: #0b0b09;
+  --surface: #15120e;
+  --surface-soft: #211a12;
+  --ink: #f2eadc;
+  --muted: #a79a86;
+  --line: #3a2a19;
+  --accent: #f28c28;
+  --accent-2: #ffb454;
+  --accent-3: #8faa67;
+  --danger: #d36b5f;
+  --code-bg: #070705;
+  --code-ink: #f3d7a4;
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    linear-gradient(180deg, rgba(242, 140, 40, 0.09), transparent 330px),
+    var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  line-height: 1.65;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.site-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgba(11, 11, 9, 0.94);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  gap: 20px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #0b0b09;
+  font-size: 0.85rem;
+}
+
+.topbar nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: flex-end;
+  font-size: 0.92rem;
+}
+
+.hero {
+  padding: 58px 0 34px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent-2);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+h1 {
+  max-width: 860px;
+  margin: 0;
+  font-size: clamp(2.25rem, 5vw, 4.4rem);
+}
+
+.lead {
+  max-width: 820px;
+  margin: 20px 0 0;
+  color: #d8cab6;
+  font-size: 1.13rem;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.stat-card {
+  min-height: 118px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.stat-card strong {
+  display: block;
+  color: var(--accent-2);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  line-height: 1.05;
+}
+
+.stat-card span {
+  display: block;
+  margin-top: 8px;
+  color: #d4c0a2;
+}
+
+.path-list {
+  display: grid;
+  gap: 12px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.path-list li {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.path-list a {
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.path-list small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.doc-finder {
+  margin-bottom: 22px;
+}
+
+.finder-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.search-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #100d0a;
+  color: var(--ink);
+  font: inherit;
+}
+
+.search-input:focus {
+  outline: 2px solid rgba(242, 140, 40, 0.42);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.filter-button {
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: #e6d2b4;
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.filter-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgba(242, 140, 40, 0.18);
+  color: var(--ink);
+}
+
+.doc-count {
+  color: var(--muted);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.no-results {
+  margin-top: 14px;
+  color: var(--danger);
+}
+
+.visual-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.diagram {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #14100c;
+}
+
+.diagram-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.node-chain {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.node-chain.wide {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+}
+
+.v-node {
+  position: relative;
+  min-width: 0;
+  min-height: 116px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.v-node::after {
+  display: none;
+}
+
+.v-node:last-child::after {
+  display: none;
+}
+
+.v-node strong {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--accent);
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.v-node span {
+  display: block;
+  color: #d7c6ad;
+  font-size: 0.92rem;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.v-node.highlight {
+  border-color: #8a5524;
+  background: #251a10;
+}
+
+.v-node.warning {
+  border-color: #6f2f24;
+  background: #24150f;
+}
+
+.concept-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}
+
+.concept-map .v-node {
+  min-height: 132px;
+}
+
+.concept-map .v-node::after {
+  display: none;
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #ddc9aa;
+  font-size: 0.86rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(21, 18, 14, 0.76);
+  color: #e2cfb2;
+  font-size: 0.92rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 30px;
+  align-items: start;
+  padding-bottom: 72px;
+}
+
+.content {
+  display: grid;
+  gap: 22px;
+}
+
+.toc {
+  position: sticky;
+  top: 78px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(21, 18, 14, 0.86);
+  box-shadow: var(--shadow);
+}
+
+.toc-title {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.toc a {
+  display: block;
+  padding: 7px 0;
+  color: #dccab0;
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+
+.toc a:hover {
+  color: var(--accent);
+}
+
+.panel,
+.callout,
+.study-card,
+.quiz {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  padding: clamp(22px, 4vw, 34px);
+}
+
+.panel h2,
+.panel h3 {
+  margin-top: 0;
+}
+
+.panel h2 {
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+}
+
+.panel p:last-child,
+.panel ul:last-child,
+.panel ol:last-child {
+  margin-bottom: 0;
+}
+
+.callout {
+  padding: 18px 20px;
+  border-left: 5px solid var(--accent);
+  background: #17110c;
+}
+
+.callout.warning {
+  border-left-color: var(--danger);
+  background: #24150f;
+}
+
+.callout-title {
+  margin: 0 0 6px;
+  font-weight: 800;
+}
+
+.term-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.study-card {
+  padding: 18px;
+  box-shadow: none;
+}
+
+.study-card h3 {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 1.04rem;
+}
+
+.study-card p {
+  margin: 0;
+  color: #d6c4aa;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.flow-step {
+  position: relative;
+  min-width: 0;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.flow-step:not(:last-child)::after {
+  display: none;
+}
+
+.flow-kicker {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.flow-step strong {
+  display: block;
+  margin-bottom: 6px;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.flow-step span:last-child {
+  display: block;
+  color: #d3c0a5;
+  font-size: 0.93rem;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.system-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.system-node {
+  min-width: 0;
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.system-node.core {
+  grid-column: 1 / -1;
+  min-height: 120px;
+  background: #251a10;
+  border-color: #6f4c22;
+}
+
+.system-node h3 {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 1.08rem;
+}
+
+.system-node p {
+  margin: 0;
+  color: #d6c4aa;
+}
+
+.relation-list {
+  display: grid;
+  gap: 10px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.relation-list li {
+  padding: 12px 14px;
+  border-left: 4px solid var(--accent-3);
+  border-radius: 6px;
+  background: #1a130c;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.figure {
+  margin: 22px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #15100b;
+}
+
+.figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.figure figcaption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.matrix {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.matrix th,
+.matrix td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.matrix th {
+  background: var(--surface-soft);
+  color: #f2eadc;
+  font-weight: 800;
+}
+
+.matrix tr:last-child td {
+  border-bottom: 0;
+}
+
+.checklist {
+  padding-left: 1.2rem;
+}
+
+.checklist li {
+  margin: 10px 0;
+}
+
+.code {
+  overflow-x: auto;
+  padding: 18px;
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+code {
+  padding: 0.12em 0.32em;
+  border-radius: 4px;
+  background: rgba(242, 140, 40, 0.14);
+  color: #ffca7a;
+  font-family: Consolas, "Cascadia Code", monospace;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.code code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.quiz {
+  padding: 18px;
+  box-shadow: none;
+}
+
+.quiz strong {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.answer {
+  margin-top: 10px;
+  color: #c9b79b;
+  font-size: 0.94rem;
+}
+
+.source-list {
+  padding-left: 1.15rem;
+}
+
+.footer {
+  padding: 30px 0 46px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.index-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.index-list a {
+  display: block;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.index-list a:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .toc {
+    position: static;
+    order: -1;
+  }
+
+  .flow {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-step:not(:last-child)::after {
+    top: auto;
+    right: 50%;
+    bottom: -12px;
+    transform: translateX(50%) rotate(135deg);
+  }
+
+  .term-grid,
+  .overview-grid,
+  .finder-toolbar,
+  .node-chain,
+  .node-chain.wide,
+  .concept-map,
+  .system-map,
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .v-node::after {
+    top: auto;
+    right: 50%;
+    bottom: -12px;
+    transform: translateX(50%) rotate(135deg);
+  }
+
+  .system-node.core {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .site-shell {
+    width: min(100% - 24px, 1180px);
+  }
+
+  .topbar-inner {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 12px 0;
+  }
+
+  .hero {
+    padding-top: 38px;
+  }
+}
+
+@media print {
+  .topbar,
+  .toc {
+    display: none;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .site-shell {
+    width: 100%;
+  }
+
+  .layout {
+    display: block;
+  }
+
+  .panel,
+  .callout,
+  .study-card,
+  .quiz {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+
+/* Interactive learning labs */
+.interactive-lab {
+  margin-top: 22px;
+  padding: clamp(16px, 3vw, 22px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #14100c;
+}
+
+.lab-toolbar,
+.broadcast-controls,
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.lab-toolbar {
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.range-field {
+  display: grid;
+  min-width: min(100%, 340px);
+  gap: 8px;
+}
+
+.range-field label {
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.range-field input[type="range"] {
+  width: min(100%, 420px);
+  accent-color: var(--accent);
+}
+
+.primary-button,
+.mini-button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.primary-button {
+  padding: 8px 16px;
+  border-color: rgba(192, 163, 106, 0.72);
+  background: #4a2b12;
+}
+
+.primary-button:hover,
+.primary-button:focus-visible {
+  border-color: var(--accent-2);
+  background: #5a3518;
+}
+
+.mini-button {
+  padding: 7px 11px;
+  background: var(--surface-soft);
+}
+
+.mini-button:hover,
+.mini-button:focus-visible {
+  border-color: var(--accent);
+  background: #2b1d12;
+}
+
+.vector-workbench {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.15fr) minmax(240px, 0.85fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.vector-diagram {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0a0907;
+  background-size: 26px 26px;
+}
+
+.axis-line {
+  stroke: rgba(242, 234, 220, 0.28);
+  stroke-width: 1.2;
+}
+
+.svg-label {
+  fill: #c9b79b;
+  font-size: 8px;
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+}
+
+.vector-name {
+  fill: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.vector-line {
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.vector-forward {
+  stroke: var(--accent-2);
+}
+
+.vector-target {
+  stroke: var(--accent);
+}
+
+#arrow-forward path {
+  fill: var(--accent-2);
+}
+
+#arrow-target path {
+  fill: var(--accent);
+}
+
+.origin-dot {
+  fill: var(--ink);
+}
+
+.target-dot {
+  fill: #ffe2a3;
+  stroke: #0a0907;
+  stroke-width: 2;
+}
+
+.projection-line {
+  stroke: var(--danger);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}
+
+.parallelogram-shape {
+  fill: rgba(242, 140, 40, 0.12);
+  stroke: rgba(242, 140, 40, 0.48);
+  stroke-width: 1.4;
+}
+
+.angle-arc {
+  fill: none;
+  stroke: #ffb454;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  min-height: 128px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.metric-card span,
+.metric-card small {
+  display: block;
+  color: var(--muted);
+}
+
+.metric-card strong {
+  display: block;
+  margin: 8px 0 6px;
+  color: var(--accent-2);
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  line-height: 1;
+}
+
+.delegate-lab {
+  display: grid;
+  gap: 16px;
+}
+
+.delegate-board {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.8fr) 74px minmax(190px, 1fr) minmax(260px, 1.25fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.delegate-node,
+.listener-node {
+  min-width: 0;
+  min-height: 124px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  text-align: left;
+}
+
+.delegate-node strong,
+.listener-node strong {
+  display: block;
+  margin: 4px 0 7px;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.delegate-node small,
+.listener-node small {
+  display: block;
+  color: #d7c6ad;
+  font-size: 0.9rem;
+}
+
+.node-kicker {
+  color: var(--accent-2);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.delegate-source {
+  border-color: rgba(192, 163, 106, 0.45);
+}
+
+.delegate-bus {
+  border-color: rgba(242, 140, 40, 0.52);
+  background: #18221f;
+}
+
+.wire-lane {
+  display: grid;
+  gap: 10px;
+}
+
+.signal-wire {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(192, 163, 106, 0.22), rgba(242, 140, 40, 0.72), rgba(192, 163, 106, 0.22));
+  opacity: 0.35;
+  transform-origin: left center;
+}
+
+.listener-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.listener-node {
+  position: relative;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.listener-node[aria-pressed="true"] {
+  border-color: rgba(242, 140, 40, 0.72);
+  background: #251a10;
+}
+
+.listener-node[aria-pressed="false"] {
+  opacity: 0.58;
+}
+
+.status-dot {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--danger);
+  box-shadow: 0 0 0 3px rgba(198, 129, 123, 0.14);
+}
+
+.listener-node[aria-pressed="true"] .status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(242, 140, 40, 0.16);
+}
+
+.event-log {
+  min-height: 74px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a0907;
+  color: #d7c6ad;
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: 0.9rem;
+}
+
+.event-log p {
+  margin: 0;
+}
+
+.event-log p + p {
+  margin-top: 6px;
+}
+
+.is-broadcasting {
+  animation: nodePulse 760ms ease-out;
+}
+
+.signal-wire.is-signal {
+  animation: signalSweep 900ms ease-out;
+}
+
+.listener-node.is-flashing {
+  animation: listenerFlash 920ms ease-out;
+}
+
+.listener-node.is-skipped {
+  border-color: rgba(198, 129, 123, 0.42);
+}
+
+@keyframes nodePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(192, 163, 106, 0.42);
+    transform: translateY(0);
+  }
+  45% {
+    box-shadow: 0 0 0 12px rgba(192, 163, 106, 0);
+    transform: translateY(-2px);
+  }
+  100% {
+    box-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+@keyframes signalSweep {
+  0% {
+    opacity: 0.25;
+    transform: scaleX(0.15);
+  }
+  55% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes listenerFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(242, 140, 40, 0.55);
+    transform: translateY(0);
+  }
+  38% {
+    border-color: var(--accent-2);
+    background: #322111;
+    box-shadow: 0 0 22px rgba(192, 163, 106, 0.44);
+    transform: translateY(-3px);
+  }
+  100% {
+    box-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 980px) {
+  .vector-workbench,
+  .delegate-board {
+    grid-template-columns: 1fr;
+  }
+
+  .wire-lane {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .signal-wire {
+    height: 3px;
+  }
+}
+
+@media (max-width: 620px) {
+  .metric-grid,
+  .listener-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vector-diagram {
+    min-height: 280px;
+  }
+}
+/* Additional simulation labs */
+.stacked-toolbar {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.control-group {
+  display: grid;
+  gap: 8px;
+}
+
+.control-label {
+  color: var(--accent-2);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.segmented-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mini-button.is-selected {
+  border-color: var(--accent);
+  background: rgba(242, 140, 40, 0.22);
+  color: var(--ink);
+}
+
+.toggle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: #e6d2b4;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.toggle-chip input {
+  accent-color: var(--accent);
+}
+
+.compact-range {
+  min-width: min(100%, 220px);
+}
+
+.sim-workbench,
+.attribute-board,
+.duration-board,
+.damage-board,
+.pose-query-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.trace-workbench,
+.warp-workbench,
+.pose-query-panel {
+  grid-template-columns: minmax(280px, 1.15fr) minmax(240px, 0.85fr);
+  align-items: stretch;
+}
+
+.trace-scene,
+.warp-scene {
+  width: 100%;
+  min-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0a0907;
+  background-size: 28px 28px;
+}
+
+.trace-ground {
+  stroke: rgba(242, 234, 220, 0.22);
+  stroke-width: 2;
+}
+
+.trace-ray {
+  stroke: var(--accent-2);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.trace-ray.is-wide {
+  stroke-width: 9;
+  opacity: 0.82;
+}
+
+.trace-sweep {
+  fill: rgba(242, 140, 40, 0.13);
+  stroke: rgba(242, 140, 40, 0.52);
+  stroke-width: 2;
+}
+
+.trace-start,
+.trace-arrow,
+.trace-hit-marker circle {
+  fill: var(--accent-2);
+}
+
+.trace-hit-marker circle {
+  opacity: 0.9;
+  transition: r 180ms ease;
+}
+
+.trace-object rect,
+.trace-object circle {
+  fill: #20160f;
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.trace-object text,
+.warp-target text {
+  fill: #d6c4aa;
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.trace-object.is-hit rect,
+.trace-object.is-hit circle {
+  stroke: var(--accent);
+  fill: #2a1d12;
+}
+
+.trace-object.is-blocking rect,
+.trace-object.is-blocking circle {
+  stroke: var(--danger);
+}
+
+.rpc-network-board,
+.replication-board {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) 90px minmax(260px, 1.2fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.client-cluster {
+  display: grid;
+  gap: 12px;
+}
+
+.net-machine,
+.rep-card,
+.attribute-card,
+.process-step,
+.bt-node,
+.pose-card {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.net-machine strong,
+.rep-card strong,
+.attribute-card strong,
+.process-step strong,
+.bt-node strong,
+.pose-card strong {
+  display: block;
+  color: var(--accent);
+}
+
+.net-machine small,
+.rep-card small,
+.attribute-card small,
+.process-step small,
+.bt-node small,
+.pose-card small {
+  display: block;
+  margin-top: 5px;
+  color: #d7c6ad;
+  font-size: 0.9rem;
+}
+
+.net-wire-column,
+.rep-filter-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.net-machine.is-active,
+.rep-card.is-active,
+.process-step.is-active,
+.bt-node.is-active {
+  border-color: var(--accent-2);
+  animation: nodePulse 760ms ease-out;
+}
+
+.net-machine.is-success,
+.rep-card.is-success,
+.attribute-card.is-success,
+.process-step.is-success,
+.bt-node.is-success,
+.pose-card.is-selected {
+  border-color: var(--accent);
+  background: #251a10;
+  box-shadow: 0 0 18px rgba(242, 140, 40, 0.16);
+}
+
+.net-machine.is-failed,
+.process-step.is-failed,
+.bt-node.is-failed,
+.filter-step.is-failed {
+  border-color: var(--danger);
+  background: #251d1c;
+}
+
+.process-step.is-skipped {
+  opacity: 0.48;
+}
+
+.filter-step {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #110d09;
+  color: #d7c6ad;
+  font-size: 0.9rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.filter-step.is-active {
+  border-color: var(--accent-2);
+  background: #2b2519;
+}
+
+.filter-step.is-success {
+  border-color: var(--accent);
+  background: #20160f;
+}
+
+.health-meter {
+  overflow: hidden;
+  height: 12px;
+  margin: 10px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #0a0907;
+}
+
+.health-meter span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--danger), var(--accent-2), var(--accent));
+  transition: width 220ms ease;
+}
+
+.time-meter span {
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+}
+
+.process-track {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.process-step span {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(242, 140, 40, 0.18);
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.attribute-board,
+.duration-board,
+.damage-board {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stack-pips {
+  display: flex;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.stack-pips span {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #0a0907;
+}
+
+.stack-pips span.is-filled {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(242, 140, 40, 0.35);
+}
+
+.bt-tree-board {
+  display: grid;
+  gap: 14px;
+}
+
+.bt-tree-board > .bt-node {
+  width: min(100%, 340px);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.bt-branches {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bt-branch {
+  display: grid;
+  gap: 10px;
+}
+
+.bt-node.decorator {
+  border-style: dashed;
+}
+
+.original-path,
+.warped-path {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.original-path {
+  stroke: rgba(198, 129, 123, 0.48);
+  stroke-dasharray: 8 8;
+}
+
+.warped-path {
+  stroke: var(--accent);
+}
+
+.warp-target path {
+  fill: var(--accent-2);
+  stroke: #0a0907;
+  stroke-width: 2;
+}
+
+.pose-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.pose-card span {
+  display: block;
+  color: #d7c6ad;
+  font-weight: 750;
+}
+
+.pose-card strong {
+  margin-top: 8px;
+  color: var(--accent-2);
+  font-size: 1.45rem;
+}
+
+@media (max-width: 980px) {
+  .trace-workbench,
+  .warp-workbench,
+  .pose-query-panel,
+  .rpc-network-board,
+  .replication-board {
+    grid-template-columns: 1fr;
+  }
+
+  .process-track,
+  .attribute-board,
+  .duration-board,
+  .damage-board,
+  .bt-branches {
+    grid-template-columns: 1fr;
+  }
+
+  .net-wire-column,
+  .rep-filter-stack {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .trace-scene,
+  .warp-scene {
+    min-height: 250px;
+  }
+
+  .net-wire-column,
+  .rep-filter-stack {
+    grid-template-columns: 1fr;
+  }
+}
+/* Pointer learning lab */
+.pointer-choice-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.1fr) minmax(260px, 0.9fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.pointer-stage,
+.pointer-result-card,
+.pointer-code-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.pointer-stage {
+  padding: 12px;
+}
+
+.pointer-scene {
+  width: 100%;
+  min-height: 310px;
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0a0907;
+  background-size: 28px 28px;
+}
+
+.pointer-scene marker path {
+  fill: currentColor;
+}
+
+.pointer-link {
+  fill: none;
+  stroke: rgba(242, 234, 220, 0.24);
+  stroke-width: 5;
+  stroke-linecap: round;
+  marker-end: url(#arrow-pointer);
+  opacity: 0.24;
+  transition: opacity 180ms ease, stroke 180ms ease, stroke-dasharray 180ms ease;
+}
+
+.pointer-lab[data-pointer-mode="strong"] [data-pointer-link="strong"],
+.pointer-lab[data-pointer-mode="weak"] [data-pointer-link="weak"],
+.pointer-lab[data-pointer-mode="soft"] [data-pointer-link="soft"],
+.pointer-lab[data-pointer-mode="class"] [data-pointer-link="class"],
+.pointer-lab[data-pointer-mode="cpp"] [data-pointer-link="cpp"] {
+  opacity: 1;
+  stroke: var(--accent);
+}
+
+.pointer-lab[data-pointer-mode="weak"] [data-pointer-link="weak"],
+.pointer-lab[data-pointer-mode="soft"] [data-pointer-link="soft"] {
+  stroke-dasharray: 9 8;
+}
+
+.pointer-lab[data-pointer-mode="class"] [data-pointer-link="class"] {
+  stroke: var(--accent-2);
+}
+
+.pointer-lab[data-pointer-mode="cpp"] [data-pointer-link="cpp"] {
+  stroke: #d36b5f;
+}
+
+.pointer-node rect {
+  fill: #15100b;
+  stroke: var(--line);
+  stroke-width: 2;
+  transition: fill 180ms ease, stroke 180ms ease, filter 180ms ease;
+}
+
+.pointer-node text {
+  fill: #e4d0b0;
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.pointer-node text:nth-of-type(2) {
+  fill: #b9a489;
+  font-size: 11px;
+}
+
+.pointer-node.is-active rect {
+  fill: #251a10;
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 10px rgba(242, 140, 40, 0.26));
+}
+
+.pointer-result-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.result-kicker {
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pointer-result-card strong {
+  color: var(--accent);
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.15;
+}
+
+.pointer-result-card p {
+  margin: 0;
+}
+
+.pointer-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pointer-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #100d0a;
+  color: #e4d0b0;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.pointer-note-list {
+  margin: 0;
+  padding-left: 19px;
+  color: #e4d0b0;
+}
+
+.pointer-note-list li + li {
+  margin-top: 7px;
+}
+
+.pointer-code-card {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(240px, 0.75fr);
+  gap: 14px;
+  margin-top: 16px;
+  padding: 14px;
+}
+
+.pointer-code-card .code {
+  margin: 8px 0 0;
+  min-height: 150px;
+}
+
+@media (max-width: 980px) {
+  .pointer-choice-grid,
+  .pointer-code-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .pointer-scene {
+    min-height: 240px;
+  }
+}
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#trace-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#collision">Collision</a>
+        <a href="#hit">HitResult</a>
+        <a href="#shape">Shape</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">Collision / Query</p>
+      <h1>트레이스(Trace)</h1>
+      <p class="lead">
+        Trace는 시작점과 끝점 사이를 검사해 어떤 컴포넌트가 충돌 질의에 걸리는지 확인하는 기능입니다.
+        Line Trace는 Raycast에 해당하고, Sphere/Box/Capsule Trace는 부피를 가진 Sweep 질의로 이해하면 됩니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 트레이스(Trace).md</span>
+        <span class="pill">난이도: 기초 Collision Query</span>
+        <span class="pill">핵심: Channel, Object Type, Single/Multi, FHitResult</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="trace-visual" class="panel">
+          <h2>Trace 판정 실험판</h2>
+          <p>
+            Trace는 모양, 필터 방식, 반환 방식의 조합입니다. 아래 실험판에서 Line/Sphere, Single/Multi, Channel/Object 방식을 바꾸면 어떤 객체가 결과 배열에 들어오는지 바로 볼 수 있습니다.
+          </p>
+
+          <div class="interactive-lab trace-sim-lab" data-trace-sim>
+            <div class="lab-toolbar stacked-toolbar">
+              <div class="control-group">
+                <span class="control-label">Shape</span>
+                <div class="segmented-control" role="group" aria-label="Trace shape">
+                  <button type="button" class="mini-button is-selected" data-trace-shape="line">Line</button>
+                  <button type="button" class="mini-button" data-trace-shape="sphere">Sphere</button>
+                  <button type="button" class="mini-button" data-trace-shape="capsule">Capsule</button>
+                </div>
+              </div>
+              <div class="control-group">
+                <span class="control-label">Return</span>
+                <div class="segmented-control" role="group" aria-label="Trace return mode">
+                  <button type="button" class="mini-button is-selected" data-trace-return="single">Single</button>
+                  <button type="button" class="mini-button" data-trace-return="multi">Multi</button>
+                </div>
+              </div>
+              <div class="control-group">
+                <span class="control-label">Filter</span>
+                <div class="segmented-control" role="group" aria-label="Trace filter mode">
+                  <button type="button" class="mini-button is-selected" data-trace-filter="channel">By Channel</button>
+                  <button type="button" class="mini-button" data-trace-filter="object">For Objects</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="sim-workbench trace-workbench">
+              <svg class="trace-scene" viewBox="0 0 560 220" role="img" aria-labelledby="trace-title trace-desc">
+                <title id="trace-title">Trace 결과 시각화</title>
+                <desc id="trace-desc">Trace 시작점에서 끝점까지의 경로와 각 충돌체의 반환 여부를 보여줍니다.</desc>
+                <line class="trace-ground" x1="34" y1="164" x2="526" y2="164"></line>
+                <line class="trace-ray" data-trace-ray x1="54" y1="112" x2="506" y2="112"></line>
+                <path class="trace-sweep" data-trace-sweep d=""></path>
+                <circle class="trace-start" cx="54" cy="112" r="8"></circle>
+                <path class="trace-arrow" d="M506 112 l-14 -8 v16 z"></path>
+                <g class="trace-object" data-trace-object="glass" transform="translate(150 76)">
+                  <rect width="48" height="88" rx="6"></rect>
+                  <text x="24" y="108" text-anchor="middle">Glass</text>
+                </g>
+                <g class="trace-object" data-trace-object="enemy" transform="translate(272 58)">
+                  <circle cx="26" cy="24" r="20"></circle>
+                  <rect x="8" y="47" width="36" height="58" rx="13"></rect>
+                  <text x="26" y="126" text-anchor="middle">Pawn</text>
+                </g>
+                <g class="trace-object" data-trace-object="wall" transform="translate(410 46)">
+                  <rect width="56" height="118" rx="4"></rect>
+                  <text x="28" y="138" text-anchor="middle">Wall</text>
+                </g>
+                <g class="trace-hit-marker" data-trace-marker="glass"><circle cx="174" cy="112" r="0"></circle></g>
+                <g class="trace-hit-marker" data-trace-marker="enemy"><circle cx="298" cy="112" r="0"></circle></g>
+                <g class="trace-hit-marker" data-trace-marker="wall"><circle cx="438" cy="112" r="0"></circle></g>
+              </svg>
+
+              <div class="metric-grid">
+                <div class="metric-card">
+                  <span>현재 노드</span>
+                  <strong data-trace-node>Line Trace by Channel</strong>
+                  <small data-trace-rule>Visibility 채널에 Block하는 첫 객체를 찾습니다.</small>
+                </div>
+                <div class="metric-card">
+                  <span>반환 개수</span>
+                  <strong data-trace-count>1</strong>
+                  <small data-trace-stop>첫 Blocking Hit에서 멈춤</small>
+                </div>
+                <div class="metric-card">
+                  <span>Blocking Hit</span>
+                  <strong data-trace-block>Enemy</strong>
+                  <small>뒤쪽 객체는 Single/Channel 결과에서 보이지 않을 수 있습니다.</small>
+                </div>
+                <div class="metric-card">
+                  <span>FHitResult 감각</span>
+                  <strong data-trace-hit>Impact + Normal</strong>
+                  <small>히트한 표면 위치와 방향을 읽습니다.</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="event-log" data-trace-log>
+              <p>Line + Single + Channel 기준으로 Enemy가 첫 Blocking Hit입니다.</p>
+            </div>
+          </div>
+        </section>
+        <section id="concept" class="panel">
+          <h2>Trace의 세 축</h2>
+          <p>
+            Trace 노드는 보통 <strong>모양</strong>, <strong>필터 방식</strong>, <strong>반환 방식</strong>의 조합으로 이해하면 됩니다.
+            예를 들어 <code>Line Trace by Channel</code>은 선 모양, 채널 필터, 싱글 반환을 사용하는 질의입니다.
+          </p>
+
+          <div class="system-map">
+            <div class="system-node">
+              <h3>모양</h3>
+              <p>Line, Sphere, Box, Capsule처럼 검사할 형태입니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>필터</h3>
+              <p>Trace Channel, Object Type, Collision Profile 중 무엇으로 대상을 고를지 정합니다.</p>
+            </div>
+            <div class="system-node">
+              <h3>반환</h3>
+              <p>처음 막힌 결과만 받을지, 경로상 여러 결과를 받을지 정합니다.</p>
+            </div>
+          </div>
+
+          <div class="diagram" aria-label="Trace 질의 처리 흐름">
+            <p class="diagram-title">시각화 요약: Trace 질의가 결과로 바뀌는 과정</p>
+            <div class="node-chain">
+              <div class="v-node">
+                <strong>Trace Request</strong>
+                <span>시작점, 끝점, 무시할 Actor, 디버그 표시 여부를 정합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Shape</strong>
+                <span>Line, Sphere, Box, Capsule 중 검사할 공간 형태를 고릅니다.</span>
+              </div>
+              <div class="v-node highlight">
+                <strong>Filter</strong>
+                <span>Channel, Object Type, Profile 중 어떤 규칙으로 대상을 걸러낼지 정합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>Single / Multi</strong>
+                <span>첫 blocking hit만 볼지, 경로상의 여러 결과를 받을지 선택합니다.</span>
+              </div>
+              <div class="v-node">
+                <strong>FHitResult</strong>
+                <span>Actor, Component, Impact Point, Normal, Face Index 같은 정보를 해석합니다.</span>
+              </div>
+            </div>
+          </div>
+
+          <figure class="figure">
+            <img src="../IMG/LineTracemark.png" alt="Trace 종류와 범위 정리" loading="lazy">
+            <figcaption>원본 노트의 Trace 분류 이미지입니다. 실제 노드 이름은 모양, 필터, 싱글/멀티 조합으로 결정됩니다.</figcaption>
+          </figure>
+        </section>
+
+        <section id="collision" class="panel">
+          <h2>Channel과 Object Type</h2>
+          <p>
+            Channel Trace는 "이 Trace Channel을 Block/Overlap/Ignore 하는가"를 보고, Object Trace는 "대상의 Object Type이 요청한 배열에 포함되는가"를 봅니다.
+            따라서 같은 Line Trace라도 By Channel과 For Objects는 실패 원인이 다릅니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>구분</th>
+                  <th>질문</th>
+                  <th>대표 사용</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Trace Channel</td>
+                  <td>대상이 이 채널을 Block 또는 Overlap 하는가?</td>
+                  <td>Visibility, Camera, WeaponTrace 같은 질의 채널</td>
+                </tr>
+                <tr>
+                  <td>Object Type</td>
+                  <td>대상의 Object Type이 내가 찾는 목록에 포함되는가?</td>
+                  <td>Pawn만 찾기, WorldDynamic만 찾기, PhysicsBody만 찾기</td>
+                </tr>
+                <tr>
+                  <td>Profile</td>
+                  <td>미리 정의된 Collision Profile 기준으로 검사할 것인가?</td>
+                  <td>프로젝트 규칙을 이름으로 재사용해야 할 때</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <figure class="figure">
+            <img src="../IMG/Pasted image 20241217154000.png" alt="Collision 설정 패널" loading="lazy">
+            <figcaption>Trace가 맞으려면 대상 컴포넌트의 Collision Enabled, Object Type, Response 설정이 질의와 맞아야 합니다.</figcaption>
+          </figure>
+
+          <div class="callout">
+            <p class="callout-title">Collision Enabled</p>
+            <p>
+              Trace는 물리 시뮬레이션이 아니라 Query입니다.
+              물리 충돌은 필요 없고 Trace만 필요하면 <code>Query Only</code>가 적합하며, 물리만 필요하고 Trace에 잡히면 안 되면 <code>Physics Only</code>를 검토합니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Single과 Multi</h2>
+          <p>
+            Single Trace는 조건에 맞는 첫 Blocking Hit를 반환합니다.
+            Multi Trace는 경로상 여러 결과를 반환하지만, Channel 기반 Multi Trace는 첫 Blocking Hit까지의 Overlap을 포함하고 그 Blocking Hit가 마지막에 옵니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>노드 성격</th>
+                  <th>반환 기준</th>
+                  <th>주의점</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Single by Channel</td>
+                  <td>해당 Channel을 Block하는 첫 결과</td>
+                  <td>Overlap만 있는 대상은 목적에 따라 결과가 다르게 느껴질 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td>Multi by Channel</td>
+                  <td>첫 Blocking Hit까지의 결과</td>
+                  <td>Blocking Hit 뒤에 있는 객체는 반환하지 않습니다.</td>
+                </tr>
+                <tr>
+                  <td>Single for Objects</td>
+                  <td>Object Type 배열에 포함되는 첫 결과</td>
+                  <td>대상의 Object Type이 맞지 않으면 Response가 맞아도 잡히지 않습니다.</td>
+                </tr>
+                <tr>
+                  <td>Multi for Objects</td>
+                  <td>지정 Object Type에 해당하는 여러 결과</td>
+                  <td>반환 배열은 시작점에서 끝점 방향으로 정렬된다고 보는 편이 좋습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="hit" class="panel">
+          <h2>FHitResult 읽기</h2>
+          <p>
+            Trace가 무언가를 감지하면 <code>FHitResult</code>를 반환합니다.
+            5.7 API 기준으로 <code>FHitResult</code>는 Trace 한 번의 충돌 정보, 예를 들어 Impact 지점과 표면 Normal을 담는 구조체입니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>멤버</th>
+                  <th>의미</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>bBlockingHit</code></td>
+                  <td>Blocking Collision 결과인지 여부입니다.</td>
+                </tr>
+                <tr>
+                  <td><code>bStartPenetrating</code></td>
+                  <td>Trace가 시작 시점부터 이미 겹침 또는 침투 상태였는지 나타냅니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Time</code></td>
+                  <td>TraceStart에서 TraceEnd까지의 진행 비율입니다. 일반적으로 0.0부터 1.0 범위입니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Distance</code></td>
+                  <td>TraceStart에서 Location까지의 월드 거리입니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Location</code></td>
+                  <td>Trace 모양을 고려한 히트 위치입니다. Sweep에서는 Impact Point와 다를 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>ImpactPoint</code></td>
+                  <td>실제 표면에 닿은 지점입니다.</td>
+                </tr>
+                <tr>
+                  <td><code>Normal</code></td>
+                  <td>Sweep된 객체 기준의 월드 노멀입니다. Line Trace에서는 Impact Normal과 같은 경우가 많습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>ImpactNormal</code></td>
+                  <td>맞은 표면의 월드 노멀입니다.</td>
+                </tr>
+                <tr>
+                  <td><code>GetActor()</code> / <code>GetComponent()</code></td>
+                  <td>히트된 컴포넌트와 그 소유 Actor를 얻는 유틸리티 함수입니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">원본 내용의 교정</p>
+            <p>
+              원본 표의 <code>Normal</code> 설명은 "트레이스 방향"에 가깝게 적혀 있었지만, 공식 API 기준으로는 히트의 월드 노멀입니다.
+              표면 방향이 필요할 때는 <code>ImpactNormal</code>을 우선 확인하고, Sweep 결과에서는 <code>Location</code>과 <code>ImpactPoint</code> 차이를 구분합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="shape" class="panel">
+          <h2>Shape Trace와 UV</h2>
+          <p>
+            Line Trace가 얇은 광선이라면 Shape Trace는 부피를 가진 모양을 Start에서 End까지 Sweep합니다.
+            근접 공격 판정, 캐릭터 발밑 검사, 넓은 상호작용 범위처럼 선 하나로 부족한 경우 Sphere, Capsule, Box Trace를 사용합니다.
+          </p>
+
+          <figure class="figure">
+            <img src="../IMG/Pasted image 20241216095442.png" alt="Shape Trace 예시" loading="lazy">
+            <figcaption>Shape Trace는 모양의 크기와 방향 정보를 함께 설정해야 합니다.</figcaption>
+          </figure>
+
+          <div class="callout">
+            <p class="callout-title">UV 좌표 얻기</p>
+            <p>
+              Hit Result에서 UV를 얻으려면 Project Settings의 Physics 섹션에서 <code>Support UV From Hit Result</code>를 활성화하고 에디터를 재시작합니다.
+              보통 복잡 충돌이나 메시 면 정보가 필요한 작업이므로, 성능과 충돌 설정을 함께 확인해야 합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. Channel Trace와 Object Trace의 핵심 차이는?</strong>
+            <p class="answer">Channel Trace는 대상이 특정 Trace Channel에 어떻게 응답하는지 보고, Object Trace는 대상의 Object Type이 요청 목록에 포함되는지 봅니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. Multi by Channel에서 Blocking Hit 뒤의 객체가 반환되지 않는 이유는?</strong>
+            <p class="answer">첫 Blocking Hit가 Trace를 막는 지점이므로, 그 뒤의 결과는 해당 Trace의 유효 경로 밖으로 취급됩니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. <code>ImpactPoint</code>와 <code>Location</code>이 달라질 수 있는 대표 상황은?</strong>
+            <p class="answer">Sphere, Capsule, Box처럼 부피를 가진 Sweep Trace에서 모양의 중심 위치와 실제 표면 접촉점이 다를 수 있습니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-a-single-line-trace-raycast-by-object-in-unreal-engine?application_version=5.7">Using a Single Line Trace by Object</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/BlueprintAPI/Collision/LineTraceByProfile">Blueprint API: Line Trace By Profile</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/Engine/FHitResult">UE 5.7 API: FHitResult</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/collision-settings-in-the-unreal-engine-project-settings">Collision Settings</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#trace-visual">시각화</a>
+        <a href="#concept">Trace 구조</a>
+        <a href="#collision">Channel / Object</a>
+        <a href="#hit">FHitResult</a>
+        <a href="#shape">Shape Trace</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-trace-sim]');
+      if (!lab) return;
+      const state = { shape: 'line', returnMode: 'single', filter: 'channel' };
+      const objects = [
+        { id: 'glass', label: 'Glass', objectType: 'WorldDynamic', channel: 'Overlap' },
+        { id: 'enemy', label: 'Enemy', objectType: 'Pawn', channel: 'Block' },
+        { id: 'wall', label: 'Wall', objectType: 'WorldStatic', channel: 'Block' }
+      ];
+      const shapeButtons = lab.querySelectorAll('[data-trace-shape]');
+      const returnButtons = lab.querySelectorAll('[data-trace-return]');
+      const filterButtons = lab.querySelectorAll('[data-trace-filter]');
+      const sweep = lab.querySelector('[data-trace-sweep]');
+      const ray = lab.querySelector('[data-trace-ray]');
+      const node = lab.querySelector('[data-trace-node]');
+      const rule = lab.querySelector('[data-trace-rule]');
+      const count = lab.querySelector('[data-trace-count]');
+      const stop = lab.querySelector('[data-trace-stop]');
+      const block = lab.querySelector('[data-trace-block]');
+      const hit = lab.querySelector('[data-trace-hit]');
+      const log = lab.querySelector('[data-trace-log]');
+
+      function chooseHits() {
+        if (state.filter === 'object') {
+          const matches = objects.filter((object) => object.objectType === 'Pawn' || object.objectType === 'WorldDynamic');
+          return state.returnMode === 'single' ? matches.slice(0, 1) : matches;
+        }
+        if (state.returnMode === 'single') return objects.filter((object) => object.channel === 'Block').slice(0, 1);
+        const firstBlockIndex = objects.findIndex((object) => object.channel === 'Block');
+        return objects.slice(0, firstBlockIndex + 1);
+      }
+
+      function updateButtonState(buttons, attr, value) {
+        buttons.forEach((button) => button.classList.toggle('is-selected', button.dataset[attr] === value));
+      }
+
+      function update() {
+        const hits = chooseHits();
+        const hitIds = new Set(hits.map((object) => object.id));
+        const blockingHit = hits.find((object) => object.channel === 'Block') || null;
+        const shapeName = state.shape[0].toUpperCase() + state.shape.slice(1);
+        const filterName = state.filter === 'channel' ? 'by Channel' : 'for Objects';
+        node.textContent = `${shapeName} Trace ${filterName}`;
+        count.textContent = String(hits.length);
+        block.textContent = blockingHit ? blockingHit.label : '없음';
+        stop.textContent = state.filter === 'channel' && blockingHit ? '첫 Blocking Hit에서 경로 차단' : '필터에 맞는 객체를 계속 수집';
+        rule.textContent = state.filter === 'channel' ? 'Visibility 채널 응답이 Overlap/Block인 객체를 평가합니다.' : 'Object Type이 Pawn 또는 WorldDynamic인 객체만 후보입니다.';
+        hit.textContent = state.shape === 'line' ? 'ImpactPoint = Location' : 'Location != ImpactPoint 가능';
+        ray.classList.toggle('is-wide', state.shape !== 'line');
+        if (state.shape === 'line') sweep.setAttribute('d', '');
+        if (state.shape === 'sphere') sweep.setAttribute('d', 'M54,88 L506,88 L506,136 L54,136 Z');
+        if (state.shape === 'capsule') sweep.setAttribute('d', 'M54,82 L506,82 A30,30 0 0 1 506,142 L54,142 A30,30 0 0 1 54,82 Z');
+        objects.forEach((object) => {
+          const element = lab.querySelector(`[data-trace-object="${object.id}"]`);
+          const marker = lab.querySelector(`[data-trace-marker="${object.id}"] circle`);
+          element.classList.toggle('is-hit', hitIds.has(object.id));
+          element.classList.toggle('is-blocking', hitIds.has(object.id) && object.channel === 'Block');
+          marker.setAttribute('r', hitIds.has(object.id) ? '9' : '0');
+        });
+        const lines = hits.length ? hits.map((object, index) => `${index + 1}. ${object.label}: ${state.filter === 'channel' ? object.channel : object.objectType}`) : ['결과 없음: 필터 조건을 만족하는 객체가 없습니다.'];
+        log.innerHTML = lines.map((line) => `<p>${line}</p>`).join('');
+      }
+
+      shapeButtons.forEach((button) => button.addEventListener('click', () => { state.shape = button.dataset.traceShape; updateButtonState(shapeButtons, 'traceShape', state.shape); update(); }));
+      returnButtons.forEach((button) => button.addEventListener('click', () => { state.returnMode = button.dataset.traceReturn; updateButtonState(returnButtons, 'traceReturn', state.returnMode); update(); }));
+      filterButtons.forEach((button) => button.addEventListener('click', () => { state.filter = button.dataset.traceFilter; updateButtonState(filterButtons, 'traceFilter', state.filter); update(); }));
+      update();
+    })();
+  </script>
+</body>
+</html>
+

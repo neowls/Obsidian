@@ -1,0 +1,2164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>델리게이트(Delegate)</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --bg: #0b0b09;
+  --surface: #15120e;
+  --surface-soft: #211a12;
+  --ink: #f2eadc;
+  --muted: #a79a86;
+  --line: #3a2a19;
+  --accent: #f28c28;
+  --accent-2: #ffb454;
+  --accent-3: #8faa67;
+  --danger: #d36b5f;
+  --code-bg: #070705;
+  --code-ink: #f3d7a4;
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    linear-gradient(180deg, rgba(242, 140, 40, 0.09), transparent 330px),
+    var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  line-height: 1.65;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.site-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgba(11, 11, 9, 0.94);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  gap: 20px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #0b0b09;
+  font-size: 0.85rem;
+}
+
+.topbar nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: flex-end;
+  font-size: 0.92rem;
+}
+
+.hero {
+  padding: 58px 0 34px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent-2);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+h1 {
+  max-width: 860px;
+  margin: 0;
+  font-size: clamp(2.25rem, 5vw, 4.4rem);
+}
+
+.lead {
+  max-width: 820px;
+  margin: 20px 0 0;
+  color: #d8cab6;
+  font-size: 1.13rem;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.stat-card {
+  min-height: 118px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.stat-card strong {
+  display: block;
+  color: var(--accent-2);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  line-height: 1.05;
+}
+
+.stat-card span {
+  display: block;
+  margin-top: 8px;
+  color: #d4c0a2;
+}
+
+.path-list {
+  display: grid;
+  gap: 12px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.path-list li {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.path-list a {
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.path-list small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.doc-finder {
+  margin-bottom: 22px;
+}
+
+.finder-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.search-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #100d0a;
+  color: var(--ink);
+  font: inherit;
+}
+
+.search-input:focus {
+  outline: 2px solid rgba(242, 140, 40, 0.42);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.filter-button {
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: #e6d2b4;
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.filter-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgba(242, 140, 40, 0.18);
+  color: var(--ink);
+}
+
+.doc-count {
+  color: var(--muted);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.no-results {
+  margin-top: 14px;
+  color: var(--danger);
+}
+
+.visual-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.diagram {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #14100c;
+}
+
+.diagram-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.node-chain {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.node-chain.wide {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+}
+
+.v-node {
+  position: relative;
+  min-width: 0;
+  min-height: 116px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.v-node::after {
+  display: none;
+}
+
+.v-node:last-child::after {
+  display: none;
+}
+
+.v-node strong {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--accent);
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.v-node span {
+  display: block;
+  color: #d7c6ad;
+  font-size: 0.92rem;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.v-node.highlight {
+  border-color: #8a5524;
+  background: #251a10;
+}
+
+.v-node.warning {
+  border-color: #6f2f24;
+  background: #24150f;
+}
+
+.concept-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}
+
+.concept-map .v-node {
+  min-height: 132px;
+}
+
+.concept-map .v-node::after {
+  display: none;
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #ddc9aa;
+  font-size: 0.86rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(21, 18, 14, 0.76);
+  color: #e2cfb2;
+  font-size: 0.92rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 30px;
+  align-items: start;
+  padding-bottom: 72px;
+}
+
+.content {
+  display: grid;
+  gap: 22px;
+}
+
+.toc {
+  position: sticky;
+  top: 78px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(21, 18, 14, 0.86);
+  box-shadow: var(--shadow);
+}
+
+.toc-title {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.toc a {
+  display: block;
+  padding: 7px 0;
+  color: #dccab0;
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+
+.toc a:hover {
+  color: var(--accent);
+}
+
+.panel,
+.callout,
+.study-card,
+.quiz {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  padding: clamp(22px, 4vw, 34px);
+}
+
+.panel h2,
+.panel h3 {
+  margin-top: 0;
+}
+
+.panel h2 {
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+}
+
+.panel p:last-child,
+.panel ul:last-child,
+.panel ol:last-child {
+  margin-bottom: 0;
+}
+
+.callout {
+  padding: 18px 20px;
+  border-left: 5px solid var(--accent);
+  background: #17110c;
+}
+
+.callout.warning {
+  border-left-color: var(--danger);
+  background: #24150f;
+}
+
+.callout-title {
+  margin: 0 0 6px;
+  font-weight: 800;
+}
+
+.term-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.study-card {
+  padding: 18px;
+  box-shadow: none;
+}
+
+.study-card h3 {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 1.04rem;
+}
+
+.study-card p {
+  margin: 0;
+  color: #d6c4aa;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.flow-step {
+  position: relative;
+  min-width: 0;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.flow-step:not(:last-child)::after {
+  display: none;
+}
+
+.flow-kicker {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.flow-step strong {
+  display: block;
+  margin-bottom: 6px;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.flow-step span:last-child {
+  display: block;
+  color: #d3c0a5;
+  font-size: 0.93rem;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.system-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.system-node {
+  min-width: 0;
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.system-node.core {
+  grid-column: 1 / -1;
+  min-height: 120px;
+  background: #251a10;
+  border-color: #6f4c22;
+}
+
+.system-node h3 {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 1.08rem;
+}
+
+.system-node p {
+  margin: 0;
+  color: #d6c4aa;
+}
+
+.relation-list {
+  display: grid;
+  gap: 10px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.relation-list li {
+  padding: 12px 14px;
+  border-left: 4px solid var(--accent-3);
+  border-radius: 6px;
+  background: #1a130c;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.figure {
+  margin: 22px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #15100b;
+}
+
+.figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.figure figcaption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.matrix {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.matrix th,
+.matrix td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.matrix th {
+  background: var(--surface-soft);
+  color: #f2eadc;
+  font-weight: 800;
+}
+
+.matrix tr:last-child td {
+  border-bottom: 0;
+}
+
+.checklist {
+  padding-left: 1.2rem;
+}
+
+.checklist li {
+  margin: 10px 0;
+}
+
+.code {
+  overflow-x: auto;
+  padding: 18px;
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+code {
+  padding: 0.12em 0.32em;
+  border-radius: 4px;
+  background: rgba(242, 140, 40, 0.14);
+  color: #ffca7a;
+  font-family: Consolas, "Cascadia Code", monospace;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.code code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.quiz {
+  padding: 18px;
+  box-shadow: none;
+}
+
+.quiz strong {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.answer {
+  margin-top: 10px;
+  color: #c9b79b;
+  font-size: 0.94rem;
+}
+
+.source-list {
+  padding-left: 1.15rem;
+}
+
+.footer {
+  padding: 30px 0 46px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.index-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.index-list a {
+  display: block;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.index-list a:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .toc {
+    position: static;
+    order: -1;
+  }
+
+  .flow {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-step:not(:last-child)::after {
+    top: auto;
+    right: 50%;
+    bottom: -12px;
+    transform: translateX(50%) rotate(135deg);
+  }
+
+  .term-grid,
+  .overview-grid,
+  .finder-toolbar,
+  .node-chain,
+  .node-chain.wide,
+  .concept-map,
+  .system-map,
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .v-node::after {
+    top: auto;
+    right: 50%;
+    bottom: -12px;
+    transform: translateX(50%) rotate(135deg);
+  }
+
+  .system-node.core {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .site-shell {
+    width: min(100% - 24px, 1180px);
+  }
+
+  .topbar-inner {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 12px 0;
+  }
+
+  .hero {
+    padding-top: 38px;
+  }
+}
+
+@media print {
+  .topbar,
+  .toc {
+    display: none;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .site-shell {
+    width: 100%;
+  }
+
+  .layout {
+    display: block;
+  }
+
+  .panel,
+  .callout,
+  .study-card,
+  .quiz {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+
+/* Interactive learning labs */
+.interactive-lab {
+  margin-top: 22px;
+  padding: clamp(16px, 3vw, 22px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #14100c;
+}
+
+.lab-toolbar,
+.broadcast-controls,
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.lab-toolbar {
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.range-field {
+  display: grid;
+  min-width: min(100%, 340px);
+  gap: 8px;
+}
+
+.range-field label {
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.range-field input[type="range"] {
+  width: min(100%, 420px);
+  accent-color: var(--accent);
+}
+
+.primary-button,
+.mini-button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.primary-button {
+  padding: 8px 16px;
+  border-color: rgba(192, 163, 106, 0.72);
+  background: #4a2b12;
+}
+
+.primary-button:hover,
+.primary-button:focus-visible {
+  border-color: var(--accent-2);
+  background: #5a3518;
+}
+
+.mini-button {
+  padding: 7px 11px;
+  background: var(--surface-soft);
+}
+
+.mini-button:hover,
+.mini-button:focus-visible {
+  border-color: var(--accent);
+  background: #2b1d12;
+}
+
+.vector-workbench {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.15fr) minmax(240px, 0.85fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.vector-diagram {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0a0907;
+  background-size: 26px 26px;
+}
+
+.axis-line {
+  stroke: rgba(242, 234, 220, 0.28);
+  stroke-width: 1.2;
+}
+
+.svg-label {
+  fill: #c9b79b;
+  font-size: 8px;
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+}
+
+.vector-name {
+  fill: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.vector-line {
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.vector-forward {
+  stroke: var(--accent-2);
+}
+
+.vector-target {
+  stroke: var(--accent);
+}
+
+#arrow-forward path {
+  fill: var(--accent-2);
+}
+
+#arrow-target path {
+  fill: var(--accent);
+}
+
+.origin-dot {
+  fill: var(--ink);
+}
+
+.target-dot {
+  fill: #ffe2a3;
+  stroke: #0a0907;
+  stroke-width: 2;
+}
+
+.projection-line {
+  stroke: var(--danger);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}
+
+.parallelogram-shape {
+  fill: rgba(242, 140, 40, 0.12);
+  stroke: rgba(242, 140, 40, 0.48);
+  stroke-width: 1.4;
+}
+
+.angle-arc {
+  fill: none;
+  stroke: #ffb454;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  min-height: 128px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.metric-card span,
+.metric-card small {
+  display: block;
+  color: var(--muted);
+}
+
+.metric-card strong {
+  display: block;
+  margin: 8px 0 6px;
+  color: var(--accent-2);
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  line-height: 1;
+}
+
+.delegate-lab {
+  display: grid;
+  gap: 16px;
+}
+
+.delegate-board {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.8fr) 74px minmax(190px, 1fr) minmax(260px, 1.25fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.delegate-node,
+.listener-node {
+  min-width: 0;
+  min-height: 124px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  text-align: left;
+}
+
+.delegate-node strong,
+.listener-node strong {
+  display: block;
+  margin: 4px 0 7px;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.delegate-node small,
+.listener-node small {
+  display: block;
+  color: #d7c6ad;
+  font-size: 0.9rem;
+}
+
+.node-kicker {
+  color: var(--accent-2);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.delegate-source {
+  border-color: rgba(192, 163, 106, 0.45);
+}
+
+.delegate-bus {
+  border-color: rgba(242, 140, 40, 0.52);
+  background: #18221f;
+}
+
+.wire-lane {
+  display: grid;
+  gap: 10px;
+}
+
+.signal-wire {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(192, 163, 106, 0.22), rgba(242, 140, 40, 0.72), rgba(192, 163, 106, 0.22));
+  opacity: 0.35;
+  transform-origin: left center;
+}
+
+.listener-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.listener-node {
+  position: relative;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.listener-node[aria-pressed="true"] {
+  border-color: rgba(242, 140, 40, 0.72);
+  background: #251a10;
+}
+
+.listener-node[aria-pressed="false"] {
+  opacity: 0.58;
+}
+
+.status-dot {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--danger);
+  box-shadow: 0 0 0 3px rgba(198, 129, 123, 0.14);
+}
+
+.listener-node[aria-pressed="true"] .status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(242, 140, 40, 0.16);
+}
+
+.event-log {
+  min-height: 74px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a0907;
+  color: #d7c6ad;
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: 0.9rem;
+}
+
+.event-log p {
+  margin: 0;
+}
+
+.event-log p + p {
+  margin-top: 6px;
+}
+
+.is-broadcasting {
+  animation: nodePulse 760ms ease-out;
+}
+
+.signal-wire.is-signal {
+  animation: signalSweep 900ms ease-out;
+}
+
+.listener-node.is-flashing {
+  animation: listenerFlash 920ms ease-out;
+}
+
+.listener-node.is-skipped {
+  border-color: rgba(198, 129, 123, 0.42);
+}
+
+@keyframes nodePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(192, 163, 106, 0.42);
+    transform: translateY(0);
+  }
+  45% {
+    box-shadow: 0 0 0 12px rgba(192, 163, 106, 0);
+    transform: translateY(-2px);
+  }
+  100% {
+    box-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+@keyframes signalSweep {
+  0% {
+    opacity: 0.25;
+    transform: scaleX(0.15);
+  }
+  55% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes listenerFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(242, 140, 40, 0.55);
+    transform: translateY(0);
+  }
+  38% {
+    border-color: var(--accent-2);
+    background: #322111;
+    box-shadow: 0 0 22px rgba(192, 163, 106, 0.44);
+    transform: translateY(-3px);
+  }
+  100% {
+    box-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 980px) {
+  .vector-workbench,
+  .delegate-board {
+    grid-template-columns: 1fr;
+  }
+
+  .wire-lane {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .signal-wire {
+    height: 3px;
+  }
+}
+
+@media (max-width: 620px) {
+  .metric-grid,
+  .listener-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vector-diagram {
+    min-height: 280px;
+  }
+}
+/* Additional simulation labs */
+.stacked-toolbar {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.control-group {
+  display: grid;
+  gap: 8px;
+}
+
+.control-label {
+  color: var(--accent-2);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.segmented-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mini-button.is-selected {
+  border-color: var(--accent);
+  background: rgba(242, 140, 40, 0.22);
+  color: var(--ink);
+}
+
+.toggle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: #e6d2b4;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.toggle-chip input {
+  accent-color: var(--accent);
+}
+
+.compact-range {
+  min-width: min(100%, 220px);
+}
+
+.sim-workbench,
+.attribute-board,
+.duration-board,
+.damage-board,
+.pose-query-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.trace-workbench,
+.warp-workbench,
+.pose-query-panel {
+  grid-template-columns: minmax(280px, 1.15fr) minmax(240px, 0.85fr);
+  align-items: stretch;
+}
+
+.trace-scene,
+.warp-scene {
+  width: 100%;
+  min-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0a0907;
+  background-size: 28px 28px;
+}
+
+.trace-ground {
+  stroke: rgba(242, 234, 220, 0.22);
+  stroke-width: 2;
+}
+
+.trace-ray {
+  stroke: var(--accent-2);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.trace-ray.is-wide {
+  stroke-width: 9;
+  opacity: 0.82;
+}
+
+.trace-sweep {
+  fill: rgba(242, 140, 40, 0.13);
+  stroke: rgba(242, 140, 40, 0.52);
+  stroke-width: 2;
+}
+
+.trace-start,
+.trace-arrow,
+.trace-hit-marker circle {
+  fill: var(--accent-2);
+}
+
+.trace-hit-marker circle {
+  opacity: 0.9;
+  transition: r 180ms ease;
+}
+
+.trace-object rect,
+.trace-object circle {
+  fill: #20160f;
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.trace-object text,
+.warp-target text {
+  fill: #d6c4aa;
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.trace-object.is-hit rect,
+.trace-object.is-hit circle {
+  stroke: var(--accent);
+  fill: #2a1d12;
+}
+
+.trace-object.is-blocking rect,
+.trace-object.is-blocking circle {
+  stroke: var(--danger);
+}
+
+.rpc-network-board,
+.replication-board {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) 90px minmax(260px, 1.2fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.client-cluster {
+  display: grid;
+  gap: 12px;
+}
+
+.net-machine,
+.rep-card,
+.attribute-card,
+.process-step,
+.bt-node,
+.pose-card {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.net-machine strong,
+.rep-card strong,
+.attribute-card strong,
+.process-step strong,
+.bt-node strong,
+.pose-card strong {
+  display: block;
+  color: var(--accent);
+}
+
+.net-machine small,
+.rep-card small,
+.attribute-card small,
+.process-step small,
+.bt-node small,
+.pose-card small {
+  display: block;
+  margin-top: 5px;
+  color: #d7c6ad;
+  font-size: 0.9rem;
+}
+
+.net-wire-column,
+.rep-filter-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.net-machine.is-active,
+.rep-card.is-active,
+.process-step.is-active,
+.bt-node.is-active {
+  border-color: var(--accent-2);
+  animation: nodePulse 760ms ease-out;
+}
+
+.net-machine.is-success,
+.rep-card.is-success,
+.attribute-card.is-success,
+.process-step.is-success,
+.bt-node.is-success,
+.pose-card.is-selected {
+  border-color: var(--accent);
+  background: #251a10;
+  box-shadow: 0 0 18px rgba(242, 140, 40, 0.16);
+}
+
+.net-machine.is-failed,
+.process-step.is-failed,
+.bt-node.is-failed,
+.filter-step.is-failed {
+  border-color: var(--danger);
+  background: #251d1c;
+}
+
+.process-step.is-skipped {
+  opacity: 0.48;
+}
+
+.filter-step {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #110d09;
+  color: #d7c6ad;
+  font-size: 0.9rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.filter-step.is-active {
+  border-color: var(--accent-2);
+  background: #2b2519;
+}
+
+.filter-step.is-success {
+  border-color: var(--accent);
+  background: #20160f;
+}
+
+.health-meter {
+  overflow: hidden;
+  height: 12px;
+  margin: 10px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #0a0907;
+}
+
+.health-meter span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--danger), var(--accent-2), var(--accent));
+  transition: width 220ms ease;
+}
+
+.time-meter span {
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+}
+
+.process-track {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.process-step span {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(242, 140, 40, 0.18);
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+.attribute-board,
+.duration-board,
+.damage-board {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stack-pips {
+  display: flex;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.stack-pips span {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #0a0907;
+}
+
+.stack-pips span.is-filled {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(242, 140, 40, 0.35);
+}
+
+.bt-tree-board {
+  display: grid;
+  gap: 14px;
+}
+
+.bt-tree-board > .bt-node {
+  width: min(100%, 340px);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.bt-branches {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bt-branch {
+  display: grid;
+  gap: 10px;
+}
+
+.bt-node.decorator {
+  border-style: dashed;
+}
+
+.original-path,
+.warped-path {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.original-path {
+  stroke: rgba(198, 129, 123, 0.48);
+  stroke-dasharray: 8 8;
+}
+
+.warped-path {
+  stroke: var(--accent);
+}
+
+.warp-target path {
+  fill: var(--accent-2);
+  stroke: #0a0907;
+  stroke-width: 2;
+}
+
+.pose-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.pose-card span {
+  display: block;
+  color: #d7c6ad;
+  font-weight: 750;
+}
+
+.pose-card strong {
+  margin-top: 8px;
+  color: var(--accent-2);
+  font-size: 1.45rem;
+}
+
+@media (max-width: 980px) {
+  .trace-workbench,
+  .warp-workbench,
+  .pose-query-panel,
+  .rpc-network-board,
+  .replication-board {
+    grid-template-columns: 1fr;
+  }
+
+  .process-track,
+  .attribute-board,
+  .duration-board,
+  .damage-board,
+  .bt-branches {
+    grid-template-columns: 1fr;
+  }
+
+  .net-wire-column,
+  .rep-filter-stack {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .trace-scene,
+  .warp-scene {
+    min-height: 250px;
+  }
+
+  .net-wire-column,
+  .rep-filter-stack {
+    grid-template-columns: 1fr;
+  }
+}
+/* Pointer learning lab */
+.pointer-choice-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.1fr) minmax(260px, 0.9fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.pointer-stage,
+.pointer-result-card,
+.pointer-code-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.pointer-stage {
+  padding: 12px;
+}
+
+.pointer-scene {
+  width: 100%;
+  min-height: 310px;
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0a0907;
+  background-size: 28px 28px;
+}
+
+.pointer-scene marker path {
+  fill: currentColor;
+}
+
+.pointer-link {
+  fill: none;
+  stroke: rgba(242, 234, 220, 0.24);
+  stroke-width: 5;
+  stroke-linecap: round;
+  marker-end: url(#arrow-pointer);
+  opacity: 0.24;
+  transition: opacity 180ms ease, stroke 180ms ease, stroke-dasharray 180ms ease;
+}
+
+.pointer-lab[data-pointer-mode="strong"] [data-pointer-link="strong"],
+.pointer-lab[data-pointer-mode="weak"] [data-pointer-link="weak"],
+.pointer-lab[data-pointer-mode="soft"] [data-pointer-link="soft"],
+.pointer-lab[data-pointer-mode="class"] [data-pointer-link="class"],
+.pointer-lab[data-pointer-mode="cpp"] [data-pointer-link="cpp"] {
+  opacity: 1;
+  stroke: var(--accent);
+}
+
+.pointer-lab[data-pointer-mode="weak"] [data-pointer-link="weak"],
+.pointer-lab[data-pointer-mode="soft"] [data-pointer-link="soft"] {
+  stroke-dasharray: 9 8;
+}
+
+.pointer-lab[data-pointer-mode="class"] [data-pointer-link="class"] {
+  stroke: var(--accent-2);
+}
+
+.pointer-lab[data-pointer-mode="cpp"] [data-pointer-link="cpp"] {
+  stroke: #d36b5f;
+}
+
+.pointer-node rect {
+  fill: #15100b;
+  stroke: var(--line);
+  stroke-width: 2;
+  transition: fill 180ms ease, stroke 180ms ease, filter 180ms ease;
+}
+
+.pointer-node text {
+  fill: #e4d0b0;
+  font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.pointer-node text:nth-of-type(2) {
+  fill: #b9a489;
+  font-size: 11px;
+}
+
+.pointer-node.is-active rect {
+  fill: #251a10;
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 10px rgba(242, 140, 40, 0.26));
+}
+
+.pointer-result-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.result-kicker {
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pointer-result-card strong {
+  color: var(--accent);
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.15;
+}
+
+.pointer-result-card p {
+  margin: 0;
+}
+
+.pointer-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pointer-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #100d0a;
+  color: #e4d0b0;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.pointer-note-list {
+  margin: 0;
+  padding-left: 19px;
+  color: #e4d0b0;
+}
+
+.pointer-note-list li + li {
+  margin-top: 7px;
+}
+
+.pointer-code-card {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(240px, 0.75fr);
+  gap: 14px;
+  margin-top: 16px;
+  padding: 14px;
+}
+
+.pointer-code-card .code {
+  margin: 8px 0 0;
+  min-height: 150px;
+}
+
+@media (max-width: 980px) {
+  .pointer-choice-grid,
+  .pointer-code-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .pointer-scene {
+    min-height: 240px;
+  }
+}
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="site-shell topbar-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">UE</span><span>언리얼 학습 HTML</span></a>
+      <nav aria-label="문서 이동">
+        <a href="#broadcast-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#declare">선언</a>
+        <a href="#bind">바인딩</a>
+        <a href="#execute">실행</a>
+        <a href="#review">복습</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero">
+      <p class="eyebrow">C++ / Event System</p>
+      <h1>델리게이트(Delegate)</h1>
+      <p class="lead">
+        Delegate는 호출하는 쪽이 대상 클래스의 구체 타입을 몰라도, 미리 약속한 함수 시그니처를 안전하게 호출할 수 있게 해 주는 언리얼의 콜백 시스템입니다.
+        싱글캐스트, 멀티캐스트, 다이내믹 델리게이트를 목적에 맞게 구분하는 것이 핵심입니다.
+      </p>
+      <div class="meta-row">
+        <span class="pill">원본: 델리게이트(Delegate).md</span>
+        <span class="pill">난이도: 중급 C++</span>
+        <span class="pill">핵심: DECLARE_DELEGATE, BindUObject, Broadcast, Dynamic Delegate</span>
+        <span class="pill">검수 기준: Unreal Engine 5.7.4</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <article class="content">
+        <section id="broadcast-visual" class="panel">
+          <h2>Broadcast 흐름 시각화</h2>
+          <p>
+            멀티캐스트 델리게이트는 이벤트 발행자가 구체 객체를 직접 호출하지 않고, 바인딩된 리스너들에게 같은 알림을 전달합니다.
+            아래 실험판에서 리스너를 켜고 끈 뒤 <code>Broadcast</code>를 눌러 호출 흐름을 확인하세요.
+          </p>
+
+          <div class="interactive-lab delegate-lab" data-delegate-lab>
+            <div class="broadcast-controls">
+              <button type="button" class="primary-button" data-broadcast-button>Broadcast</button>
+              <button type="button" class="mini-button" data-bind-all>Bind All</button>
+              <button type="button" class="mini-button" data-clear-log>Clear Log</button>
+            </div>
+
+            <div class="delegate-board" aria-live="polite">
+              <div class="delegate-node delegate-source" data-source-node>
+                <span class="node-kicker">Publisher</span>
+                <strong>HealthComponent</strong>
+                <small>체력이 바뀌면 이벤트를 발행합니다.</small>
+              </div>
+
+              <div class="wire-lane" aria-hidden="true">
+                <span class="signal-wire" data-wire></span>
+                <span class="signal-wire" data-wire></span>
+                <span class="signal-wire" data-wire></span>
+              </div>
+
+              <div class="delegate-node delegate-bus" data-bus-node>
+                <span class="node-kicker">Multicast Delegate</span>
+                <strong>FOnHealthChanged</strong>
+                <small>Broadcast(NewHealth)</small>
+              </div>
+
+              <div class="listener-grid">
+                <button type="button" class="listener-node is-bound" data-listener="UI Widget" aria-pressed="true">
+                  <span class="status-dot"></span>
+                  <strong>UI Widget</strong>
+                  <small>HP 바 갱신</small>
+                </button>
+                <button type="button" class="listener-node is-bound" data-listener="Audio Component" aria-pressed="true">
+                  <span class="status-dot"></span>
+                  <strong>Audio Component</strong>
+                  <small>피격 사운드 재생</small>
+                </button>
+                <button type="button" class="listener-node is-bound" data-listener="Quest Tracker" aria-pressed="true">
+                  <span class="status-dot"></span>
+                  <strong>Quest Tracker</strong>
+                  <small>목표 진행도 확인</small>
+                </button>
+                <button type="button" class="listener-node" data-listener="Debug Overlay" aria-pressed="false">
+                  <span class="status-dot"></span>
+                  <strong>Debug Overlay</strong>
+                  <small>테스트 로그 표시</small>
+                </button>
+              </div>
+            </div>
+
+            <div class="event-log" data-event-log>
+              <p>대기 중입니다. 바인딩된 리스너는 밝은 테두리로 표시됩니다.</p>
+            </div>
+          </div>
+        </section>
+        <section id="concept" class="panel">
+          <h2>한 줄 정의</h2>
+          <p>
+            <strong>Delegate는 함수 포인터를 언리얼 객체 수명, 리플렉션, 멀티캐스트 이벤트 흐름에 맞게 확장한 타입 안전 콜백</strong>입니다.
+            UI 버튼 클릭, 보스 사망 이벤트, 비동기 로딩 완료, GAS 이벤트처럼 "나중에 누군가에게 알려야 하는" 구조에 자주 사용됩니다.
+          </p>
+
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>종류</th>
+                  <th>특징</th>
+                  <th>대표 실행 함수</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Single-cast</td>
+                  <td>한 함수만 바인딩합니다. 반환값이 필요한 콜백에 적합합니다.</td>
+                  <td><code>Execute</code>, <code>ExecuteIfBound</code></td>
+                </tr>
+                <tr>
+                  <td>Multi-cast</td>
+                  <td>여러 함수를 바인딩해 한 번에 알립니다. 반환값은 사용할 수 없습니다.</td>
+                  <td><code>Broadcast</code></td>
+                </tr>
+                <tr>
+                  <td>Dynamic</td>
+                  <td>UObject 리플렉션 기반으로 직렬화와 블루프린트 바인딩을 지원하지만 일반 델리게이트보다 느립니다.</td>
+                  <td><code>Execute</code>, <code>Broadcast</code></td>
+                </tr>
+                <tr>
+                  <td>Event</td>
+                  <td>멀티캐스트 델리게이트를 감싸 외부에서는 바인딩만 허용하고, 소유자만 Broadcast하도록 제한하는 패턴입니다.</td>
+                  <td>소유자 내부에서 <code>Broadcast</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="declare" class="panel">
+          <h2>선언 매크로</h2>
+          <p>
+            Delegate 타입은 함수 시그니처에 맞는 매크로로 선언합니다.
+            반환값, 파라미터 수, 멀티캐스트 여부, Dynamic 여부에 따라 매크로 이름이 달라집니다.
+          </p>
+
+          <pre class="code"><code>DECLARE_DELEGATE(FOnSimple);
+DECLARE_DELEGATE_OneParam(FOnMessage, const FString&);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FCanUseItem, int32);
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHealthChanged, float);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChangedBP, float, NewHealth);</code></pre>
+
+          <div class="callout">
+            <p class="callout-title">Dynamic Delegate 규칙</p>
+            <p>
+              Dynamic Delegate에 바인딩될 함수는 UObject 리플렉션을 통해 찾을 수 있어야 하므로 보통 <code>UFUNCTION()</code>이 필요합니다.
+              블루프린트 노출이나 직렬화가 필요하지 않다면 일반 C++ Delegate가 더 가볍습니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="bind" class="panel">
+          <h2>바인딩 방식</h2>
+          <div class="table-wrap">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>함수</th>
+                  <th>대상</th>
+                  <th>주의점</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>BindStatic</code> / <code>AddStatic</code></td>
+                  <td>전역 함수, static 함수</td>
+                  <td>객체 수명 추적이 필요 없는 함수에 사용합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>BindRaw</code> / <code>AddRaw</code></td>
+                  <td>raw C++ 포인터</td>
+                  <td>객체 수명을 추적하지 않으므로 삭제 후 호출하면 위험합니다.</td>
+                </tr>
+                <tr>
+                  <td><code>BindSP</code> / <code>AddSP</code></td>
+                  <td>Shared Pointer 기반 객체</td>
+                  <td>약한 참조로 수명을 확인할 수 있습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>BindUObject</code> / <code>AddUObject</code></td>
+                  <td>UObject 멤버 함수</td>
+                  <td>UObject 약한 참조를 유지하므로 <code>ExecuteIfBound</code>와 함께 쓰기 좋습니다.</td>
+                </tr>
+                <tr>
+                  <td><code>BindDynamic</code> / <code>AddDynamic</code></td>
+                  <td>UFUNCTION 기반 Dynamic Delegate</td>
+                  <td>함수 이름 기반 리플렉션을 사용합니다. 블루프린트 이벤트에 적합합니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <p class="callout-title">원본 경로 최신화</p>
+            <p>
+              원본은 구현 확인 경로를 예전 구조의 <code>Templates</code> 폴더로 적고 있었지만, 5.x 기준 Delegate 구현은 주로
+              <code>Engine/Source/Runtime/Core/Public/Delegates/DelegateSignatureImpl.inl</code>에서 확인합니다.
+            </p>
+          </div>
+        </section>
+
+        <section id="execute" class="panel">
+          <h2>실행과 해제</h2>
+          <p>
+            싱글캐스트 델리게이트는 실행 전에 바인딩 여부를 확인해야 합니다.
+            반환값이나 출력 파라미터가 있는 델리게이트를 바인딩 없이 실행하면 유효하지 않은 값을 읽을 수 있습니다.
+          </p>
+
+          <pre class="code"><code>DECLARE_DELEGATE_OneParam(FStringDelegate, const FString&);
+
+class FLogWriter
+{
+public:
+    void WriteToLog(const FString& Message);
+};
+
+FStringDelegate WriteToLogDelegate;
+TSharedRef<FLogWriter> LogWriter = MakeShared<FLogWriter>();
+
+WriteToLogDelegate.BindSP(LogWriter, &FLogWriter::WriteToLog);
+WriteToLogDelegate.ExecuteIfBound(TEXT("함수가 바인딩되었을 때만 실행"));</code></pre>
+
+          <div class="split">
+            <div class="study-card">
+              <h3>Single-cast</h3>
+              <p><code>Execute</code>는 바인딩을 전제로 실행합니다. 안전 호출은 <code>IsBound</code> 또는 <code>ExecuteIfBound</code>를 사용합니다.</p>
+            </div>
+            <div class="study-card">
+              <h3>Multi-cast</h3>
+              <p><code>Broadcast</code>는 아무도 바인딩되어 있지 않아도 호출 자체는 안전합니다. 호출 순서는 보장하지 않는다고 보는 편이 좋습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="review" class="panel">
+          <h2>복습 질문</h2>
+          <div class="quiz">
+            <strong>Q1. Dynamic Delegate를 쓰는 대표 이유는?</strong>
+            <p class="answer">직렬화, 리플렉션, 블루프린트 바인딩이 필요할 때 사용합니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q2. <code>BindRaw</code>가 위험한 이유는?</strong>
+            <p class="answer">raw 포인터 대상 객체의 수명을 델리게이트가 추적하지 않기 때문에, 객체 삭제 후 호출하면 잘못된 메모리를 호출할 수 있습니다.</p>
+          </div>
+          <div class="quiz">
+            <strong>Q3. 멀티캐스트 델리게이트가 반환값을 쓰지 않는 이유는?</strong>
+            <p class="answer">여러 함수가 동시에 호출되므로 하나의 반환값을 의미 있게 정하기 어렵기 때문입니다.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>공식 문서 기준</h2>
+          <ul class="source-list">
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/multicast-delegates-in-unreal-engine">Multi-cast Delegates in Unreal Engine</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/dynamic-delegates-in-unreal-engine">Dynamic Delegates in Unreal Engine</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Core/TDelegate_InRetValType_ParamType-/TDelegate">UE 5.7 API: TDelegate</a></li>
+            <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Core/TDelegateRegistration_InRetValTy-/BindUFunction">UE 5.7 API: BindUFunction</a></li>
+          </ul>
+        </section>
+      </article>
+
+      <aside class="toc">
+        <p class="toc-title">목차</p>
+        <a href="#broadcast-visual">시각화</a>
+        <a href="#concept">개념</a>
+        <a href="#declare">선언</a>
+        <a href="#bind">바인딩</a>
+        <a href="#execute">실행</a>
+        <a href="#review">복습 질문</a>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="site-shell">원본 Markdown을 학습용 HTML로 재구성했습니다.</div>
+  </footer>
+  <script>
+    (() => {
+      const lab = document.querySelector('[data-delegate-lab]');
+      if (!lab) return;
+
+      const source = lab.querySelector('[data-source-node]');
+      const bus = lab.querySelector('[data-bus-node]');
+      const wires = lab.querySelectorAll('[data-wire]');
+      const listeners = lab.querySelectorAll('[data-listener]');
+      const broadcastButton = lab.querySelector('[data-broadcast-button]');
+      const bindAllButton = lab.querySelector('[data-bind-all]');
+      const clearLogButton = lab.querySelector('[data-clear-log]');
+      const log = lab.querySelector('[data-event-log]');
+      let broadcastCount = 0;
+
+      function writeLog(lines) {
+        log.innerHTML = lines.map((line) => `<p>${line}</p>`).join('');
+      }
+
+      function clearPulse() {
+        [source, bus, ...wires, ...listeners].forEach((element) => {
+          element.classList.remove('is-broadcasting', 'is-signal', 'is-flashing', 'is-skipped');
+        });
+      }
+
+      listeners.forEach((listener) => {
+        listener.addEventListener('click', () => {
+          const isBound = listener.getAttribute('aria-pressed') === 'true';
+          listener.setAttribute('aria-pressed', String(!isBound));
+          listener.classList.toggle('is-bound', !isBound);
+        });
+      });
+
+      bindAllButton.addEventListener('click', () => {
+        listeners.forEach((listener) => {
+          listener.setAttribute('aria-pressed', 'true');
+          listener.classList.add('is-bound');
+          listener.classList.remove('is-skipped');
+        });
+        writeLog(['모든 리스너를 AddUObject/AddDynamic 된 상태로 되돌렸습니다.']);
+      });
+
+      clearLogButton.addEventListener('click', () => {
+        writeLog(['로그를 비웠습니다. Broadcast를 누르면 호출 대상이 여기에 표시됩니다.']);
+      });
+
+      broadcastButton.addEventListener('click', () => {
+        clearPulse();
+        broadcastCount += 1;
+        const boundListeners = [...listeners].filter((listener) => listener.getAttribute('aria-pressed') === 'true');
+        const skippedListeners = [...listeners].filter((listener) => listener.getAttribute('aria-pressed') !== 'true');
+
+        source.classList.add('is-broadcasting');
+        setTimeout(() => {
+          bus.classList.add('is-broadcasting');
+          wires.forEach((wire, index) => setTimeout(() => wire.classList.add('is-signal'), index * 90));
+        }, 120);
+
+        boundListeners.forEach((listener, index) => {
+          setTimeout(() => listener.classList.add('is-flashing'), 360 + index * 120);
+        });
+        skippedListeners.forEach((listener) => listener.classList.add('is-skipped'));
+
+        if (boundListeners.length === 0) {
+          writeLog([`#${broadcastCount} Broadcast: 바인딩된 리스너가 없습니다. 멀티캐스트 Broadcast 자체는 안전하게 끝납니다.`]);
+        } else {
+          writeLog([
+            `#${broadcastCount} Broadcast(NewHealth): ${boundListeners.length}개 리스너 호출`,
+            ...boundListeners.map((listener) => `- ${listener.dataset.listener}::OnHealthChanged 실행`)
+          ]);
+        }
+
+        setTimeout(clearPulse, 1700);
+      });
+    })();
+  </script></body>
+</html>
+
