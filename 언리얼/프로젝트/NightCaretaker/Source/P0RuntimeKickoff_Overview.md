@@ -1,4 +1,65 @@
+---
+aliases:
+  - "P0 Runtime Kickoff Overview"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - source
+  - worklog
+type: project-document
+project: NightCaretaker
+category: source-worklog
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
 # P0 Runtime Kickoff Overview
+
+> [!summary] 문서 목적
+> `P0RuntimeKickoff`는 데모 수직 슬라이스의 P0 구현 착수 순서와 첫 검증 루프를 고정하는 작업 문서다. 목표는 `Document/NightCaretaker_VerticalSlice_Detail.md`에 정의된 기존 `VS-*` 티켓을 실행 가능한 kickoff queue로 정리하고, 첫 ...
+
+## 핵심 결론
+
+- 이 문서는 작업 이력, 조사, 결정 과정, 구현 handoff를 추적하는 자료다.
+- 활성 기준은 루트 Master 문서에 반영된 항목으로 판단한다.
+- 후속 작업자는 입력 문서, 산출물, 완료 기준, 남은 리스크를 먼저 확인한다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 작업 이력/조사 자료 |
+| 파일 경로 | `Source/P0RuntimeKickoff_Overview.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| Goal | 주요 섹션 |
+| Scope | 주요 섹션 |
+| Current Status | 주요 섹션 |
+| Kickoff Order | 주요 섹션 |
+| Recommended Work Cards | 주요 섹션 |
+| State Contract | 주요 섹션 |
+| Completed | 주요 섹션 |
+| Remaining | 주요 섹션 |
+| Risks | 주요 섹션 |
+| Validation State | 주요 섹션 |
+| Update Log | 주요 섹션 |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## Goal
 
@@ -33,16 +94,16 @@
 
 현재 개발 단계에서는 아래 카드 순서로 진행하는 것이 가장 안전하다. 앞 카드가 다음 카드의 재현성과 검증 기준을 만든다.
 
-| Priority | Card                              | Target Ticket                   | Outcome                                           |
-| -------- | --------------------------------- | ------------------------------- | ------------------------------------------------- |
-| 1        | `CARD-P0-001 Route Skeleton`      | `VS-BLOCKOUT-01`                | 관리실에서 307호 앞까지 P0 route가 끊기지 않는다                  |
-| 2        | `CARD-P0-002 Location Gates`      | `VS-BLOCKOUT-02`                | `LocationId` marker와 접근 gate로 route step 판정이 가능하다 |
-| 3        | `CARD-P0-003 Office Interactions` | `VS-INTERACTION-01`             | 민원 보드, 공구함, 손전등, 보고 위치가 최소 동작한다                   |
-| 4        | `CARD-P0-004 Complaint Seed Loop` | `VS-COMPLAINT-01`               | 첫 민원이 수락, 조사, 보고 가능, 종료 상태를 통과한다                  |
-| 5        | `CARD-P0-005 Board Report UI`     | `VS-UI-01`                      | Board/Report/Notebook이 실제 runtime state를 표시한다     |
-| 6        | `CARD-P0-006 Route Prompts`       | `VS-UI-02`                      | route별 HUD prompt와 document viewer text가 연결된다     |
-| 7        | `CARD-P0-007 Baseline Mood`       | `VS-AUDIO-01`, `VS-LIGHTING-01` | ambience와 조명 preset이 길찾기를 해치지 않고 긴장을 만든다          |
-| 8        | `CARD-P0-008 Debug Smoke Loop`    | `VS-QADEBUG-01`                 | 10단계 route 시작 상태를 독립 재현할 수 있다                     |
+| Priority | Card | Target Ticket | Outcome |
+| --- | --- | --- | --- |
+| 1 | `CARD-P0-001 Route Skeleton` | `VS-BLOCKOUT-01` | 관리실에서 307호 앞까지 P0 route가 끊기지 않는다 |
+| 2 | `CARD-P0-002 Location Gates` | `VS-BLOCKOUT-02` | `LocationId` marker와 접근 gate로 route step 판정이 가능하다 |
+| 3 | `CARD-P0-003 Office Interactions` | `VS-INTERACTION-01` | 민원 보드, 공구함, 손전등, 보고 위치가 최소 동작한다 |
+| 4 | `CARD-P0-004 Complaint Seed Loop` | `VS-COMPLAINT-01` | 첫 민원이 수락, 조사, 보고 가능, 종료 상태를 통과한다 |
+| 5 | `CARD-P0-005 Board Report UI` | `VS-UI-01` | Board/Report/Notebook이 실제 runtime state를 표시한다 |
+| 6 | `CARD-P0-006 Route Prompts` | `VS-UI-02` | route별 HUD prompt와 document viewer text가 연결된다 |
+| 7 | `CARD-P0-007 Baseline Mood` | `VS-AUDIO-01`, `VS-LIGHTING-01` | ambience와 조명 preset이 길찾기를 해치지 않고 긴장을 만든다 |
+| 8 | `CARD-P0-008 Debug Smoke Loop` | `VS-QADEBUG-01` | 10단계 route 시작 상태를 독립 재현할 수 있다 |
 
 ## State Contract
 
@@ -63,6 +124,7 @@ P0 구현은 다음 기존 상태 축만 사용한다.
 - P0 구현 착수 전 확인해야 할 입력 문서와 runtime 계약을 wave 단위로 정리했다.
 - `VS-BLOCKOUT-01`, `VS-BLOCKOUT-02`, `VS-INTERACTION-01`, `VS-COMPLAINT-01`, `VS-UI-01`을 첫 검증 루프의 핵심 티켓으로 고정했다.
 - 현재 개발 단계에서 바로 사용할 8개 작업 카드를 정리했다.
+- 8개 작업 카드의 실제 개발 세분화는 `Document/Source/P0DevelopmentWorkCards_Overview.md`와 `Document/Source/P0DevelopmentWorkCards_Detail.md`에서 `DEV-P0-*` 카드로 관리한다.
 
 ## Remaining
 
@@ -79,6 +141,10 @@ P0 구현은 다음 기존 상태 축만 사용한다.
   - 10단계 민원 row와 progression chain 검증.
 - `VS-UI-01` 구현 착수:
   - Board, Report, Notebook P0 화면을 민원 runtime loop에 연결.
+- `DEV-P0-*` 작업카드 착수:
+  - `DEV-P0-000 Build And PIE Baseline`,
+  - `DEV-P0-010 P0 Route Skeleton`,
+  - `DEV-P0-020 Location Marker And Gate Contract`.
 
 ## Risks
 
@@ -102,3 +168,12 @@ P0 구현은 다음 기존 상태 축만 사용한다.
 
 - 2026-04-26: `P0RuntimeKickoff` work item created. First P0 execution order, state contract, remaining work, risks, and document validation plan recorded.
 - 2026-04-26: Added recommended P0 development work cards from route skeleton through debug smoke loop.
+- 2026-05-25: Added reference to `P0DevelopmentWorkCards` as the detailed implementation card layer for the existing P0 kickoff queue.
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

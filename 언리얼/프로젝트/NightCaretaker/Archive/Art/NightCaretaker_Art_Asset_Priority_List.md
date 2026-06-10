@@ -1,4 +1,69 @@
-﻿# NightCaretaker Art Asset Priority List
+---
+aliases:
+  - "NightCaretaker Art Asset Priority List"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - art
+type: project-document
+project: NightCaretaker
+category: archive-art
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
+# NightCaretaker Art Asset Priority List
+
+> [!summary] 문서 목적
+> 에셋 우선순위는 예쁨이 아니라 아래 기준으로 결정한다.
+
+## 핵심 결론
+
+- 이 문서는 NightCaretaker 프로젝트의 참고/보관 자료다.
+- 현재 제작 판단은 루트의 Planning, Development, Art Master를 우선한다.
+- 원문 내용은 유지하되, 후속 작업자가 빠르게 탐색할 수 있도록 구조를 보강했다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보관 아트 자료 |
+| 파일 경로 | `Archive/Art/NightCaretaker_Art_Asset_Priority_List.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 문서 정보 | 주요 섹션 |
+| 1. 우선순위 기준 | 주요 섹션 |
+| 2. 등급 정의 | 주요 섹션 |
+| 3. P0 코어 세트 | 주요 섹션 |
+| 3.1 복도 모듈 키트 | 세부 기준 |
+| 3.2 세대 현관문 세트 | 세부 기준 |
+| 3.3 복도 조명 및 전기 설비 세트 | 세부 기준 |
+| 3.4 계단실 기본 키트 | 세부 기준 |
+| 3.5 관리실 키트 | 세부 기준 |
+| 3.6 우편함/인터폰/게시판 세트 | 세부 기준 |
+| 3.7 기본 생활 흔적 프랍 세트 | 세부 기준 |
+| 3.8 오염/누수/결로 데칼 팩 | 세부 기준 |
+| 4. P1 확장 세트 | 주요 섹션 |
+| 4.1 엘리베이터 홀 세트 | 세부 기준 |
+| 추가 섹션 18 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 문서 정보
 
@@ -449,3 +514,11 @@
 - 가장 많은 민원이 통과하는 자산을 먼저 만든다.
 - 가장 작은 변주로 가장 큰 불안을 만드는 자산을 먼저 만든다.
 - 307호는 독립 세트가 아니라, 기존 자산의 신뢰를 무너뜨리는 파생 세트로 다룬다.
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

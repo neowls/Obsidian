@@ -343,8 +343,8 @@
 
 5. 다음 1순위: `Iris / Replication Graph`
 핵심 파일:
-- `Engine\Source\Runtime\IrisCore`
-- `Engine\Source\Runtime\Experimental\Iris`
+- `Engine\Source\Runtime\Net\Iris`
+- `Engine\Source\Runtime\Engine\Private\Net\Iris`
 - `Engine\Plugins\Runtime\ReplicationGraph`
 
 다음 목표:
@@ -415,3 +415,65 @@
 3. Build / Cook / Packaging으로 엔진 운영 계층을 보강한다.
 
 개인적으로는 현재 흐름상 1 -> 2 -> 3 순서를 권장한다.
+
+## 2026-05-12 보강 실행 로그
+
+이번 작업은 기존 계획의 `Iris / Replication Graph -> Subsystem / Module / Plugin -> Build / Cook / Packaging -> World Partition / PCG -> Camera / Audio / Automation / UE5 확장 시스템` 순서로 1차 문서화를 수행했다.
+
+### 추가/보강 완료
+
+| 상태 | 주제 | 결과 |
+| --- | --- | --- |
+| `[~]` | Iris / Replication Graph | UE 5.7 실제 경로 기준으로 신규 문서 작성. 기존 로드맵의 Iris 경로 오기 수정 |
+| `[~]` | Subsystem / Module / Plugin | subsystem lifetime, module dependency, plugin 경계 기준 문서 작성 |
+| `[~]` | Build / Cook / Packaging | UBT, AutomationTool, CookOnTheFlyServer, PackagingSettings 기준 문서 작성 |
+| `[~]` | World Partition / Data Layer | runtime cell, streaming source, data layer instance 기준 문서 작성 |
+| `[~]` | PCG | graph/component/subsystem/runtime generation/partition actor 기준 문서 작성 |
+| `[~]` | Gameplay Cameras | GameplayCameras plugin의 component/evaluator/context 기준 문서 작성 |
+| `[~]` | Audio / Sound | AudioComponent, SoundBase, AudioMixer, Submix, AudioInsights 기준 문서 작성 |
+| `[~]` | Automation / Test | automation macro, controller, commandline, editor test 예시 기준 문서 작성 |
+| `[~]` | StateTree / MassEntity / SmartObjects | 세 시스템의 역할 분리와 연계 흐름 문서 작성 |
+| `[~]` | Motion Warping | 비어 있던 문서를 component/target/notify/root motion modifier 기준으로 보강 |
+| `[~]` | ASC | 짧은 메모 문서를 owner/avatar/spec/replication/prediction 기준으로 보강 |
+
+### 다음 우선순위
+
+1. 새 문서 중 `Build Cook Packaging`, `PCG`, `World Partition과 Data Layer`를 실제 프로젝트 packaging/log 사례와 연결한다.
+2. `Iris와 Replication Graph`는 프로젝트 설정에서 Iris opt-in 여부와 classic path 전환 지점을 추가 조사한다.
+3. `Automation Test`는 실제 프로젝트용 첫 smoke test 후보를 정해 테스트 템플릿 문서로 확장한다.
+4. `모션 워핑`은 프로젝트의 처형/벽넘기/공격 보정 사례와 연결하면 실전성이 올라간다.
+
+## 2026-05-12 심화 학습자료 보강 결과
+
+문서 보강 2차 목표를 "기능 소개"에서 "실제 학습 가능한 자료"로 상향했다. 각 문서는 다음 체크리스트를 만족하도록 확장했다.
+
+- 학습 목표가 명확한가.
+- 기본 사용 절차가 있는가.
+- 최소 코드 또는 Blueprint 사용 흐름이 있는가.
+- 엔진 소스 기준의 동작 원리 설명이 있는가.
+- 실전 사례가 있는가.
+- 자주 막히는 문제와 점검 방법이 있는가.
+- 실습 과제와 부가 자료가 있는가.
+
+완료 범위:
+
+| 영역 | 문서 | 심화 보강 상태 |
+|---|---|---|
+| Networking | Iris와 Replication Graph | 완료 |
+| Engine Architecture | Subsystem, Module, Plugin | 완료 |
+| Build/Cook/Packaging | Build Cook Packaging | 완료 |
+| World Management | World Partition과 Data Layer | 완료 |
+| PCG | PCG | 완료 |
+| Camera | Gameplay Cameras | 완료 |
+| Audio | Audio Mixer와 Audio Insights | 완료 |
+| Automation Test | Automation Test | 완료 |
+| UE5 Systems | StateTree, MassEntity, SmartObjects | 완료 |
+| Animation | Motion Warping | 완료 |
+| GAS | Ability System Component | 완료 |
+
+다음 보강 기준:
+
+- 새 학습 문서를 만들 때는 처음부터 `학습 목표`, `기본 사용 절차`, `동작 원리`, `실전 사례`, `자주 막히는 문제`, `실습 과제`, `부가 자료`를 포함한다.
+- 공식 문서만 요약하지 않고, 현재 설치된 UE5.7 엔진 소스에서 실제 클래스/함수/파일 위치를 확인한다.
+- 사용법 설명은 "어디서 켜는가", "무슨 에셋을 만드는가", "어떤 코드나 노드를 호출하는가", "어떻게 검증하는가"까지 포함한다.
+- 원리 설명은 Tick/Initialize/Activate/Generate/Replicate 같은 실제 호출 흐름으로 풀어쓴다.

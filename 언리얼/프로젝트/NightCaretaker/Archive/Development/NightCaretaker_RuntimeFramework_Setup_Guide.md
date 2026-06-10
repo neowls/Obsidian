@@ -1,4 +1,69 @@
-﻿# NightCaretaker 런타임 프레임워크 설정 가이드
+---
+aliases:
+  - "NightCaretaker 런타임 프레임워크 설정 가이드"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - development
+type: project-document
+project: NightCaretaker
+category: archive-development
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
+# NightCaretaker 런타임 프레임워크 설정 가이드
+
+> [!summary] 문서 목적
+> 이 문서는 최근 추가한 런타임 프레임워크 구조를 설명한다.
+
+## 핵심 결론
+
+- 이 문서는 NightCaretaker 프로젝트의 참고/보관 자료다.
+- 현재 제작 판단은 루트의 Planning, Development, Art Master를 우선한다.
+- 원문 내용은 유지하되, 후속 작업자가 빠르게 탐색할 수 있도록 구조를 보강했다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보관 개발 자료 |
+| 파일 경로 | `Archive/Development/NightCaretaker_RuntimeFramework_Setup_Guide.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 1. 문서 목적 | 주요 섹션 |
+| 2. 현재 구조 한눈에 보기 | 주요 섹션 |
+| 3. 지금 구현된 것과 아직 없는 것 | 주요 섹션 |
+| 3.1 구현된 것 | 세부 기준 |
+| 3.2 아직 없는 것 | 세부 기준 |
+| 4. 업적 프레임워크 설명 | 주요 섹션 |
+| 4.1 클래스 역할 | 세부 기준 |
+| `UNCAchievementBackendBase` | 보조 항목 |
+| `UNCNullAchievementBackend` | 보조 항목 |
+| `UNCAchievementSubsystem` | 보조 항목 |
+| 4.2 업적 write 흐름 | 세부 기준 |
+| 4.3 `WriteMode` 해석 기준 | 세부 기준 |
+| 4.4 현재 기준으로 빠진 부분 체크 | 세부 기준 |
+| 5. Steam Integration Kit 연결 절차 | 주요 섹션 |
+| 추가 섹션 21 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 1. 문서 목적
 
@@ -362,3 +427,11 @@ Steam Integration Kit가 블루프린트 노드 기반이면 BP subclass가 더 
 
 이 문서는 "어떤 데이터를 넣을지"를 설명하고,
 현재 문서는 "그 데이터가 런타임에서 어디로 흐를지"를 설명한다.
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

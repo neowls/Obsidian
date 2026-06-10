@@ -1,4 +1,69 @@
-﻿# NightCaretaker Psychological Horror Art Guide
+---
+aliases:
+  - "NightCaretaker Psychological Horror Art Guide"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - art
+type: project-document
+project: NightCaretaker
+category: archive-art
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
+# NightCaretaker Psychological Horror Art Guide
+
+> [!summary] 문서 목적
+> 이 프로젝트의 환경 아트는 "무서운 물건을 많이 배치하는 것"이 아니라, `누구나 아는 아파트 공간을 아주 조금씩 틀어지게 만들어 플레이어의 확신을 무너뜨리는 것`이 목표다.
+
+## 핵심 결론
+
+- 이 문서는 NightCaretaker 프로젝트의 참고/보관 자료다.
+- 현재 제작 판단은 루트의 Planning, Development, Art Master를 우선한다.
+- 원문 내용은 유지하되, 후속 작업자가 빠르게 탐색할 수 있도록 구조를 보강했다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보관 아트 자료 |
+| 파일 경로 | `Archive/Art/NightCaretaker_PsychologicalHorror_ArtGuide.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 문서 정보 | 주요 섹션 |
+| 1. 이 프로젝트의 아트 목표 | 주요 섹션 |
+| 2. 전반적인 비주얼 정서 | 주요 섹션 |
+| 2.1 기본 감정 | 세부 기준 |
+| 2.2 건물의 인상 | 세부 기준 |
+| 2.3 공포의 표현 방식 | 세부 기준 |
+| 3. 컬러, 재질, 표면 언어 | 주요 섹션 |
+| 3.1 컬러 방향 | 세부 기준 |
+| 3.2 재질 방향 | 세부 기준 |
+| 3.3 표면은 서사를 갖고 있어야 한다 | 세부 기준 |
+| 4. 건물 전체에서 공통으로 지켜야 할 아트 원칙 | 주요 섹션 |
+| 4.1 모든 공간에는 기준점이 있어야 한다 | 세부 기준 |
+| 4.2 변주는 크기보다 정확도가 중요하다 | 세부 기준 |
+| 4.3 공간은 넓기보다 깊어 보여야 한다 | 세부 기준 |
+| 추가 섹션 29 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 문서 정보
 
@@ -400,4 +465,10 @@
 - "누군가 살고 있는 흔적은 분명한데, 지금 이 공간은 비어 있는 것 같다."
 - "307호는 특별한 세트처럼 보이지 않는데, 가장 확실하게 잘못되어 있다."
 
+## 검토 체크리스트
 
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

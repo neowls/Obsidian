@@ -1,4 +1,69 @@
-﻿# RealityCam 구현 해설서
+---
+aliases:
+  - "RealityCam 구현 해설서"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - development
+type: project-document
+project: NightCaretaker
+category: archive-development
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
+# RealityCam 구현 해설서
+
+> [!summary] 문서 목적
+> 이 문서는 `UNCRealityCameraComponent`가 어떤 구조로 설계되었고, 매 프레임 어떤 순서로 동작하는지 정리한 학습용 문서다.
+
+## 핵심 결론
+
+- 이 문서는 NightCaretaker 프로젝트의 참고/보관 자료다.
+- 현재 제작 판단은 루트의 Planning, Development, Art Master를 우선한다.
+- 원문 내용은 유지하되, 후속 작업자가 빠르게 탐색할 수 있도록 구조를 보강했다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보관 개발 자료 |
+| 파일 경로 | `Archive/Development/NightCaretaker_RealityCam_ImplementationGuide.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 문서 목적 | 주요 섹션 |
+| 1. RealityCam의 역할 | 주요 섹션 |
+| 2. 왜 UCameraComponent를 상속했는가 | 주요 섹션 |
+| 3. 헤더 구조 설명 | 주요 섹션 |
+| 3.1 `FNCRealityCameraTuning` | 세부 기준 |
+| 3.2 `UNCRealityCameraComponent`의 런타임 상태값 | 세부 기준 |
+| 4. 플레이어에 어떻게 연결되는가 | 주요 섹션 |
+| 5. 프레임별 동작 순서 | 주요 섹션 |
+| 6. 각 레이어가 어떻게 계산되는가 | 주요 섹션 |
+| 6.1 Base View | 세부 기준 |
+| 6.2 이동 데이터 읽기 | 세부 기준 |
+| 6.3 로컬 공간 분해 | 세부 기준 |
+| 6.4 스무딩 | 세부 기준 |
+| 6.5 Idle Noise | 세부 기준 |
+| 추가 섹션 10 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 문서 목적
 
@@ -337,8 +402,10 @@ function GetCameraView(deltaTime):
 4. Crouch 높이 전환과 카메라 오프셋 보간
 5. 손전등 흔들림을 RealityCam 계산값과 연동
 
+## 검토 체크리스트
 
-
-
-
-
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

@@ -1,4 +1,69 @@
-﻿# NightCaretaker 물리 상호작용 구현 가이드
+---
+aliases:
+  - "NightCaretaker 물리 상호작용 구현 가이드"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - development
+type: project-document
+project: NightCaretaker
+category: archive-development
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
+# NightCaretaker 물리 상호작용 구현 가이드
+
+> [!summary] 문서 목적
+> 현재 물리 상호작용은 크게 두 갈래다.
+
+## 핵심 결론
+
+- 이 문서는 NightCaretaker 프로젝트의 참고/보관 자료다.
+- 현재 제작 판단은 루트의 Planning, Development, Art Master를 우선한다.
+- 원문 내용은 유지하되, 후속 작업자가 빠르게 탐색할 수 있도록 구조를 보강했다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보관 개발 자료 |
+| 파일 경로 | `Archive/Development/NightCaretaker_PhysicsInteraction_ImplementationGuide.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 문서 정보 | 주요 섹션 |
+| 1. 현재 구현 범위 요약 | 주요 섹션 |
+| 2. 플레이어 소유 구조 | 주요 섹션 |
+| 3. Grab 입력 라우팅 순서 | 주요 섹션 |
+| 4. 물리 프랍 홀드 시스템 | 주요 섹션 |
+| 4.1 책임 클래스 | 세부 기준 |
+| 4.2 대상 액터에 필요한 조건 | 세부 기준 |
+| 4.3 `ResolveGrabPrimitive()` 규칙 | 세부 기준 |
+| 4.4 라인트레이스와 대상 검증 | 세부 기준 |
+| 4.5 기본 튜닝 값 | 세부 기준 |
+| 4.6 무게 기반 반응 스케일 | 세부 기준 |
+| 4.7 프랍 grab 시작과 유지 | 세부 기준 |
+| 4.8 프랍 홀드 유지와 자동 릴리즈 | 세부 기준 |
+| 4.9 프랍 회전 규칙 | 세부 기준 |
+| 추가 섹션 27 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 문서 정보
 
@@ -575,4 +640,10 @@ grab 지점이 힌지에 너무 가까우면 문 회전 계산이 불안정해�
 7. 잠금 해제용 키/퍼즐 시스템 연동
 8. 저장/로드 시 문 상태와 프랍 위치 저장 정책 정리
 
+## 검토 체크리스트
 
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

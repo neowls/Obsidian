@@ -1,4 +1,69 @@
+---
+aliases:
+  - "P0 Runtime Kickoff Detail"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - source
+  - worklog
+type: project-document
+project: NightCaretaker
+category: source-worklog
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
 # P0 Runtime Kickoff Detail
+
+> [!summary] 문서 목적
+> `P0RuntimeKickoff`는 vertical slice companion 문서의 티켓을 구현 착수 가능한 wave로 재정렬한다. 이 문서는 구현 자체가 아니라 첫 runtime 작업자가 따라야 할 실행 순서, 선행 조건, 입력 문서, 완료 기준, 검증 방법을 고정한다.
+
+## 핵심 결론
+
+- 이 문서는 작업 이력, 조사, 결정 과정, 구현 handoff를 추적하는 자료다.
+- 활성 기준은 루트 Master 문서에 반영된 항목으로 판단한다.
+- 후속 작업자는 입력 문서, 산출물, 완료 기준, 남은 리스크를 먼저 확인한다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 작업 이력/조사 자료 |
+| 파일 경로 | `Source/P0RuntimeKickoff_Detail.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| Intent | 주요 섹션 |
+| Source Documents | 주요 섹션 |
+| Runtime Contract | 주요 섹션 |
+| Ticket Queue | 주요 섹션 |
+| Development Work Cards | 주요 섹션 |
+| Card Acceptance Checklist | 세부 기준 |
+| Wave 0: Repo, Docs, Contracts | 주요 섹션 |
+| Wave 1: Route And Base Interaction | 주요 섹션 |
+| Wave 2: Complaint Runtime, Evidence, Report Loop | 주요 섹션 |
+| Wave 3: HUD, Board, Report, Notebook UI | 주요 섹션 |
+| Wave 4: Audio, Lighting, Debug Smoke-Test | 주요 섹션 |
+| First Smoke-Test Loop | 주요 섹션 |
+| Explicit Non-Goals | 주요 섹션 |
+| Validation Commands | 주요 섹션 |
+| 추가 섹션 1 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## Intent
 
@@ -23,6 +88,8 @@
 | `Document/NightCaretaker_UIUX_Detail.md` | Board, Report, Notebook, HUD prompt P0 연결 기준 확인 |
 | `Document/NightCaretaker_Sound_Detail.md` | `Evidence.Audio`, ambience, state layer 기준 확인 |
 | `Document/NightCaretaker_VerticalSlice_Detail.md` | 10단계 route, 티켓 의존성, smoke-test 기준의 직접 입력 |
+| `Document/Source/P0DevelopmentWorkCards_Overview.md` | 기존 `CARD-P0-*`를 실제 `DEV-P0-*` 구현 카드로 세분화한 기준 확인 |
+| `Document/Source/P0DevelopmentWorkCards_Detail.md` | 카드별 owner/API, 산출물, 완료 기준, 검증 절차 확인 |
 
 ## Runtime Contract
 
@@ -64,6 +131,8 @@ P0 구현자는 다음 상태 축을 기존 계약대로만 사용한다.
 | `CARD-P0-006 Route Prompts` | Blocked by `CARD-P0-005` | `VS-UI-02` | route별 다음 행동을 알려야 smoke-test가 막히지 않는다 | HUD prompt와 document viewer text가 각 route step의 interaction과 연결된다 |
 | `CARD-P0-007 Baseline Mood` | Blocked by `CARD-P0-001` | `VS-AUDIO-01`, `VS-LIGHTING-01` | 사운드/조명은 route readability를 해치지 않는 선에서 초기에 검증해야 한다 | 관리실/복도/지하 ambience와 `PowerState` lighting preset이 적용되고 길찾기가 유지된다 |
 | `CARD-P0-008 Debug Smoke Loop` | Blocked by `CARD-P0-004` | `VS-QADEBUG-01` | 각 step을 독립 재현해야 이후 UI/audio/lighting 회귀를 빠르게 잡는다 | 10단계 시작 상태 재현 command 또는 체크리스트가 있고 pass/fail 기준이 기록된다 |
+
+`CARD-P0-*`는 PM/티켓 레벨 이름이고, 실제 개발 착수는 `P0DevelopmentWorkCards`의 `DEV-P0-*` 카드를 기준으로 진행한다.
 
 ### Card Acceptance Checklist
 
@@ -214,9 +283,10 @@ Implementation handoff:
 
 ```powershell
 rg --line-number "P0RuntimeKickoff" Document/Source
+rg --line-number "P0DevelopmentWorkCards|DEV-P0-010" Document/Source/P0RuntimeKickoff_Overview.md Document/Source/P0RuntimeKickoff_Detail.md Document/Source/P0DevelopmentWorkCards_Overview.md Document/Source/P0DevelopmentWorkCards_Detail.md
 rg --line-number "VS-BLOCKOUT-01|VS-INTERACTION-01|VS-COMPLAINT-01|VS-UI-01" Document/Source/P0RuntimeKickoff_Overview.md Document/Source/P0RuntimeKickoff_Detail.md
 rg --line-number "ENCShiftPhase|ENCComplaintRuntimeState|PowerState|TensionStage|Room307Stage" Document/Source/P0RuntimeKickoff_Overview.md Document/Source/P0RuntimeKickoff_Detail.md
-rg --line-number "[ \t]+$" Document/Source/P0RuntimeKickoff_Overview.md Document/Source/P0RuntimeKickoff_Detail.md
+rg --line-number "[ \t]+$" Document/Source/P0RuntimeKickoff_Overview.md Document/Source/P0RuntimeKickoff_Detail.md Document/Source/P0DevelopmentWorkCards_Overview.md Document/Source/P0DevelopmentWorkCards_Detail.md
 git diff --check
 ```
 
@@ -226,3 +296,12 @@ git diff --check
 
 - 2026-04-26: P0 runtime kickoff detail created. Existing vertical slice tickets were reordered into Wave 0 through Wave 4 with prerequisites, completion criteria, and validation gates.
 - 2026-04-26: Added development work cards and acceptance checks for the current P0 implementation stage.
+- 2026-05-25: Linked `P0DevelopmentWorkCards` as the detailed `DEV-P0-*` implementation card breakdown for each existing P0 kickoff card.
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

@@ -1,4 +1,69 @@
+---
+aliases:
+  - "NightCaretaker Environment Art Guide"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - art
+type: project-document
+project: NightCaretaker
+category: archive-art
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
 # NightCaretaker Environment Art Guide
+
+> [!summary] 문서 목적
+> 이 문서는 본 프로젝트의 환경 아트를 제작할 때 필요한 공간 언어, 자산 재사용 원칙, Nanite 적용 기준, 우선 제작 순서를 정리한 실무용 가이드다.
+
+## 핵심 결론
+
+- 이 문서는 NightCaretaker 프로젝트의 참고/보관 자료다.
+- 현재 제작 판단은 루트의 Planning, Development, Art Master를 우선한다.
+- 원문 내용은 유지하되, 후속 작업자가 빠르게 탐색할 수 있도록 구조를 보강했다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보관 아트 자료 |
+| 파일 경로 | `Archive/Art/NightCaretaker_EnvironmentArtGuide.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 문서 정보 | 주요 섹션 |
+| 1. 목적 | 주요 섹션 |
+| 2. 전체 제작 철학 | 주요 섹션 |
+| 3. 핵심 제작 우선순위 | 주요 섹션 |
+| 4. Nanite 적용 기준 | 주요 섹션 |
+| 5. 모듈화 원칙 | 주요 섹션 |
+| 6. 표면 언어 | 주요 섹션 |
+| 7. 공간별 제작 메모 | 주요 섹션 |
+| 복도 | 세부 기준 |
+| 관리실 | 세부 기준 |
+| 계단실 / 엘리베이터 앞 | 세부 기준 |
+| 세대 내부 | 세부 기준 |
+| 지하 전기실 | 세부 기준 |
+| 307호 | 세부 기준 |
+| 추가 섹션 4 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 문서 정보
 
@@ -127,3 +192,11 @@
 - 플레이어 동선과 상호작용 포인트가 명확한가
 - 빛이 바뀌면 공간 감정도 함께 바뀌는 구조인가
 - 307호 변주는 갑작스러운 판타지가 아니라 누적된 어긋남으로 느껴지는가
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

@@ -1,4 +1,69 @@
+---
+aliases:
+  - "NightCaretaker UI/UX Detail"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - companion
+type: project-document
+project: NightCaretaker
+category: archive-companion
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
 # NightCaretaker UI/UX Detail
+
+> [!summary] 문서 목적
+> 이 문서는 `NightCaretaker_Planning_Master.md`의 UI/UX 상세 명세를 제작에 옮기기 위한 companion 문서다. 기준 문서는 Master 문서이며, 이 문서는 화면별 구성, 상태, 입력, 데이터 연결, UMG 제작 계약을 한 곳에서 확인하기 위한 보조 자료다.
+
+## 핵심 결론
+
+- 이 문서는 보조 시각화 또는 세부 자료이며, 활성 기준은 루트 Master 문서를 우선한다.
+- 다이어그램, 매트릭스, 와이어프레임은 현재 판단의 근거로 사용할 수 있지만 그대로 구현 기준이 되지는 않는다.
+- 필요 시 본문의 항목을 Planning/Development/Art Master로 승격한다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보조 시각화/동반 자료 |
+| 파일 경로 | `Archive/Companion/NightCaretaker_UIUX_Detail.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| UI 목표 | 주요 섹션 |
+| 구현 기준 요약 | 주요 섹션 |
+| Unreal Widget Implementation Contract | 주요 섹션 |
+| 런타임 UI 생성 흐름 | 세부 기준 |
+| CommonUI 적용 위치 | 세부 기준 |
+| 화면 목록 | 주요 섹션 |
+| 화면 흐름 | 주요 섹션 |
+| UMG Style Guide | 주요 섹션 |
+| 공통 팔레트 | 세부 기준 |
+| 텍스트 크기 기준 | 세부 기준 |
+| 컴포넌트 제작 기준 | 세부 기준 |
+| 금지 스타일 | 세부 기준 |
+| Widget Tree Specification | 주요 섹션 |
+| `WBP_NCPlayerHUD` | 세부 기준 |
+| 추가 섹션 21 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 이 문서는 `NightCaretaker_Planning_Master.md`의 UI/UX 상세 명세를 제작에 옮기기 위한 companion 문서다. 기준 문서는 Master 문서이며, 이 문서는 화면별 구성, 상태, 입력, 데이터 연결, UMG 제작 계약을 한 곳에서 확인하기 위한 보조 자료다.
 
@@ -468,3 +533,11 @@ UI는 플레이어 요청을 표현하고 전달하는 계층이다. GameState �
 | P1 | RecordIntegrity별 UI 오염 variant, document viewer 재열람 변조, toast queue polish, settings 세부 저장 UX | 플레이어 진행을 막는 입력 방해형 연출 |
 
 P0 구현에서는 `WBP_NCPlayerHUD`, `WBP_NCComplaintBoard`, `WBP_NCReportForm`, `WBP_NCNotebook`, `WBP_NCPauseMenu`, `WBP_NCSettingsMenu`를 우선 제작한다. `WBP_NCDocumentViewer`와 `WBP_NCToast`는 P0 시스템 연결 대상이지만, 후반 고급 오염 표현은 P1로 둔다.
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

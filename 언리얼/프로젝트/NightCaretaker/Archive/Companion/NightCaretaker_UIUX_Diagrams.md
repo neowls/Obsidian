@@ -1,4 +1,65 @@
+---
+aliases:
+  - "NightCaretaker UI/UX Diagrams"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - companion
+type: project-document
+project: NightCaretaker
+category: archive-companion
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
 # NightCaretaker UI/UX Diagrams
+
+> [!summary] 문서 목적
+> 이 문서는 UI/UX 상세 문서를 구현자가 빠르게 검토할 수 있도록 만든 Mermaid companion 문서다. 런타임 기준은 현재 프로젝트의 UMG 구조이며, C++ 코드와 Blueprint asset은 이 문서 작업에서 변경하지 않는다.
+
+## 핵심 결론
+
+- 이 문서는 보조 시각화 또는 세부 자료이며, 활성 기준은 루트 Master 문서를 우선한다.
+- 다이어그램, 매트릭스, 와이어프레임은 현재 판단의 근거로 사용할 수 있지만 그대로 구현 기준이 되지는 않는다.
+- 필요 시 본문의 항목을 Planning/Development/Art Master로 승격한다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보조 시각화/동반 자료 |
+| 파일 경로 | `Archive/Companion/NightCaretaker_UIUX_Diagrams.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 목적 | 주요 섹션 |
+| Widget / Runtime Class Boundary | 주요 섹션 |
+| Widget Stack / Screen Transition | 주요 섹션 |
+| HUD Focus Update Sequence | 주요 섹션 |
+| Complaint Accept Sequence | 주요 섹션 |
+| Evidence Registration Sequence | 주요 섹션 |
+| Report Submit Sequence | 주요 섹션 |
+| Document Read Sequence | 주요 섹션 |
+| Input Policy State Machine | 주요 섹션 |
+| RecordIntegrity UI Corruption Flow | 주요 섹션 |
+| P0 / P1 Implementation Split | 주요 섹션 |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 목적
 
@@ -264,3 +325,11 @@ flowchart TD
     P1 --> ToastQueue["Toast queue polish"]
     P1 --> CommonUICandidate["CommonUI review for menus only"]
 ```
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

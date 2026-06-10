@@ -1,4 +1,69 @@
+---
+aliases:
+  - "NightCaretaker Complaint/Anomaly Detail"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - companion
+type: project-document
+project: NightCaretaker
+category: archive-companion
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
 # NightCaretaker Complaint/Anomaly Detail
+
+> [!summary] 문서 목적
+> 이 문서는 `야간 관리인: 307호의 민원`의 20개 민원과 연결 이상 현상을 production 제작 기준으로 확장한 companion 문서다. Master 문서를 대체하지 않고, 민원/이상 현상 제작자가 UI, 장면, 단서, 사운드, 보고 결과, 실패 압박을 빠르게 확인하는 기준으로 사용한다.
+
+## 핵심 결론
+
+- 이 문서는 보조 시각화 또는 세부 자료이며, 활성 기준은 루트 Master 문서를 우선한다.
+- 다이어그램, 매트릭스, 와이어프레임은 현재 판단의 근거로 사용할 수 있지만 그대로 구현 기준이 되지는 않는다.
+- 필요 시 본문의 항목을 Planning/Development/Art Master로 승격한다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보조 시각화/동반 자료 |
+| 파일 경로 | `Archive/Companion/NightCaretaker_ComplaintAnomaly_Detail.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 목적 | 주요 섹션 |
+| 공통 제작 템플릿 | 주요 섹션 |
+| Chapter Prologue | 주요 섹션 |
+| CMP_PRO_OfficeLightBuzz | 세부 기준 |
+| CMP_PRO_203_WaterAtDoor | 세부 기준 |
+| Chapter 1 | 주요 섹션 |
+| CMP_CH1_2F_IntercomStatic | 세부 기준 |
+| CMP_CH1_1F_MailboxMisdelivery | 세부 기준 |
+| CMP_CH1_3F_EmergencyLight | 세부 기준 |
+| CMP_CH1_205_OdorAtDoor | 세부 기준 |
+| CMP_CH1_StairAutoLightDelay | 세부 기준 |
+| Chapter 2 | 주요 섹션 |
+| CMP_CH2_302_TVHum | 세부 기준 |
+| CMP_CH2_204_NameplateMismatch | 세부 기준 |
+| 추가 섹션 15 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 목적
 
@@ -272,3 +337,11 @@
 - `RequiredEvidenceTags`와 `EvidenceTagsGranted`는 서로 연결된다.
 - `Room307Stage`는 챕터 4 전까지 직접 노출하지 않는다.
 - 실패 압박은 조작 방해가 아니라 다음 민원/공간/기록/사운드의 신뢰 하락으로 나타난다.
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

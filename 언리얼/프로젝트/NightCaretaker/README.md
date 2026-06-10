@@ -1,72 +1,121 @@
+---
+aliases:
+  - "NightCaretaker Document Hub"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - hub
+type: project-document
+project: NightCaretaker
+category: hub
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
 # NightCaretaker Document Hub
+
+> [!summary] 문서 목적
+> 이 폴더는 현재 제작 판단에 필요한 활성 문서만 전면에 둔다.
+
+## 핵심 결론
+
+- 이 문서는 NightCaretaker 프로젝트의 참고/보관 자료다.
+- 현재 제작 판단은 루트의 Planning, Development, Art Master를 우선한다.
+- 원문 내용은 유지하되, 후속 작업자가 빠르게 탐색할 수 있도록 구조를 보강했다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 문서 허브 |
+| 파일 경로 | `README.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 목적 | 주요 섹션 |
+| 현재 활성 문서 | 주요 섹션 |
+| 읽기 순서 | 주요 섹션 |
+| 보관 문서 | 주요 섹션 |
+| 현재 정리 상태 | 주요 섹션 |
+| 유지보수 규칙 | 주요 섹션 |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 목적
 
-문서 수를 줄이고 탐색 비용을 낮추기 위해, 현재 활성 문서는 분야별 총합본 3개만 전면에 둔다.
-기존 상세 문서는 삭제하지 않고 `Archive` 아래에 원본으로 보관한다.
+이 폴더는 현재 제작 판단에 필요한 활성 문서만 전면에 둔다.
+세부 원문, 보조 다이어그램, HTML 보드, 과거 작업 산출물은 삭제하지 않고 `Archive` 또는 `Source`에서 추적한다.
 
 ## 현재 활성 문서
 
-- 기획 총합본: [[NightCaretaker_Planning_Master.md]]
-- 개발 총합본: [NightCaretaker_Development_Master.md](./NightCaretaker_Development_Master.md)
-- 아트 총합본: [NightCaretaker_Art_Master.md](./NightCaretaker_Art_Master.md)
+| 문서 | 역할 | 먼저 볼 때 |
+| --- | --- | --- |
+| [NightCaretaker_Planning_Master.md](./NightCaretaker_Planning_Master.md) | 제품 방향, 플레이 루프, 민원/이상 현상 모델, 수직 슬라이스 기준 | 게임이 무엇인지, 무엇을 만들지 결정할 때 |
+| [NightCaretaker_Development_Master.md](./NightCaretaker_Development_Master.md) | UE 구현 구조, 런타임 시스템, 데이터/상태 계약 | C++/Blueprint 구현 기준이 필요할 때 |
+| [NightCaretaker_Art_Master.md](./NightCaretaker_Art_Master.md) | 비주얼 방향, 환경/조명/프랍 제작 기준 | 레벨/아트/무드 제작 기준이 필요할 때 |
 
-## 보조 시각화 문서
+최상위 `Document`는 위 3개 마스터와 이 README만 유지한다.
 
-- 게임 플로우 다이어그램: [NightCaretaker_GameFlow_Diagrams.md](./NightCaretaker_GameFlow_Diagrams.md)
-- 게임 플로우 HTML 보드: [NightCaretaker_GameFlow_Visual.html](./NightCaretaker_GameFlow_Visual.html)
-- UI/UX 상세 문서: [NightCaretaker_UIUX_Detail.md](./NightCaretaker_UIUX_Detail.md)
-- UI/UX 다이어그램: [NightCaretaker_UIUX_Diagrams.md](./NightCaretaker_UIUX_Diagrams.md)
-- UI/UX HTML 와이어프레임: [NightCaretaker_UIUX_Wireframes.html](./NightCaretaker_UIUX_Wireframes.html)
-- 사운드 상세 문서: [NightCaretaker_Sound_Detail.md](./NightCaretaker_Sound_Detail.md)
-- 사운드 다이어그램: [NightCaretaker_Sound_Diagrams.md](./NightCaretaker_Sound_Diagrams.md)
-- 사운드 HTML 매트릭스: [NightCaretaker_Sound_Matrix.html](./NightCaretaker_Sound_Matrix.html)
-- 민원/이상 현상 상세 문서: [NightCaretaker_ComplaintAnomaly_Detail.md](./NightCaretaker_ComplaintAnomaly_Detail.md)
-- 민원/이상 현상 다이어그램: [NightCaretaker_ComplaintAnomaly_Diagrams.md](./NightCaretaker_ComplaintAnomaly_Diagrams.md)
-- 민원/이상 현상 HTML 매트릭스: [NightCaretaker_ComplaintAnomaly_Matrix.html](./NightCaretaker_ComplaintAnomaly_Matrix.html)
-- 레벨/공간 상세 문서: [NightCaretaker_LevelSpace_Detail.md](./NightCaretaker_LevelSpace_Detail.md)
-- 레벨/공간 다이어그램: [NightCaretaker_LevelSpace_Diagrams.md](./NightCaretaker_LevelSpace_Diagrams.md)
-- 레벨/공간 HTML 매트릭스: [NightCaretaker_LevelSpace_Matrix.html](./NightCaretaker_LevelSpace_Matrix.html)
-- 수직 슬라이스 상세 문서: [NightCaretaker_VerticalSlice_Detail.md](./NightCaretaker_VerticalSlice_Detail.md)
-- 수직 슬라이스 다이어그램: [NightCaretaker_VerticalSlice_Diagrams.md](./NightCaretaker_VerticalSlice_Diagrams.md)
-- 수직 슬라이스 HTML 체크리스트: [NightCaretaker_VerticalSlice_Checklist.html](./NightCaretaker_VerticalSlice_Checklist.html)
-- HTML 공통 CSS 템플릿: [NightCaretaker_DocTheme.css](./NightCaretaker_DocTheme.css)
+## 읽기 순서
 
-이 문서들은 Master 문서를 대체하지 않고, 특정 파트를 빠르게 검토하기 위한 companion 문서로 유지한다.
-HTML 시각화 문서는 어두운 저채도 계열의 공통 CSS 템플릿을 기준으로 작성해 문서 간 시각 톤을 맞춘다.
+1. 제품 방향과 수직 슬라이스 범위를 확인하려면 `Planning_Master`를 읽는다.
+2. 실제 UE 구현, 데이터 구조, 런타임 연결은 `Development_Master`에서 확인한다.
+3. 공간, 조명, 프랍, 시각 무드는 `Art_Master`에서 확인한다.
+4. 과거 원문이나 보조 다이어그램이 필요할 때만 `Archive`를 연다.
+5. 작업 이력, 조사 결과, 의사결정 과정은 `Source`를 연다.
 
-## HTML 템플릿 정책
-
-- HTML companion 문서는 `NightCaretaker_DocTheme.css`를 참조하고 인라인 `<style>` 블록을 두지 않는다.
-- 공통 템플릿 표기는 `<meta name="nightcaretaker-doc-template" content="dark-low-saturation-v1">`를 사용한다.
-- 문서별 차이는 `body` class와 공통 CSS 안의 제한된 선택자로만 처리한다.
-
-## 총합본 구성 원칙
-
-- 각 총합본은 해당 분류의 기존 상세 문서를 원문 기준으로 모두 병합한 문서다.
-- 문서 내부 충돌을 피하기 위해 헤딩 레벨만 한 단계 내렸다.
-- 상세 원문은 `Archive` 아래에 그대로 남겨 둔다.
-- 세부 원문 안의 일부 경로 표기는 작성 당시 기준일 수 있으므로, 현재 원본 위치는 `Archive`를 기준으로 본다.
-
-## 폴더 구조
+## 보관 문서
 
 | 경로 | 역할 |
 | --- | --- |
-| `Document/` | 현재 읽는 활성 문서 영역 |
-| `Document/Archive/Planning` | 기획 상세 원본 보관 |
-| `Document/Archive/Development` | 개발 상세 원본 보관 |
-| `Document/Archive/Art` | 아트 상세 원본 보관 |
-| `Document/Source` | 작업 기록 및 문서 정리 이력 |
+| [Archive/Planning](./Archive/Planning) | 기존 GDD, 307 비트시트, 민원 20종, 심리 공포 가이드, 이전 Planning Master 백업 |
+| [Archive/Development](./Archive/Development) | 개발 원본 상세 문서 |
+| [Archive/Art](./Archive/Art) | 아트 원본 상세 문서 |
+| [Archive/Companion](./Archive/Companion) | 보조 다이어그램, HTML 보드, 매트릭스, 와이어프레임, PM 보드 |
+| [Source](./Source) | 작업 단위 문서, 조사 결과, 정리/수정 이력 |
 
-## 읽기 원칙
+보기용 HTML 문서가 필요하면 아래 companion view를 연다.
 
-- 제품 방향과 전체 기획은 기획 총합본부터 읽는다.
-- 구현 구조와 데이터 파이프라인은 개발 총합본을 읽는다.
-- 비주얼 방향과 제작 우선순위는 아트 총합본을 읽는다.
-- 원문 단위로 추적이 필요하면 `Archive`에서 해당 파일을 연다.
+| HTML View | 경로 |
+| --- | --- |
+| Planning Master View | [NightCaretaker_Planning_Master_View.html](./Archive/Companion/NightCaretaker_Planning_Master_View.html) |
+| Development Master View | [NightCaretaker_Development_Master_View.html](./Archive/Companion/NightCaretaker_Development_Master_View.html) |
+| Art Master View | [NightCaretaker_Art_Master_View.html](./Archive/Companion/NightCaretaker_Art_Master_View.html) |
+
+## 현재 정리 상태
+
+- `NightCaretaker_Planning_Master.md`는 2026-05-26에 활성 기획 기준서로 재작성했다.
+- 기존 장문 Planning Master는 `Archive/Planning/NightCaretaker_Planning_Master_PreConsolidation_20260526.md`에 보관했다.
+- 최상위 companion 문서와 HTML 보드는 `Archive/Companion`으로 이동했다.
+- Planning/Development/Art Master 보기용 HTML은 `Archive/Companion`에 추가했고, 공통 보기용 CSS는 `NightCaretaker_Planning_Master_View.css`를 사용한다.
+- `Development_Master`와 `Art_Master`는 2026-05-26에 Planning Master와 같은 실행 중심 기준서로 재작성했다.
 
 ## 유지보수 규칙
 
-- 새 상세 문서를 만들기 전에 먼저 해당 총합본의 새 섹션으로 흡수 가능한지 검토한다.
-- 상세 원본을 수정해 내용이 바뀌면 총합본도 같은 날 다시 병합해야 한다.
-- `Document/Source` 아래 문서는 제품 기준서가 아니라 작업 기록으로 유지한다.
+- 새 문서를 만들기 전에 기존 3개 마스터 중 하나의 섹션으로 흡수 가능한지 먼저 판단한다.
+- 새 companion 문서가 필요하면 최상위에 두지 말고 `Archive/Companion` 또는 작업 중인 `Source` 문서에서 시작한다.
+- 제품 기준으로 확정된 내용만 마스터 문서에 반영한다.
+- 미정, 아이디어, 폐기안은 마스터 본문이 아니라 `Source`나 `Archive`에 남긴다.
+- 마스터 문서에 새 항목을 추가할 때는 플레이어 행동, 시스템 반응, 구현 단위, 검증 기준을 함께 적는다.
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

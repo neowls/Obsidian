@@ -1,4 +1,69 @@
+---
+aliases:
+  - "NightCaretaker Artist Brief"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - art
+type: project-document
+project: NightCaretaker
+category: archive-art
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
 # NightCaretaker Artist Brief
+
+> [!summary] 문서 목적
+> 오래된 아파트의 야간 관리인이 되어 주민 민원을 처리하지만, 밤이 깊어질수록 건물의 구조와 규칙이 설명할 수 없는 방향으로 무너지는 1인칭 심리 공포 게임.
+
+## 핵심 결론
+
+- 이 문서는 NightCaretaker 프로젝트의 참고/보관 자료다.
+- 현재 제작 판단은 루트의 Planning, Development, Art Master를 우선한다.
+- 원문 내용은 유지하되, 후속 작업자가 빠르게 탐색할 수 있도록 구조를 보강했다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보관 아트 자료 |
+| 파일 경로 | `Archive/Art/NightCaretaker_ArtistBrief.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 문서 정보 | 주요 섹션 |
+| 1. 프로젝트 한 줄 설명 | 주요 섹션 |
+| 2. 아티스트가 가장 먼저 이해해야 할 점 | 주요 섹션 |
+| 3. 감정 목표 | 주요 섹션 |
+| 4. 비주얼 핵심 키워드 | 주요 섹션 |
+| 5. 반드시 유지할 방향 | 주요 섹션 |
+| 6. 피해야 할 방향 | 주요 섹션 |
+| 7. 공간 우선순위 | 주요 섹션 |
+| 8. 공간별 목표 인상 | 주요 섹션 |
+| 관리실 | 세부 기준 |
+| 복도 | 세부 기준 |
+| 계단실 / 엘리베이터 앞 | 세부 기준 |
+| 세대 내부 | 세부 기준 |
+| 지하 전기실 | 세부 기준 |
+| 추가 섹션 5 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 문서 정보
 
@@ -147,3 +212,11 @@
 - 빛만 바뀌어도 공간의 의미가 달라지는가
 - 가까이서 봐도 Nanite 기반 밀도가 설득력 있는가
 - 플레이어가 "들어가고 싶지 않지만 들어가 보고 싶다"고 느끼는가
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

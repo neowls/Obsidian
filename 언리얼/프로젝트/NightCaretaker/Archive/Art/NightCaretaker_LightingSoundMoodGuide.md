@@ -1,4 +1,69 @@
+---
+aliases:
+  - "NightCaretaker Lighting Sound Mood Guide"
+tags:
+  - nightcaretaker
+  - project/nightcaretaker
+  - archive
+  - art
+type: project-document
+project: NightCaretaker
+category: archive-art
+status: organized
+updated: 2026-05-26
+cssclasses:
+  - readable-guide
+---
+
 # NightCaretaker Lighting Sound Mood Guide
+
+> [!summary] 문서 목적
+> 이 문서는 본 프로젝트의 공포를 `빛 + 사운드 + 빈 공간의 깊이` 중심으로 유지하기 위한 무드 기준 문서다.
+
+## 핵심 결론
+
+- 이 문서는 NightCaretaker 프로젝트의 참고/보관 자료다.
+- 현재 제작 판단은 루트의 Planning, Development, Art Master를 우선한다.
+- 원문 내용은 유지하되, 후속 작업자가 빠르게 탐색할 수 있도록 구조를 보강했다.
+
+## 문서 정보
+
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 | NightCaretaker / 야간 관리인: 307호의 민원 |
+| 문서 범주 | 보관 아트 자료 |
+| 파일 경로 | `Archive/Art/NightCaretaker_LightingSoundMoodGuide.md` |
+| 프로젝트 경로 | `D:\UnrealProjects\NightCaretaker` |
+| 정리 기준 | `Obsidian 문서 가독성 기준.md`, `HTML CSS 문서 제작 및 활용 기준.md` |
+
+## 문서 지도
+
+| 섹션 | 역할 |
+| --- | --- |
+| 문서 정보 | 주요 섹션 |
+| 1. 목적 | 주요 섹션 |
+| 2. 핵심 원칙 | 주요 섹션 |
+| 3. 감정 곡선 | 주요 섹션 |
+| 초반 | 세부 기준 |
+| 중반 | 세부 기준 |
+| 후반 | 세부 기준 |
+| 4. 조명 상태 프리셋 기준 | 주요 섹션 |
+| 정상 | 세부 기준 |
+| 부분 소등 | 세부 기준 |
+| 층 정전 | 세부 기준 |
+| 비상등 | 세부 기준 |
+| 지하 독립 전원 | 세부 기준 |
+| 5. Lumen 라이팅 원칙 | 주요 섹션 |
+| 추가 섹션 11 개 | 원문 본문에서 이어서 확인한다. |
+
+## 적용 기준
+
+- 원문 의미와 프로젝트 용어를 보존한다.
+- 긴 설명은 제목, 표, 목록, 체크리스트 중심으로 탐색 가능하게 유지한다.
+- 활성 기준과 보관 자료를 구분한다.
+- HTML companion 문서는 각 파일 내부에 CSS를 포함하는 self-contained 문서로 관리한다.
+
+## 본문
 
 ## 문서 정보
 
@@ -146,3 +211,11 @@
 - 소리가 존재를 설명하기보다 불안을 증폭하는가
 - 같은 복도라도 상태에 따라 전혀 다른 공간처럼 느껴지는가
 - 괴물 없이도 플레이어가 뒤를 돌아보게 만드는가
+
+## 검토 체크리스트
+
+- [ ] 현재 판단 기준과 보관/조사 자료가 구분되어 있다.
+- [ ] 다음 작업자가 먼저 볼 섹션을 문서 지도에서 찾을 수 있다.
+- [ ] 표, 목록, 체크리스트가 긴 문단을 보완한다.
+- [ ] Planning/Development/Art Master와 충돌하는 항목은 별도로 승격 또는 폐기 판단한다.
+- [ ] HTML companion이 필요한 경우 외부 CSS 의존 없이 내장 CSS로 작성한다.

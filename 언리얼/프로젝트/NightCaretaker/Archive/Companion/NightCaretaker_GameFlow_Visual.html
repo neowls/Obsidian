@@ -1,0 +1,2341 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="nightcaretaker-doc-template" content="self-contained-html-css-v3">
+  <meta name="nightcaretaker-source-path" content="Archive/Companion/NightCaretaker_GameFlow_Visual.html">
+  <title>NightCaretaker Game Flow Visual</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --bg: #111214;
+  --panel: #1a1d21;
+  --panel-2: #22272d;
+  --line: #3a4048;
+  --ink: #ebe5d9;
+  --muted: #aaa195;
+  --header: #15171a;
+  --deep: #101214;
+  --code-bg: #111417;
+  --amber: #d2b35f;
+  --teal: #7fa6a3;
+  --rust: #c67864;
+  --olive: #869b70;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", "Noto Sans KR", Arial, sans-serif;
+  line-height: 1.52;
+}
+
+header {
+  background: var(--header);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.doc-sound-matrix header,
+.doc-complaint-anomaly-matrix header,
+.doc-level-space-matrix header,
+.doc-vertical-slice-checklist header {
+  padding: 28px 32px 22px;
+}
+
+.wrap,
+main {
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.doc-game-flow .wrap,
+.doc-game-flow main {
+  width: min(1180px, calc(100% - 32px));
+}
+
+.doc-sound-matrix main {
+  width: min(1240px, calc(100% - 40px));
+}
+
+.doc-complaint-anomaly-matrix main,
+.doc-level-space-matrix main,
+.doc-vertical-slice-checklist main,
+.doc-project-restart-pm main,
+.doc-p0-dev-cards main {
+  width: min(1320px, calc(100% - 40px));
+}
+
+.top {
+  padding: 28px 0 22px;
+}
+
+main {
+  padding: 28px 0 48px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: 34px;
+  line-height: 1.12;
+  font-weight: 720;
+}
+
+.doc-game-flow h1,
+.doc-uiux-wireframes h1 {
+  font-size: 30px;
+}
+
+h2 {
+  margin-bottom: 14px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+h3 {
+  margin-bottom: 8px;
+  color: var(--amber);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+p {
+  max-width: 940px;
+  color: var(--muted);
+}
+
+header p {
+  margin-top: 10px;
+}
+
+section {
+  margin-bottom: 34px;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0 16px;
+}
+
+nav a {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 6px 10px;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+nav a:hover {
+  border-color: var(--teal);
+  color: var(--ink);
+}
+
+.subtitle,
+.sub {
+  max-width: 860px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.tags,
+header .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.tag {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 5px 9px;
+  font-size: 13px;
+}
+
+.tag.warn {
+  border-color: rgba(210, 179, 95, .42);
+  background: rgba(210, 179, 95, .14);
+  color: var(--amber);
+}
+
+.tag.bad {
+  border-color: rgba(198, 120, 100, .42);
+  background: rgba(198, 120, 100, .13);
+  color: var(--rust);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.doc-sound-matrix .grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.card,
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 15px;
+}
+
+.card p {
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.card strong {
+  color: var(--ink);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 14px;
+  background: var(--panel);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+}
+
+.doc-sound-matrix table {
+  min-width: 760px;
+}
+
+.doc-complaint-anomaly-matrix table {
+  min-width: 1180px;
+}
+
+.doc-level-space-matrix table,
+.doc-vertical-slice-checklist table {
+  min-width: 1120px;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 11px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: var(--panel-2);
+  color: var(--amber);
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+code {
+  border: 1px solid #3f464f;
+  border-radius: 5px;
+  background: var(--code-bg);
+  color: #f0e7d3;
+  padding: 1px 5px;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: .92em;
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  padding: 18px 32px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.chapter,
+.priority,
+.group {
+  color: var(--teal);
+  font-weight: 700;
+}
+
+.critical {
+  color: var(--rust);
+  font-weight: 700;
+}
+
+.eyebrow {
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.body,
+.note,
+.meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.note,
+.meta {
+  margin-top: 8px;
+}
+
+.doc-game-flow .timeline,
+.doc-game-flow .loop,
+.doc-game-flow .matrix,
+.doc-game-flow .lanes,
+.doc-game-flow .route {
+  display: grid;
+  gap: 12px;
+}
+
+.doc-game-flow .timeline {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.doc-game-flow .loop {
+  grid-template-columns: repeat(7, minmax(140px, 1fr));
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.doc-game-flow .matrix {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.doc-game-flow .lanes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.doc-game-flow .route {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.doc-game-flow .stage,
+.doc-game-flow .loop-step,
+.doc-game-flow .state,
+.doc-game-flow .lane,
+.doc-game-flow .route-step {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--teal);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px;
+}
+
+.doc-game-flow .stage:nth-child(2) {
+  border-top-color: var(--olive);
+}
+
+.doc-game-flow .stage:nth-child(3) {
+  border-top-color: var(--amber);
+}
+
+.doc-game-flow .stage:nth-child(4) {
+  border-top-color: var(--rust);
+}
+
+.doc-game-flow .stage:nth-child(5) {
+  border-top-color: var(--olive);
+}
+
+.doc-game-flow .stage:nth-child(6) {
+  border-top-color: var(--line);
+}
+
+.doc-game-flow .loop-step {
+  min-height: 154px;
+  border-top-color: var(--rust);
+}
+
+.doc-game-flow .state {
+  border-top-color: var(--teal);
+}
+
+.doc-game-flow .state strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.doc-game-flow .lane {
+  border-top-color: var(--amber);
+}
+
+.doc-game-flow .route-step {
+  border-top-color: var(--olive);
+}
+
+.doc-uiux-wireframes .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.doc-uiux-wireframes a {
+  color: var(--teal);
+}
+
+.token-grid,
+.tree-grid,
+.flow-lanes,
+.ownership-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.token-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tree-grid,
+.ownership-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.flow-lanes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.token-card,
+.tree-card,
+.flow-lane,
+.ownership-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px;
+}
+
+.token-card strong,
+.flow-lane strong,
+.ownership-card strong {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.flow-lane span {
+  display: block;
+  margin-top: 5px;
+  color: var(--amber);
+  font-size: 13px;
+}
+
+.swatch {
+  display: block;
+  width: 100%;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.swatch-paper {
+  background: #b8aa86;
+}
+
+.swatch-teal {
+  background: var(--teal);
+}
+
+.swatch-amber {
+  background: var(--amber);
+}
+
+.swatch-rust {
+  background: var(--rust);
+}
+
+.tree-view {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--ink);
+  padding: 10px;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+.compact-spec table {
+  min-width: 760px;
+}
+
+.compact-spec td:first-child {
+  color: var(--teal);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.frame {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 16px;
+}
+
+.screen {
+  position: relative;
+  overflow: hidden;
+  min-height: 320px;
+  border: 10px solid #24282d;
+  border-radius: 8px;
+  background: var(--deep);
+  color: var(--ink);
+}
+
+.hud-reticle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 12px rgba(235, 229, 217, .28);
+}
+
+.prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 54px;
+  transform: translateX(-50%);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(20, 23, 24, .82);
+  padding: 8px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.toast {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  max-width: 220px;
+  border-left: 4px solid var(--teal);
+  background: rgba(34, 39, 45, .94);
+  color: var(--ink);
+  padding: 9px 12px;
+  font-size: 13px;
+}
+
+.board,
+.report,
+.notebook,
+.settings {
+  display: grid;
+  gap: 12px;
+  min-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #1f211f;
+  color: var(--ink);
+  padding: 14px;
+}
+
+.board-layout,
+.report-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.board-layout {
+  grid-template-columns: 1.05fr 1fr;
+  min-height: 230px;
+}
+
+.report-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.rows,
+.detail,
+.paper-box {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(17, 18, 20, .36);
+  padding: 10px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 62px 1fr 80px;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.btn {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--ink);
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.btn.primary {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: var(--deep);
+}
+
+.btn.danger {
+  border-color: var(--rust);
+  background: var(--rust);
+  color: var(--deep);
+}
+
+.checkline {
+  border-bottom: 1px solid var(--line);
+  padding: 7px 0;
+  font-size: 13px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+
+.tab {
+  border: 1px solid var(--line);
+  border-bottom-color: var(--panel-2);
+  border-radius: 4px 4px 0 0;
+  background: var(--panel-2);
+  padding: 5px 9px;
+  font-size: 13px;
+}
+
+.setting-line {
+  display: grid;
+  grid-template-columns: 160px 1fr 52px;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding: 9px 0;
+  font-size: 13px;
+}
+
+.bar {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 99px;
+  background: #32383f;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--olive);
+}
+
+.fill-42 {
+  width: 42%;
+}
+
+.fill-58 {
+  width: 58%;
+}
+
+.fill-64 {
+  width: 64%;
+}
+
+.fill-75 {
+  width: 75%;
+}
+
+.doc-sound-matrix .lane {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.doc-project-restart-pm a {
+  color: var(--teal);
+}
+
+.pm-summary,
+.pm-roadmap,
+.pm-week-grid,
+.pm-cadence,
+.pm-role-grid,
+.pm-gate-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.pm-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pm-roadmap {
+  grid-template-columns: repeat(6, minmax(160px, 1fr));
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.pm-week-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pm-cadence {
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.pm-role-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pm-gate-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pm-metric,
+.pm-week,
+.pm-plan-card,
+.pm-role,
+.pm-gate {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px;
+}
+
+.pm-metric {
+  border-top: 5px solid var(--teal);
+}
+
+.pm-metric span,
+.pm-week span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pm-metric strong,
+.pm-week strong,
+.pm-plan-card strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.pm-metric p,
+.pm-week p,
+.pm-plan-card p,
+.pm-role p,
+.pm-gate p {
+  margin-top: 7px;
+  font-size: 13px;
+}
+
+.pm-week {
+  border-top: 5px solid var(--teal);
+}
+
+.pm-week.now {
+  border-top-color: var(--amber);
+}
+
+.pm-week.lock {
+  border-top-color: var(--rust);
+}
+
+.pm-week.decision {
+  border-top-color: var(--olive);
+}
+
+.pm-week em {
+  display: block;
+  margin-top: 10px;
+  color: var(--amber);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.pm-plan-card,
+.pm-role,
+.pm-gate {
+  border-left: 4px solid var(--teal);
+}
+
+.pm-plan-card ul,
+.pm-role ul,
+.pm-gate ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pm-plan-card li,
+.pm-role li,
+.pm-gate li {
+  margin-bottom: 6px;
+}
+
+.pm-gate.warn {
+  border-left-color: var(--rust);
+}
+
+.pm-next-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.pm-next-list > div {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 12px;
+}
+
+.pm-next-list span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: var(--deep);
+  font-weight: 800;
+}
+
+.pm-next-list p {
+  margin-top: 3px;
+  font-size: 14px;
+}
+
+.doc-p0-dev-cards a {
+  color: var(--teal);
+}
+
+.dev-card-summary,
+.dev-owner-grid,
+.dev-flow,
+.dev-validation-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.dev-card-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dev-owner-grid,
+.dev-validation-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dev-flow {
+  grid-template-columns: repeat(8, minmax(150px, 1fr));
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.dev-kpi,
+.dev-owner,
+.dev-node,
+.dev-check {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px;
+}
+
+.dev-kpi {
+  border-top: 5px solid var(--teal);
+}
+
+.dev-kpi span,
+.dev-node span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dev-kpi strong,
+.dev-node strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.dev-kpi p,
+.dev-owner p,
+.dev-node p,
+.dev-check p {
+  margin-top: 7px;
+  font-size: 13px;
+}
+
+.dev-owner,
+.dev-check {
+  border-left: 4px solid var(--teal);
+}
+
+.dev-node {
+  border-top: 5px solid var(--teal);
+}
+
+.dev-node.start {
+  border-top-color: var(--amber);
+}
+
+.dev-node.core {
+  border-top-color: var(--rust);
+}
+
+.dev-node.end {
+  border-top-color: var(--olive);
+}
+
+.step {
+  min-height: 118px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--teal);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 12px;
+}
+
+.step strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--ink);
+}
+
+.step span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.step.warn {
+  border-left-color: var(--rust);
+}
+
+.step.ok {
+  border-left-color: var(--olive);
+}
+
+@media (max-width: 900px) {
+  .doc-game-flow .timeline,
+  .doc-game-flow .matrix,
+  .doc-game-flow .lanes,
+  .doc-game-flow .route,
+  .pm-summary,
+  .pm-week-grid,
+  .pm-role-grid,
+  .dev-card-summary,
+  .dev-owner-grid,
+  .dev-validation-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .doc-uiux-wireframes .grid,
+  .token-grid,
+  .tree-grid,
+  .flow-lanes,
+  .ownership-grid,
+  .board-layout,
+  .report-grid,
+  .pm-gate-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .wrap,
+  main,
+  .doc-game-flow .wrap,
+  .doc-game-flow main,
+  .doc-sound-matrix main,
+  .doc-complaint-anomaly-matrix main,
+  .doc-level-space-matrix main,
+  .doc-vertical-slice-checklist main,
+  .doc-project-restart-pm main,
+  .doc-p0-dev-cards main {
+    width: min(100% - 20px, 1320px);
+  }
+
+  .doc-sound-matrix header,
+  .doc-complaint-anomaly-matrix header,
+  .doc-level-space-matrix header,
+  .doc-vertical-slice-checklist header {
+    padding: 24px 20px 18px;
+  }
+
+  h1,
+  .doc-game-flow h1,
+  .doc-uiux-wireframes h1 {
+    font-size: 26px;
+  }
+
+  .doc-game-flow .timeline,
+  .doc-game-flow .matrix,
+  .doc-game-flow .lanes,
+  .doc-game-flow .route,
+  .pm-summary,
+  .pm-week-grid,
+  .pm-role-grid,
+  .dev-card-summary,
+  .dev-owner-grid,
+  .dev-validation-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .row,
+  .setting-line {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Master view theme */
+:root {
+  color-scheme: dark;
+  --bg: #0f1112;
+  --surface: #171a1d;
+  --surface-2: #202428;
+  --surface-3: #262b30;
+  --line: #343b42;
+  --line-strong: #55616d;
+  --ink: #eee8dc;
+  --muted: #b5aa9c;
+  --soft: #877f75;
+  --gold: #d1b15b;
+  --teal: #79a7a0;
+  --rust: #c57763;
+  --green: #8ca572;
+  --blue: #83a3c7;
+  --shadow: rgba(0, 0, 0, .28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", "Noto Sans KR", Arial, sans-serif;
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+}
+
+.page-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: #131619;
+  padding: 24px 18px;
+}
+
+.brand {
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.brand h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.doc-meta {
+  display: grid;
+  gap: 7px;
+  margin: 18px 0 22px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.doc-meta span {
+  display: block;
+}
+
+.toc {
+  display: grid;
+  gap: 5px;
+}
+
+.toc a {
+  display: block;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 7px 9px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.toc a:hover {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.content {
+  min-width: 0;
+}
+
+.hero {
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(15, 17, 18, .95), rgba(15, 17, 18, .78)),
+    repeating-linear-gradient(0deg, rgba(209, 177, 91, .08) 0 1px, transparent 1px 54px),
+    repeating-linear-gradient(90deg, rgba(121, 167, 160, .06) 0 1px, transparent 1px 72px),
+    var(--surface);
+  padding: 42px min(6vw, 72px) 30px;
+}
+
+.hero h2 {
+  max-width: 1020px;
+  margin: 0;
+  font-size: clamp(34px, 5vw, 66px);
+  line-height: 1.02;
+  font-weight: 780;
+  letter-spacing: 0;
+}
+
+.hero .lead {
+  max-width: 960px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.signal {
+  min-height: 126px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(23, 26, 29, .82);
+  padding: 14px;
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.signal strong {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.signal span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+main {
+  width: min(1180px, calc(100% - 42px));
+  margin: 0 auto;
+  padding: 34px 0 58px;
+}
+
+section {
+  margin-bottom: 44px;
+}
+
+.section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+
+h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 25px;
+  line-height: 1.2;
+  font-weight: 740;
+  letter-spacing: 0;
+}
+
+.section-note {
+  max-width: 520px;
+  margin: 0;
+  color: var(--soft);
+  font-size: 13px;
+  text-align: right;
+}
+
+.statement {
+  border-left: 4px solid var(--gold);
+  background: var(--surface);
+  padding: 16px 18px;
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.statement p {
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 15px;
+}
+
+.panel h4,
+.step h4 {
+  margin: 0 0 7px;
+  color: var(--gold);
+  font-size: 15px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.panel p,
+.step p,
+.route li,
+.check-list li {
+  color: var(--muted);
+}
+
+.panel p,
+.step p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tag {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.tag.warn {
+  border-color: rgba(197, 119, 99, .48);
+  background: rgba(197, 119, 99, .12);
+  color: var(--rust);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 11px 12px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+}
+
+th {
+  background: var(--surface-2);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+td {
+  color: var(--muted);
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+code {
+  border: 1px solid rgba(131, 163, 199, .28);
+  border-radius: 5px;
+  background: #101418;
+  color: #b8c9de;
+  padding: 1px 5px;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: .92em;
+}
+
+.loop {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.step {
+  position: relative;
+  min-height: 168px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 14px;
+}
+
+.step::after {
+  content: "";
+  position: absolute;
+  top: 22px;
+  right: -7px;
+  width: 12px;
+  height: 12px;
+  border-top: 2px solid var(--line-strong);
+  border-right: 2px solid var(--line-strong);
+  transform: rotate(45deg);
+  background: var(--bg);
+}
+
+.step:last-child::after {
+  display: none;
+}
+
+.num {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.timeline {
+  display: grid;
+  gap: 12px;
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: 110px 1fr 1.2fr;
+  gap: 14px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 14px;
+}
+
+.stage .stage-id {
+  color: var(--gold);
+  font-weight: 750;
+}
+
+.stage strong {
+  color: var(--ink);
+}
+
+.stage span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.route {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px 18px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.route li {
+  padding-left: 4px;
+}
+
+.check-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.footer-note {
+  border-top: 1px solid var(--line);
+  margin-top: 48px;
+  padding-top: 20px;
+  color: var(--soft);
+  font-size: 13px;
+}
+
+@media (max-width: 1040px) {
+  .page-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .toc {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .hero-grid,
+  .split {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .loop {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .step::after {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .hero {
+    padding: 30px 20px 22px;
+  }
+
+  main {
+    width: min(100% - 28px, 1180px);
+    padding-top: 26px;
+  }
+
+  .hero-grid,
+  .split,
+  .loop {
+    grid-template-columns: 1fr;
+  }
+
+  .section-head {
+    display: block;
+  }
+
+  .section-note {
+    margin-top: 8px;
+    text-align: left;
+  }
+
+  .stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 999;
+  transform: translateY(-160%);
+  padding: 0.55rem 0.8rem;
+  border-radius: 6px;
+  background: var(--amber);
+  color: #19150b;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.28);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+/* Self-contained repair layer: readability, responsive safety, and UI mockup preservation. */
+:root {
+  --font-ui: "Pretendard", "Noto Sans KR", "Noto Sans CJK KR", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-code: "JetBrains Mono", "D2Coding", "D2 Coding", "Cascadia Code", Consolas, ui-monospace, monospace;
+  --safe-wrap: min(1320px, calc(100% - 32px));
+}
+
+html {
+  min-width: 320px;
+}
+
+body {
+  font-family: var(--font-ui);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+code,
+pre,
+.tree-view {
+  font-family: var(--font-code);
+  word-break: normal;
+}
+
+pre,
+.tree-view {
+  overflow: auto;
+  white-space: pre;
+  line-height: 1.5;
+}
+
+.wrap,
+main {
+  width: var(--safe-wrap);
+}
+
+header {
+  position: relative;
+  overflow: hidden;
+}
+
+header .wrap,
+main.wrap,
+main {
+  min-width: 0;
+}
+
+h1,
+h2,
+h3,
+p,
+li,
+th,
+td,
+button,
+a,
+span,
+strong {
+  letter-spacing: 0;
+}
+
+h1 {
+  max-width: 24ch;
+}
+
+h2,
+h3 {
+  overflow-wrap: anywhere;
+}
+
+p,
+li {
+  line-height: 1.62;
+}
+
+section {
+  scroll-margin-top: 24px;
+}
+
+.grid,
+.timeline,
+.loop,
+.matrix,
+.lanes,
+.route,
+.cards,
+.token-grid,
+.tree-grid,
+.flow-lanes,
+.ownership-grid {
+  min-width: 0;
+}
+
+.card,
+.panel,
+.frame,
+.token-card,
+.tree-card,
+.flow-lane,
+.ownership-card,
+.stage,
+.loop-step,
+.state,
+.lane,
+.route-step {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.card > *,
+.panel > *,
+.frame > *,
+.token-card > *,
+.tree-card > *,
+.flow-lane > *,
+.ownership-card > * {
+  min-width: 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  table-layout: auto;
+}
+
+th,
+td {
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+td code,
+th code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.tag,
+.btn,
+nav a {
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.btn {
+  font: inherit;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.doc-uiux-wireframes .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.token-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+
+.tree-grid,
+.ownership-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+}
+
+.flow-lanes {
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+}
+
+.frame {
+  overflow: visible;
+}
+
+.screen {
+  min-height: clamp(260px, 40vw, 420px);
+  max-width: 100%;
+}
+
+.prompt {
+  max-width: calc(100% - 28px);
+  white-space: normal;
+  text-align: center;
+}
+
+.toast {
+  max-width: min(260px, calc(100% - 36px));
+}
+
+.board,
+.report,
+.notebook,
+.settings {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.board-layout,
+.report-grid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+}
+
+.rows,
+.detail,
+.paper-box {
+  min-width: 0;
+}
+
+.row {
+  grid-template-columns: minmax(44px, 62px) minmax(0, 1fr) minmax(58px, 80px);
+  align-items: start;
+}
+
+.row > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.report-grid .btn,
+.paper-box .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.swatch {
+  flex: 0 0 auto;
+}
+
+.tree-view {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+@media (max-width: 920px) {
+  .wrap,
+  main,
+  .doc-game-flow .wrap,
+  .doc-game-flow main,
+  .doc-sound-matrix main,
+  .doc-complaint-anomaly-matrix main,
+  .doc-level-space-matrix main,
+  .doc-vertical-slice-checklist main,
+  .doc-project-restart-pm main,
+  .doc-p0-dev-cards main {
+    width: min(100% - 24px, 1320px);
+  }
+
+  .doc-uiux-wireframes .grid,
+  .board-layout,
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  nav {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 14px;
+  }
+
+  nav a {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    line-height: 1.58;
+  }
+
+  header .top,
+  .doc-sound-matrix header,
+  .doc-complaint-anomaly-matrix header,
+  .doc-level-space-matrix header,
+  .doc-vertical-slice-checklist header {
+    padding-inline: 0;
+  }
+
+  h1,
+  .doc-game-flow h1,
+  .doc-uiux-wireframes h1 {
+    font-size: clamp(24px, 8vw, 30px);
+    max-width: none;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  th,
+  td {
+    padding: 9px 10px;
+    font-size: 12.5px;
+  }
+
+  .frame,
+  .card,
+  .panel,
+  .token-card,
+  .tree-card,
+  .flow-lane,
+  .ownership-card {
+    padding: 12px;
+  }
+
+  .screen {
+    border-width: 6px;
+    min-height: 240px;
+  }
+
+  .prompt {
+    bottom: 46px;
+    font-size: 12px;
+  }
+
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: none;
+  }
+
+  .row,
+  .setting-line {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  nav,
+  .screen::before {
+    display: none !important;
+  }
+
+  .card,
+  .panel,
+  .frame,
+  .token-card,
+  .tree-card,
+  .flow-lane,
+  .ownership-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}
+  
+/* Final responsive repair for narrow screens and long Unreal widget names. */
+.doc-uiux-wireframes h3,
+.doc-uiux-wireframes .tree-card h3,
+.doc-uiux-wireframes .ownership-card strong,
+.doc-uiux-wireframes code,
+.doc-uiux-wireframes .tag {
+  overflow-wrap: anywhere;
+}
+
+.doc-uiux-wireframes .tree-card h3 {
+  font-size: clamp(1.12rem, 2.4vw, 1.55rem);
+  line-height: 1.18;
+}
+
+@media (max-width: 760px) {
+  .token-grid,
+  .tree-grid,
+  .flow-lanes,
+  .ownership-grid,
+  .doc-uiux-wireframes .grid,
+  .board-layout,
+  .report-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .token-card,
+  .tree-card,
+  .flow-lane,
+  .ownership-card,
+  .frame,
+  .card,
+  .panel {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .doc-uiux-wireframes .compact-spec table,
+  .doc-uiux-wireframes table {
+    min-width: 640px;
+  }
+}
+  
+/* Final overflow hardening: prevent text clipping in narrow/mobile viewports. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.wrap,
+main,
+header,
+section,
+.card,
+.panel,
+.frame,
+.token-card,
+.tree-card,
+.flow-lane,
+.ownership-card {
+  max-width: 100%;
+}
+
+.sub,
+.subtitle,
+p,
+li,
+td,
+th,
+.meta {
+  overflow-wrap: anywhere;
+}
+
+.table-wrap {
+  max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  .doc-uiux-wireframes .compact-spec table,
+  .doc-uiux-wireframes .compact-spec thead,
+  .doc-uiux-wireframes .compact-spec tbody,
+  .doc-uiux-wireframes .compact-spec tr,
+  .doc-uiux-wireframes .compact-spec th,
+  .doc-uiux-wireframes .compact-spec td {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+  }
+
+  .doc-uiux-wireframes .compact-spec thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .doc-uiux-wireframes .compact-spec tr {
+    border-bottom: 1px solid var(--line);
+    padding: 0.65rem 0;
+  }
+
+  .doc-uiux-wireframes .compact-spec tr:last-child {
+    border-bottom: 0;
+  }
+
+  .doc-uiux-wireframes .compact-spec td {
+    border-bottom: 0;
+    padding: 0.35rem 0.2rem;
+  }
+
+  .doc-uiux-wireframes .compact-spec td:nth-child(1)::before {
+    content: "Component: ";
+    color: var(--amber);
+    font-weight: 800;
+  }
+
+  .doc-uiux-wireframes .compact-spec td:nth-child(2)::before {
+    content: "UMG 기준: ";
+    color: var(--amber);
+    font-weight: 800;
+  }
+
+  .doc-uiux-wireframes .compact-spec td:nth-child(3)::before {
+    content: "금지: ";
+    color: var(--amber);
+    font-weight: 800;
+  }
+}
+  
+/* Korean mobile wrapping repair: avoid clipped prose on narrow screens. */
+@media (max-width: 760px) {
+  .sub,
+  .subtitle,
+  p,
+  li,
+  td,
+  th,
+  .meta,
+  .token-card,
+  .tree-card,
+  .flow-lane,
+  .ownership-card {
+    word-break: normal !important;
+    line-break: anywhere;
+    overflow-wrap: anywhere;
+  }
+}
+  
+/* Aggressive mobile wrap fallback for Chrome + Korean keep-all edge cases. */
+@media (max-width: 760px) {
+  .doc-uiux-wireframes .sub,
+  .doc-uiux-wireframes .subtitle,
+  .doc-uiux-wireframes p,
+  .doc-uiux-wireframes li,
+  .doc-uiux-wireframes td,
+  .doc-uiux-wireframes th,
+  .doc-uiux-wireframes .meta {
+    word-break: break-all !important;
+    overflow-wrap: anywhere !important;
+  }
+}
+  </style>
+</head>
+<body class="doc-game-flow">
+  <a class="skip-link" href="#main">본문으로 이동</a>
+<header>
+    <div class="wrap">
+      <div class="top">
+        <p class="eyebrow">NightCaretaker Documentation Companion</p>
+        <h1>게임 플로우 시각화 보드</h1>
+        <p class="subtitle">기준 문서는 Planning Master다. 이 파일은 챕터 진행, 민원 루프, 상태 전이, 실패 회복, 데모 루트를 한 화면에서 확인하기 위한 보조 자료다.</p>
+      </div>
+      <nav aria-label="문서 섹션">
+        <a href="#chapters">챕터 흐름</a>
+        <a href="#loop">민원 루프</a>
+        <a href="#states">상태 매트릭스</a>
+        <a href="#failure">실패 회복</a>
+        <a href="#demo">데모 루트</a>
+        <a href="#handoff">다음 파트</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section id="chapters">
+      <h2>챕터 흐름</h2>
+      <div class="timeline">
+        <article class="stage">
+          <p class="eyebrow">Prologue</p>
+          <h3>근무 시작</h3>
+          <p class="body">관리실, 도구, 보고 루프를 학습한다. 공포보다 업무 기준점을 먼저 만든다.</p>
+        </article>
+        <article class="stage">
+          <p class="eyebrow">Chapter 1</p>
+          <h3>평범한 야간 근무</h3>
+          <p class="body">수리형 민원을 반복하며 조명, 문, 인터폰, 복도 기준점을 익힌다.</p>
+        </article>
+        <article class="stage">
+          <p class="eyebrow">Chapter 2</p>
+          <h3>설명되지 않는 민원</h3>
+          <p class="body">기록 불일치와 이상 판정이 시작된다. 플레이어는 보고 자체를 의심한다.</p>
+        </article>
+        <article class="stage">
+          <p class="eyebrow">Chapter 3</p>
+          <h3>정전과 지하실</h3>
+          <p class="body">전원 상태, 지하 설비, 기록 오염이 하나의 압박으로 연결된다.</p>
+        </article>
+        <article class="stage">
+          <p class="eyebrow">Chapter 4</p>
+          <h3>307호</h3>
+          <p class="body">반복 민원, 입주자 기록, 공간 붕괴가 307호 앞에서 수렴한다.</p>
+        </article>
+        <article class="stage">
+          <p class="eyebrow">Ending</p>
+          <h3>마지막 보고</h3>
+          <p class="body">해결보다 해석과 잔상을 남긴다. 모든 답을 직접 설명하지 않는다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="loop">
+      <h2>민원 1건 루프</h2>
+      <div class="loop">
+        <article class="loop-step">
+          <p class="eyebrow">01</p>
+          <h3>보드 확인</h3>
+          <p class="body">접수 문구, 위치, 민원 종류, 비고를 읽는다.</p>
+        </article>
+        <article class="loop-step">
+          <p class="eyebrow">02</p>
+          <h3>도구 준비</h3>
+          <p class="body">손전등은 기본. 필요한 업무 도구만 추가로 챙긴다.</p>
+        </article>
+        <article class="loop-step">
+          <p class="eyebrow">03</p>
+          <h3>현장 이동</h3>
+          <p class="body">복도, 계단, 엘리베이터, 세대 앞 기준점을 재확인한다.</p>
+        </article>
+        <article class="loop-step">
+          <p class="eyebrow">04</p>
+          <h3>단서 조사</h3>
+          <p class="body">시각, 사운드, 기록, 환경 단서 중 2~3개를 확인한다.</p>
+        </article>
+        <article class="loop-step">
+          <p class="eyebrow">05</p>
+          <h3>조치 / 판정</h3>
+          <p class="body">수리, 점검, 이상 판정 중 민원 템플릿에 맞는 행동을 한다.</p>
+        </article>
+        <article class="loop-step">
+          <p class="eyebrow">06</p>
+          <h3>관리실 복귀</h3>
+          <p class="body">안전한 복귀가 아니라 보고를 위한 긴장 완충 구간이다.</p>
+        </article>
+        <article class="loop-step">
+          <p class="eyebrow">07</p>
+          <h3>보고 / 상태 변화</h3>
+          <p class="body">보고 결과가 조명, 기록, 소리, 다음 민원, 구역 해금으로 번진다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="states">
+      <h2>상태 매트릭스</h2>
+      <div class="matrix">
+        <article class="state">
+          <strong>ShiftPhase</strong>
+          <p class="body">근무 흐름의 큰 단계. UI와 저장 체크포인트의 기준이다.</p>
+        </article>
+        <article class="state">
+          <strong>ComplaintState</strong>
+          <p class="body">민원 선택, 조사, 보고 가능, 완료, 재접수 상태를 관리한다.</p>
+        </article>
+        <article class="state">
+          <strong>PowerState</strong>
+          <p class="body">정상, 부분 소등, 층 정전, 비상등, 지하 독립 전원.</p>
+        </article>
+        <article class="state">
+          <strong>TensionStage</strong>
+          <p class="body">정상 근무에서 307호 집중까지 사운드와 조명 강도를 조절한다.</p>
+        </article>
+        <article class="state">
+          <strong>Room307Stage</strong>
+          <p class="body">숫자 흔적, 기록 침투, 문 앞 체류, 내부 진입까지의 노출 단계.</p>
+        </article>
+        <article class="state">
+          <strong>AccessState</strong>
+          <p class="body">층, 세대, 지하실, 제한 구역의 해금과 봉쇄를 표현한다.</p>
+        </article>
+        <article class="state">
+          <strong>RecordIntegrity</strong>
+          <p class="body">보드, 명부, 정비 로그, 문패의 신뢰도 오염 수준.</p>
+        </article>
+        <article class="state">
+          <strong>AudioMood</strong>
+          <p class="body">민원 도메인과 긴장도에 따른 전기음, 생활음, 저주파 레이어.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="failure">
+      <h2>실패 회복</h2>
+      <div class="lanes">
+        <article class="lane">
+          <p class="eyebrow">Soft Failure</p>
+          <h3>경미한 오판 / 누락</h3>
+          <p class="body">추가 단서 요구, 민원 재확인, 작은 조명 변화로 압박한다.</p>
+        </article>
+        <article class="lane">
+          <p class="eyebrow">Pressure Failure</p>
+          <h3>반복 오판 / 방치</h3>
+          <p class="body">기록 오염, 동선 우회, 생활 소음 강화, 반복 접수로 이어진다.</p>
+        </article>
+        <article class="lane">
+          <p class="eyebrow">Hard Failure</p>
+          <h3>후반 명백한 위험</h3>
+          <p class="body">짧은 체크포인트 또는 강제 퇴각만 허용한다. 긴 재반복은 금지한다.</p>
+        </article>
+      </div>
+      <p class="note">모든 실패는 1~3분 안에 새 목표, 새 감각 정보, 또는 새 단서를 제공해야 한다.</p>
+    </section>
+
+    <section id="demo">
+      <h2>데모 / 수직 슬라이스 루트</h2>
+      <div class="route">
+        <article class="route-step">
+          <p class="eyebrow">Start</p>
+          <h3>관리실</h3>
+          <p class="body">OfficeLightBuzz로 조작과 보드 활성화.</p>
+        </article>
+        <article class="route-step">
+          <p class="eyebrow">Work</p>
+          <h3>203호 / 인터폰</h3>
+          <p class="body">현장 조사와 업무형 공포 학습.</p>
+        </article>
+        <article class="route-step">
+          <p class="eyebrow">Break</p>
+          <h3>TV 소음 / 재접수</h3>
+          <p class="body">정상 고장과 이상 판정의 경계 붕괴.</p>
+        </article>
+        <article class="route-step">
+          <p class="eyebrow">Down</p>
+          <h3>정전 / 지하실</h3>
+          <p class="body">건물 설비와 긴장도 상승 체감.</p>
+        </article>
+        <article class="route-step">
+          <p class="eyebrow">Hook</p>
+          <h3>307호 앞</h3>
+          <p class="body">직접 열지 않고 다음 플레이 욕구를 남긴다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="handoff">
+      <h2>다음 세밀화 파트 입력값</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>파트</th>
+            <th>이번 플로우에서 넘기는 기준</th>
+            <th>다음 문서에서 결정할 것</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>UI/UX</td>
+            <td>보드 확인, 보고, 기록장, 상호작용 프롬프트, 도구 준비 단계</td>
+            <td>화면 구성, 입력, 상태 표시, 오류/오염 표현</td>
+          </tr>
+          <tr>
+            <td>Sound</td>
+            <td>PowerState, TensionStage, ComplaintState, Room307Stage</td>
+            <td>MetaSound 레이어, SFX 이벤트명, 공간별 ambience</td>
+          </tr>
+          <tr>
+            <td>Complaint</td>
+            <td>민원 1건 루프와 챕터 게이트</td>
+            <td>20종 민원의 UI 문구, 사운드 큐, 현장 연출</td>
+          </tr>
+          <tr>
+            <td>Art / Lighting</td>
+            <td>챕터별 감정 곡선과 상태 변화 출력</td>
+            <td>공간별 조명 프리셋, 기준점 변주, 제작 티켓 보강</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
+
+
+
+
+
