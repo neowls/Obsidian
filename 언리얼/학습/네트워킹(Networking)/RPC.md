@@ -1,10 +1,62 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/networking
+  - type/learning
+---
+
+# RPC
+
+> [!summary] 요약
+> RPC는 Unreal 네트워크에서 한 머신의 함수 호출을 서버, owning client, 관련 클라이언트 등 다른 실행 위치로 전달하는 원격 함수 호출 방식이다.
+> 입력 요청, 순간 연출, 서버 검증 요청처럼 상태 복제(Replication)만으로 표현하기 어려운 일회성 행동에 사용한다.
+> 핵심은 RPC가 상태 저장 수단이 아니며, actor ownership과 호출 위치가 맞아야 기대한 대상에서 실행된다는 점이다.
+
+## 핵심 결론
+
+- Server RPC는 owning connection이 있는 클라이언트에서 서버로 요청할 때 의미가 있다.
+- Client RPC는 해당 actor의 owning client를 대상으로 하며, NetMulticast는 relevant client 범위와 호출 주체에 영향을 받는다.
+- RPC가 실행되지 않으면 actor replicated 여부, owner connection, callspace, reliability, 호출 시점을 먼저 확인한다.
+
+## 참고 자료
+
 [Remote Procedure Calls in Unreal Engine | Unreal Engine 5.7 Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/unreal-engine/remote-procedure-calls-in-unreal-engine) | [Actor Owner and Owning Connection in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/actor-owner-and-owning-connection-in-unreal-engine) | [Replicate Actor Properties in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/replicate-actor-properties-in-unreal-engine)
 
-# 개요
+## 개요
 `RPC(Remote Procedure Calls)`는 네트워크 너머의 다른 머신에서 함수를 실행하게 만드는 기능이다.
 언리얼 엔진 네트워크 모델에서 `Replication`이 상태 동기화라면, `RPC`는 요청, 응답, 순간 이벤트 전달에 해당한다.
 
 이 문서는 RPC의 사용 규칙뿐 아니라, 실제 UE 5.7 엔진 코드 기준 `callspace 판단 -> remote 전환 -> bunch 직렬화 -> 수신 복호화 -> ProcessEvent 실행` 경로까지 한 번에 정리한다.
+
+## 왜 필요한가
+
+네트워크 버그는 기능 코드가 틀려서보다 실행 위치와 복제 조건을 잘못 가정해서 생기는 경우가 많다. RPC을 볼 때는 "서버의 사실", "클라이언트의 요청", "복제로 전달되는 상태"를 분리해야 한다.
+
+## 작동 모델
+
+서버가 게임 상태의 기준을 갖고, 클라이언트는 입력을 요청하거나 복제된 결과를 받는다. actor channel, relevancy, dormancy, update frequency는 어떤 객체가 언제 어떤 클라이언트에 전달되는지를 결정한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `AActor` | 복제 대상의 기본 단위 | `bReplicates`, relevancy, dormancy |
+| `UNetDriver` / `UNetConnection` | 연결과 패킷 흐름 관리 | client connection, channel 상태 |
+| Owner / `PlayerController` | Client RPC 호출 가능 여부 결정 | owning connection 존재 여부 |
+| Replicated Property | 오래 남는 상태 동기화 | RepNotify, 조건, 초기값 |
+| RPC | 순간 요청 또는 이벤트 전달 | 호출 위치, reliable 여부, 대상 |
+
+## 실행 흐름
+
+1. 서버가 actor를 생성하거나 상태를 변경한다.
+2. NetDriver가 relevancy와 priority를 기준으로 actor channel을 갱신한다.
+3. 변경된 property가 조건에 맞는 클라이언트로 복제된다.
+4. RPC는 호출 주체와 owner connection 조건을 통과할 때만 원격 실행된다.
+5. 클라이언트는 OnRep, prediction correction, visual update 순서로 결과를 반영한다.
 
 ## 함께 볼 로컬 문서
 - [[언리얼 네트워킹]]
@@ -18,7 +70,9 @@
 - ownership이 맞지 않으면 `Server`, `Client` RPC는 기대한 대상에게 전달되지 않는다.
 - RPC는 상태 저장 수단이 아니라 원격 함수 실행 수단이다.
 
-# 핵심 개념
+## 핵심 개념
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## RPC와 Replication의 차이
 
@@ -32,7 +86,7 @@
 > [!info]
 > RPC는 `replicated properties`를 보완하는 메커니즘이다. 둘은 대체 관계가 아니라 역할 분담 관계로 보는 편이 맞다.
 
-# RPC 종류
+## RPC 종류
 
 | 타입 | 설명 | 실무 해석 |
 | --- | --- | --- |
@@ -49,7 +103,9 @@
 > [!caution]
 > `NetMulticast`는 "무조건 모든 클라이언트"가 아니라 `현재 relevant한 클라이언트`가 기준이다.
 
-# 선언과 구현
+## 선언과 구현
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## 기본 구조
 ```cpp
@@ -87,7 +143,9 @@ void AMyActor::ServerTryFire_Implementation()
 > [!caution]
 > 큰 파라미터를 reliable RPC에 싣는 습관은 비용이 크다. UE 5.7 코드에서도 reliable overflow는 연결 종료로 이어질 수 있다.
 
-# Server RPC Validation
+## Server RPC Validation
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## `WithValidation`
 ```cpp
@@ -110,9 +168,11 @@ void AMyCharacter::ServerEquipSlot_Implementation(int32 Slot)
 - 비정상적으로 큰 값
 - null이면 안 되는 참조
 - 명백히 불가능한 입력
-- 거리, 소유권, 자원, 쿨다운 같은 게임 규칙
+- 거리, 소유권(Ownership), 자원, 쿨다운 같은 게임 규칙
 
-# RPC 내부 경로
+## RPC 내부 경로
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## 전체 파이프라인
 
@@ -123,7 +183,7 @@ void AMyCharacter::ServerEquipSlot_Implementation(int32 Slot)
 | remote 전환 | `CallRemoteFunction()` | active net driver로 넘김 |
 | 전송 | `UNetDriver::ProcessRemoteFunction()` | connection 선택, multicast relevancy 검사 |
 | 채널/직렬화 | `ProcessRemoteFunctionForChannelPrivate()` | actor channel 확보, RPC 파라미터 직렬화 |
-| 수신 | `FObjectReplicator::ReceivedRPC()` | 파라미터 복호화, 권한 검사 |
+| 수신 | `FObjectReplicator::ReceivedRPC()` | 파라미터 복호화, 권한(Authority) 검사 |
 | 실행 | `CallProcessEventForReceivedRPC()` | 최종적으로 `ProcessEvent()` 호출 |
 
 ## `FunctionCallspace::Type`
@@ -222,7 +282,9 @@ void AMyCharacter::ServerEquipSlot_Implementation(int32 Slot)
 
 즉 수신 측도 `_Implementation()`을 바로 치는 것이 아니라, 정상적인 `ProcessEvent()` 경로를 다시 통과한다.
 
-# 설계 기준
+## 설계 기준
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## 정석 패턴
 1. 클라이언트 입력
@@ -233,6 +295,7 @@ void AMyCharacter::ServerEquipSlot_Implementation(int32 Slot)
 6. 필요하면 `Client` 또는 `NetMulticast` RPC로 연출
 
 ## 예시
+
 ### 총 발사
 - 입력 -> `ServerTryFire()`
 - 서버 판정 -> 탄약 감소, 피해 처리
@@ -245,13 +308,13 @@ void AMyCharacter::ServerEquipSlot_Implementation(int32 Slot)
 - 현재 상태는 `Replication`
 - 문 열림 연출은 `OnRep` 또는 RPC
 
-# 일반 팁
+## 일반 팁
 - 요청은 `Server RPC`, 결과는 `Replication`으로 분리하면 구조가 안정적이다.
 - owner 전용 정보는 `Client RPC`가 자연스럽다.
 - 모든 사람에게 보이는 일회성 연출은 `NetMulticast`가 맞지만, 상태를 대신하면 안 된다.
 - RPC가 안 갈 때는 함수 선언보다 ownership과 connection부터 확인하는 편이 빠르다.
 
-# 엔진 소스 참고 포인트
+## 엔진 소스 참고 포인트
 - `Engine\Source\Runtime\CoreUObject\Public\UObject\ObjectMacros.h`
 - `Engine\Source\Runtime\CoreUObject\Public\UObject\Script.h`
 - `Engine\Source\Runtime\CoreUObject\Private\UObject\ScriptCore.cpp`
@@ -272,3 +335,27 @@ RPC는 `원격 함수 실행`이고, Replication은 `상태 동기화`다.
 3. 누가 이 호출을 받아야 하는가
 4. reliable이 필요한가
 5. 결과를 다시 상태로 남겨야 하는가
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| `HasAuthority()`가 true면 항상 서버 전용 코드다. | authority, net mode, local control, owner를 각각 확인한다. |
+| Client RPC는 아무 actor에서나 호출할 수 있다. | owning connection이 있는 actor인지 먼저 확인한다. |
+| 모든 이벤트를 RPC로 보내면 된다. | 남아야 하는 값은 replicated property와 RepNotify로 처리한다. |
+
+## 디버깅 체크리스트
+
+- [ ] 대상 actor의 `bReplicates`, relevancy, dormancy 설정을 확인했다.
+- [ ] RPC 호출 actor에 owning connection이 있다.
+- [ ] 서버/클라이언트 양쪽에서 net mode와 role 로그를 찍었다.
+- [ ] RepNotify가 초기 복제, 변경 복제, late join 상황에서 기대대로 호출된다.
+- [ ] Net update frequency, dormancy 해제, relevancy 거리 때문에 누락되지 않는다.
+
+## 관련 문서
+
+- [[언리얼 네트워킹]]
+- [[CharacterMovement와 예측(CharacterMovement Prediction)]]
+- [[Fast Array, Component, Subobject(FastArray Component Subobject)]]
+- [[Iris와 Replication Graph(Iris Replication Graph)]]
+- [[Replication]]

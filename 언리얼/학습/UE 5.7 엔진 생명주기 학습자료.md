@@ -1,4 +1,30 @@
-작성일: 2026-04-15  
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/lifecycle
+  - type/learning
+---
+
+# UE 5.7 엔진 생명주기 학습자료
+
+> [!summary] 요약
+> UE 5.7 엔진 생명주기 학습자료는 Unreal Engine의 초기화, 모듈(Module), 서브시스템(Subsystem), 객체 생명주기처럼 기반 구조를 이해하기 위한 주제다.
+> 기능이 어느 시점에 생성되고 어떤 계층이 책임지는지 판단할 때 사용한다.
+> 핵심은 editor/runtime, engine/world/game instance, module/subsystem의 lifetime 차이를 구분하는 것이다.
+
+## 핵심 결론
+
+- 엔진 기반 구조는 "어디에 둘 것인가"보다 "언제 만들어지고 언제 사라지는가"가 먼저다.
+- Module, Plugin, Subsystem, UObject는 책임과 lifetime 범위가 다르다.
+- 문제가 생기면 초기화 순서, world context, subsystem 종류, module loading phase를 확인한다.
+
+## 개요
+
+작성일: 2026-04-15
 분석 기준:
 - 설치된 엔진 소스: `C:\Program Files\Epic Games\UE_5.7`
 - 로컬 소스 기준 버전: Unreal Engine 5.7
@@ -8,7 +34,7 @@
 
 1. 프로세스/엔진 루프 생명주기: 프로그램 시작 -> 엔진 초기화 -> 프레임 루프 -> 종료
 2. 게임 세션 생명주기: `UGameInstance` -> `UWorld` -> `GameMode` -> 플레이어 생성 -> 플레이 시작
-3. 액터 생명주기: 디스크 로드 / PIE 복제 / 런타임 스폰 -> 초기화 -> `BeginPlay` -> `EndPlay` -> GC
+3. 액터 생명주기: 디스크 로드 / PIE 복제(Replication) / 런타임 스폰 -> 초기화 -> `BeginPlay` -> `EndPlay` -> GC
 4. UObject 생명주기: `NewObject`/로딩 -> `PostInitProperties`/`PostLoad` -> 사용 -> `BeginDestroy` -> `FinishDestroy`
 
 핵심은 다음 한 문장으로 요약할 수 있다.
@@ -16,6 +42,32 @@
 > 언리얼은 "프로세스가 엔진을 띄우고, 엔진이 월드를 만들고, 월드가 액터를 준비시키고, BeginPlay 이후 틱과 GC가 계속 돌다가, 종료 시 EndPlay와 Cleanup을 거쳐 객체를 회수하는 구조"로 움직인다.
 
 ---
+
+## 왜 필요한가
+
+기반 구조를 잘못 고르면 코드가 우연히 동작하다가 PIE, packaged build, map travel에서 깨진다. UE 5.7 엔진 생명주기 학습자료를 볼 때는 기능의 소유자와 lifetime을 먼저 결정해야 한다.
+
+## 작동 모델
+
+엔진은 module과 plugin을 로딩해 기능을 등록하고, GameInstance, World, LocalPlayer 같은 계층별 subsystem을 생성한다. UObject lifetime은 outer와 GC에 의해 관리되고, editor와 runtime은 초기화 순서와 사용 가능한 world context가 다르다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| Module / Plugin | 코드 로딩과 기능 배포 단위 | loading phase, dependency |
+| Subsystem | 계층별 서비스(Service) 객체 | engine/gameinstance/world/localplayer |
+| UObject / Outer | 객체 lifetime과 소유 관계 | outer, GC reference |
+| World Context | PIE/editor/runtime world 식별 | current world, net mode |
+| Lifecycle hook | 초기화와 종료 지점 | init, start, deinitialize |
+
+## 실행 흐름
+
+1. 엔진이 module loading phase에 따라 plugin/module을 로드한다.
+2. 프로젝트와 world가 열리면서 GameInstance, World, Actor 계층이 준비된다.
+3. 각 계층의 subsystem과 UObject가 outer/lifetime 규칙에 따라 생성된다.
+4. 기능 코드는 자신이 의존하는 world, asset, subsystem이 준비된 뒤 실행되어야 한다.
+5. map travel, PIE 종료, module unload 시점에 참조와 delegate를 정리한다.
 
 ## 1. 한눈에 보는 전체 흐름
 
@@ -154,7 +206,7 @@ Epic의 [Unreal Object Handling](https://dev.epicgames.com/documentation/en-us/u
 - GC는 root set에서 시작해 참조 그래프를 따라 도달 가능한 객체를 살리고, 나머지를 회수한다.
 - 액터는 보통 `Destroy()`로 제거 의도를 표시하고, 실제 메모리 회수는 GC 단계에서 일어난다.
 
-즉, UObject 생명주기는 일반 C++ 객체의 `new/delete` 감각으로 보면 안 된다.  
+즉, UObject 생명주기는 일반 C++ 객체의 `new/delete` 감각으로 보면 안 된다.
 언리얼의 객체는 "리플렉션 시스템 + 로더 + GC + 게임플레이 훅"이 결합된 관리 객체다.
 
 ---
@@ -216,7 +268,7 @@ OS -> WinMain -> GuardedMain -> GEngineLoop.PreInit/Init/Tick/Exit
     - 온라인 세션/입력/네트워크 delegate 등록
     - `SubsystemCollection.Initialize(this)`
 
-즉, `UGameInstance`는 맵보다 먼저 생기며, 게임 세션 전체를 잡는 뼈대다.  
+즉, `UGameInstance`는 맵보다 먼저 생기며, 게임 세션 전체를 잡는 뼈대다.
 월드가 바뀌어도 GameInstance는 보통 유지되고, 월드 컨텍스트와 로컬 플레이어, 세션 객체를 붙잡는다.
 
 ### 3.4 `UGameEngine::Start`는 "진짜 게임 시작" 단계다
@@ -247,7 +299,7 @@ OS -> WinMain -> GuardedMain -> GEngineLoop.PreInit/Init/Tick/Exit
   - pending net game 정리/생성
   - 최종적으로 `LoadMap`으로 연결되는 여행(travel) 진입점 역할
 
-`Browse`는 "어디로 갈지 결정하는 단계"다.  
+`Browse`는 "어디로 갈지 결정하는 단계"다.
 실제 월드 생성/교체는 `LoadMap`에서 일어난다.
 
 #### 3.5.2 LoadMap 핵심 시퀀스
@@ -307,7 +359,7 @@ LoadMap
 
 ### 3.7 `BeginPlay`는 `UWorld`가 직접 각 액터를 돌리는 것이 아니라, `GameMode -> GameState -> WorldSettings` 체인으로 라우팅된다
 
-여기서 많은 사람이 한 번 헷갈린다.  
+여기서 많은 사람이 한 번 헷갈린다.
 `UWorld::BeginPlay()`가 곧바로 모든 액터에 `BeginPlay()`를 호출하는 구조가 아니다.
 
 #### 3.7.1 `UWorld::BeginPlay`
@@ -449,7 +501,7 @@ UWorld::BeginPlay
   - visual logger / asset compiling / messaging / trace service 종료
   - 엔진 전역 서비스 해제
 
-즉, 종료는 "프로세스가 죽는다"로 끝나지 않는다.  
+즉, 종료는 "프로세스가 죽는다"로 끝나지 않는다.
 언리얼은 종료 직전에도 월드, 네트워크, 서브시스템, 전역 서비스, 로딩 화면, 컴파일러 매니저를 순서대로 정리한다.
 
 ---
@@ -634,7 +686,7 @@ PostSpawnInitialize
 
 ### 5.1 생성 경로: `NewObject` -> `StaticConstructObject_Internal`
 
-UObject는 보통 `new`로 만들지 않는다.  
+UObject는 보통 `new`로 만들지 않는다.
 언리얼은 `NewObject`/`StaticConstructObject_Internal` 경로를 강제한다.
 
 - `Engine/Source/Runtime/CoreUObject/Private/UObject/UObjectGlobals.cpp:4921-4970`
@@ -910,3 +962,26 @@ GC는 "원할 때 아무 때나" 도는 것이 아니라 엔진이 조건부로 
 
 이 구분만 명확해지면, 액터가 왜 두 번 초기화되는지, PIE에서만 왜 다르게 보이는지, Destroy 후 왜 포인터가 아직 살아 있는 것처럼 보이는지, GC hitch가 왜 생기는지 같은 문제가 한 번에 읽히기 시작한다.
 
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 어디서든 `GetWorld()`가 항상 유효하다. | 객체 종류와 초기화 시점별 world context를 확인한다. |
+| Subsystem은 모두 같은 lifetime이다. | Engine, GameInstance, World, LocalPlayer subsystem을 구분한다. |
+| Editor에서 되면 packaged build에서도 초기화 순서가 같다. | module loading phase와 cook/runtime 차이를 확인한다. |
+
+## 디버깅 체크리스트
+
+- [ ] 실행 시점에 필요한 module이 로드되어 있다.
+- [ ] world context가 PIE, editor preview, packaged runtime 중 어디인지 확인했다.
+- [ ] subsystem 종류와 생성/해제 시점이 기능 lifetime과 맞다.
+- [ ] UObject outer와 GC reference가 의도대로 유지된다.
+- [ ] map travel, PIE 종료, shutdown에서 delegate와 참조를 정리한다.
+
+## 관련 문서
+
+- [[언리얼 초기화 과정]]
+- [[Subsystem, Module, Plugin]]
+- [[델리게이트(Delegate)]]
+- [[UPROPERTY Object Reference Guide]]
+- [[Automation Test]]

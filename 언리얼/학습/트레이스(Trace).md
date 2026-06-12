@@ -1,7 +1,30 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/trace
+  - type/learning
+---
+
+# 트레이스(Trace)
+
+> [!summary] 요약
+> 트레이스(Trace)는 벡터, 좌표계, 충돌 쿼리, transform 해석을 통해 게임 월드의 방향과 접촉을 판단하는 주제다.
+> 조준, 감지, 이동 방향, trace hit, 회전 보정이 예상과 다를 때 확인한다.
+> 핵심은 월드/로컬 공간, 정규화 여부, collision channel, hit result 의미를 먼저 구분하는 것이다.
+
+## 핵심 결론
+
+- 벡터 계산은 방향, 크기, 기준 좌표계를 분리해야 해석이 흔들리지 않는다.
+- trace와 collision 결과는 channel/object type/response 설정에 크게 의존한다.
+- 문제가 생기면 입력 벡터 정규화, transform 기준, collision profile, debug draw 결과를 순서대로 확인한다.
+
 ## 개요
 두 지점이 제공되었을 때 직선상으로 뻗어나가 무엇이 존재하는지 확인할 수 있는 메서드이다.
 본질적으로 다른 소프트웨어의 레이 캐스트(Raycast) 혹은 레이 트레이스(Raytrace)와 같다.
-
 
 > [!info] 각 트레이스의 타입, 종류, 범위
 > | 종류 | 타입 | 범위 |
@@ -9,6 +32,31 @@
 > |   쉐이프   |   채널    |   싱글    |
 > |   라인    |  오브젝트   |   멀티    |
 
+## 왜 필요한가
+
+수학과 충돌 쿼리 문제는 결과값만 보면 맞는지 판단하기 어렵다. 트레이스(Trace)를 볼 때는 계산 기준과 시각화 결과를 함께 놓아야 실제 월드에서 어떤 의미인지 빠르게 확인할 수 있다.
+
+## 작동 모델
+
+게임플레이 코드는 위치와 방향을 벡터/transform으로 표현하고, 월드 쿼리는 그 값을 collision 설정과 함께 해석한다. 내적/외적은 방향 관계를 수치로 바꾸고, trace는 월드의 물리/충돌 설정을 기준으로 hit 정보를 반환한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `FVector` / `FTransform` | 위치, 방향, 좌표계 표현 | world/local 기준, normalize |
+| `UWorld` trace API | line/sweep/overlap query 실행 | channel/object query |
+| Collision Profile | 충돌 응답 정의 | preset, response, object type |
+| `FHitResult` | 쿼리 결과 정보 | blocking hit, impact point, normal |
+| Debug Draw | 계산 결과 시각화 | 시작/끝점, 법선, 색상 |
+
+## 실행 흐름
+
+1. 기준 actor 또는 component에서 world/local 위치와 방향을 얻는다.
+2. 필요한 경우 방향 벡터를 정규화하고 회전/transform을 적용한다.
+3. collision channel, object query, ignore list를 명시한다.
+4. trace, sweep, overlap을 실행하고 blocking/overlap 결과를 구분한다.
+5. debug draw와 hit normal/impact point로 계산이 의도와 맞는지 검증한다.
 
 ## 채널 · 오브젝트 유형
 
@@ -41,7 +89,7 @@
 > [!tip] 팁
 > 물리적 충돌은 원하지 않지만 어떠한 상호작용되는 필드를 구성하고 싶다면 Query Only 로 구성하면 된다.
 > 반대로, 물리적 충돌만 원하고 트레이스 되는걸 원치않는다면 Physics Only 로 구성하면 된다.
-> 
+>
 
 ### Object Type
 오브젝트 타입 설정하는 부분이다.
@@ -50,16 +98,15 @@
 
 > [!example] 예시
 > 만약 맞는 객체가 이 설정을 WorldStatic 으로 설정하였고, 쏘는 트레이스도 WorldStatic 을 포함하고 있다면 감지가 되지만, 이부분이 서로 다르다면 감지되지 않는다.
-> 
+>
 > ![[Pasted image 20241217160342.png]]
-> 
+>
 
 ### Trace Responses
 채널 트레이스에 감지될 때 사용되며, **Ignore, Overlap, Block** 세가지로 구분된다.
 - Ignore : 말그대로 전반적인 트레이스 감지에서 제외된다.
 - Overlap : 멀티 채널 트레이스에서 주로 사용되며 감지되지만 트레이스를 막지않고 통과시킨다.
 - Block : 트레이스에 감지되며 통과시키지 않는다.
-
 
 ## 싱글 또는 멀티 히트 반환
 트레이스를 할 때, 감지된 것 중 범주에 일치하는 첫 번째 것을 반환하도록 하거나, 모든 것을 반환하도록 할 수 있다.
@@ -74,7 +121,6 @@
 > - 오브젝트
 >	- 트레이스에 설정된 오브젝트 유형과 일치하는 모든 것을 반환한다.
 >	- 트레이스의 시작과 끝 사이의 오브젝트 수를 계산하는 데 유용하다.
-
 
 ## 히트 결과(Hit Result)
 트레이스는 기본적으로 무언가 감지할 때 **Hit Result** 구조체를 반환한다.
@@ -118,3 +164,27 @@
 2. 프로젝트 세팅의 피직스(Physics) 섹션에서 **히트 결과에서 UV 지원(Support UV From Hit Result)** 기능을 켠다.
 	![[Pasted image 20241216100909.png]]
 3. 에디터를 재시작한다.
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 벡터 값이 맞으면 방향 판단도 맞다. | 정규화 여부와 world/local 기준을 먼저 확인한다. |
+| trace가 안 맞으면 시작/끝점만 문제다. | collision channel, object type, response, ignored actor를 같이 본다. |
+| hit location과 impact point는 항상 같다. | sweep, shape trace, penetration 상황에서 의미를 구분한다. |
+
+## 디버깅 체크리스트
+
+- [ ] 시작점, 끝점, 방향 벡터를 debug draw로 시각화했다.
+- [ ] 벡터가 필요한 곳에서 정규화되었고 0 벡터를 처리했다.
+- [ ] world/local transform 변환 방향이 의도와 맞다.
+- [ ] collision profile, channel, object response, ignore list를 확인했다.
+- [ ] `FHitResult`의 blocking hit, actor/component, normal, impact point를 구분했다.
+
+## 관련 문서
+
+- [[내적과 외적]]
+- [[이동 벡터 회전]]
+- [[Gameplay Cameras]]
+- [[AI 지각(AI Perception)]]
+- [[환경 쿼리 시스템(EQS)]]

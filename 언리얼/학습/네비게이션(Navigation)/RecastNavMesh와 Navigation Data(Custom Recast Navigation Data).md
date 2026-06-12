@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/navigation
+  - type/learning
+---
+
+# RecastNavMesh와 Navigation Data(Custom Recast Navigation Data)
+
+> [!summary] 요약
+> RecastNavMesh와 Navigation Data(Custom Recast Navigation Data)는 NavMesh 생성, pathfinding, path following, area/filter, link, avoidance가 연결되는 이동 시스템 주제다.
+> AI가 목적지까지 이동하지 못하거나 특정 영역을 잘못 선택할 때 확인한다.
+> 핵심은 nav data 생성 상태와 path following 실행 상태를 분리해서 보는 것이다.
+
+## 핵심 결론
+
+- NavMesh가 있는 것과 원하는 path가 선택되는 것은 다른 문제다.
+- area cost, query filter, link, crowd/avoidance는 경로 선택과 실제 이동을 서로 다른 지점에서 바꾼다.
+- 문제가 생기면 bounds, agent 설정, tile 상태, path following result, movement component 상태를 순서대로 확인한다.
+
+## 참고 자료
+
 [Navigation System in Unreal Engine](https://dev.epicgames.com/documentation/en-us/unreal-engine/navigation-system-in-unreal-engine?application_version=5.6) | [Modifying the Navigation Mesh](https://dev.epicgames.com/documentation/en-us/unreal-engine/overview-of-how-to-modify-the-navigation-mesh-in-unreal-engine?application_version=5.6) | [ANavigationData::SetRebuildingSuspended](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/NavigationSystem/ANavigationData/SetRebuildingSuspended) | [ARecastNavMesh::ProjectPoint](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/NavigationSystem/NavMesh/ARecastNavMesh/ProjectPoint)
 
 ## 개요
@@ -8,7 +34,7 @@
 
 | 구성 요소 | 엔진 클래스 | 역할 |
 | --- | --- | --- |
-| 추상 네비게이션 데이터 | `ANavigationData` | nav data 공통 인터페이스, config 보관, generator 수명 관리, dirty area 재빌드 조정 |
+| 추상 네비게이션 데이터 | `ANavigationData` | nav data 공통 인터페이스, config 보관, generator 수명 관리, dirty area 재빌드(Build) 조정 |
 | Recast 기반 nav data | `ARecastNavMesh` | 실제 navmesh query, pathfinding, projection, random point 질의 수행 |
 | navmesh generator | `FRecastNavMeshGenerator` | bounds 계산, tiled navmesh 생성, dirty tile 마킹, 비동기 빌드 수행 |
 | 실제 recast/detour 저장소 | `dtNavMesh` 및 recast impl | 생성된 타일과 polygon 데이터 보관, pathfinding/투영 질의의 최종 실행체 |
@@ -18,7 +44,34 @@
 > [!info]
 > `[[네비게이션과 PathFollowing(Navigation)]]` 이 `MoveTo -> FindPath -> FollowPathSegment` 흐름을 설명하는 문서라면, 이 문서는 그 아래에서 `FindPath`가 실제로 위임되는 `ARecastNavMesh`와 타일 재생성을 담당하는 generator 계층을 설명합니다.
 
+## 왜 필요한가
+
+이동 문제는 "목적지를 모른다", "경로를 못 찾는다", "경로는 있으나 따라가지 못한다"가 섞여 보인다. RecastNavMesh와 Navigation Data(Custom Recast Navigation Data)를 볼 때는 nav data, query, following, movement를 단계별로 끊어서 확인해야 한다.
+
+## 작동 모델
+
+RecastNavMesh는 월드 지오메트리를 tile 기반 nav data로 만들고, query filter는 어떤 영역을 얼마나 선호할지 정한다. PathFollowingComponent는 생성된 path를 segment 단위로 따라가며, Smart Link와 avoidance는 실제 이동 중 예외 처리를 담당한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `RecastNavMesh` | tile 기반 navigation data | bounds, agent radius/height, rebuild 상태 |
+| `UNavigationSystemV1` | path query와 nav data 선택 | supported agent, main nav data |
+| `UNavigationQueryFilter` | area cost와 통과 가능 여부 | include/exclude flag, cost |
+| `UPathFollowingComponent` | path segment 실행 | move result, current segment |
+| NavLink / Crowd / RVO | 단차 이동과 회피 | link 활성화, avoidance 설정 |
+
+## 실행 흐름
+
+1. NavMesh bounds와 agent 설정을 기준으로 tile이 생성된다.
+2. Move request가 들어오면 NavigationSystem이 적절한 nav data를 고른다.
+3. query filter와 area cost를 적용해 path를 계산한다.
+4. PathFollowingComponent가 path segment를 따라 movement component에 입력을 보낸다.
+5. link, obstacle, crowd/avoidance, dynamic obstacle 변화가 경로 갱신 또는 실패를 만든다.
+
 ## 핵심 구성
+
 ### `ANavigationData`
 `ANavigationData`는 구체적인 알고리즘보다 nav data 공통 수명 주기와 generator 협력을 정의하는 기반 클래스입니다.
 
@@ -84,6 +137,7 @@ generator는 단순 계산기라기보다, navmesh의 공간 분할과 타일 �
 > Navigation 디버깅에서 중요한 질문은 "pathfinding이 실패했는가"만이 아닙니다. "현재 nav data가 최신 상태인가", "generator가 존재하는가", "dirty area가 누적된 상태인가"도 같이 봐야 합니다.
 
 ## `ANavigationData` 관점에서 봐야 할 것
+
 ### `RebuildAll()`
 `ANavigationData::RebuildAll()`은 단순히 generator의 rebuild 호출 한 줄이 아닙니다.
 엔진 코드 기준으로 아래 준비가 먼저 들어갑니다.
@@ -115,6 +169,7 @@ bounds가 바뀌면 `ANavigationData`는 generator가 없을 경우 먼저 구�
 즉 bounds 변경은 에디터용 이벤트가 아니라 generator 존재 여부를 보장하는 런타임 진입점이기도 합니다.
 
 ## `ARecastNavMesh` 관점에서 봐야 할 것
+
 ### query API는 대부분 recast impl 위임이다
 아래 함수들은 이름은 `ARecastNavMesh`에 있지만, 실제 질의는 내부 recast 구현체로 내려갑니다.
 
@@ -160,6 +215,7 @@ bounds가 바뀌면 `ANavigationData`는 generator가 없을 경우 먼저 구�
 경로는 만들어졌는데 필터 쪽이 꼬이는 문제를 볼 때 이 지점이 중요합니다.
 
 ## `FRecastNavMeshGenerator` 관점에서 봐야 할 것
+
 ### `Init()`
 generator 초기화는 생각보다 많은 일을 합니다.
 
@@ -230,6 +286,7 @@ task가 남아 있으면 tick마다 진행하고, 모두 끝나면 `DestNavMesh-
 > 여기서 `Dynamic Modifiers Only` 같은 editor 옵션은 공식문서가 설명을 잘 해주지만, 엔진 코드 관점에서는 "어떤 변화가 dirty area를 만들고, 그 dirty area가 geometry rebuild까지 가는가"로 다시 읽는 편이 좋습니다. 이 문서에서는 구현 기준점을 `ANavigationData`와 `FRecastNavMeshGenerator`에 둡니다.
 
 ## 실무 관점에서 꼭 알아둘 점
+
 ### 1. `ANavigationData`와 `ARecastNavMesh`를 같은 개념으로 보면 안 된다
 `ANavigationData`는 수명 주기와 rebuild 관리의 기반 클래스이고, `ARecastNavMesh`는 그 구체 구현체입니다.
 `FindPath` 실패 원인과 dirty area 누적 원인을 같은 층위에서 보면 디버깅이 섞입니다.
@@ -267,3 +324,26 @@ dirty area를 잠깐 모으는 건 유효하지만, 오래 모으면 결국 전�
 - `Engine\Source\Runtime\NavigationSystem\Public\NavMesh\RecastNavMesh.h`
 - `Engine\Source\Runtime\NavigationSystem\Private\NavMesh\RecastNavMesh.cpp`
 - `Engine\Source\Runtime\NavigationSystem\Private\NavMesh\RecastNavMeshGenerator.cpp`
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 초록 NavMesh가 보이면 이동은 반드시 성공한다. | agent 설정, query filter, path following result를 함께 본다. |
+| area cost는 이동 속도를 바꾼다. | area cost는 경로 선택 비용이며 실제 속도는 movement 쪽에서 처리한다. |
+| RVO와 CrowdFollowing은 같은 계층이다. | path following, crowd simulation, movement avoidance의 적용 위치를 구분한다. |
+
+## 디버깅 체크리스트
+
+- [ ] NavMesh bounds, supported agent, runtime generation 설정을 확인했다.
+- [ ] `Show Navigation`과 navmesh tile 상태가 목표 지점을 포함한다.
+- [ ] query filter의 area cost와 exclude flag가 의도와 맞다.
+- [ ] `MoveTo` 결과와 PathFollowingComponent 상태를 로그로 확인했다.
+- [ ] movement component, acceptance radius, link/crowd/avoidance 설정을 함께 점검했다.
+
+## 관련 문서
+
+- [[네비게이션과 PathFollowing(Navigation)]]
+- [[커스텀 네비게이션 영역과 Query Filter(Custom Navigation Areas Query Filters)]]
+- [[CrowdFollowing과 RVO 회피(CrowdFollowing RVO Avoidance)]]
+- [[NavLink와 Smart Link(NavLink Smart Link)]]

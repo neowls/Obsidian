@@ -1,16 +1,68 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/animation
+  - type/learning
+---
+
+# 모션 워핑(Motion Warping)
+
+> [!summary] 요약
+> 모션 워핑(Motion Warping)은 SkeletalMeshComponent, AnimInstance, pose graph, montage, root motion이 연결되는 애니메이션 주제다.
+> 캐릭터 모션이 끊기거나 원하는 pose/section/warping 결과가 나오지 않을 때 확인한다.
+> 핵심은 gameplay 변수 갱신, animation update, pose evaluation, root motion 적용 시점을 구분하는 것이다.
+
+## 핵심 결론
+
+- 애니메이션 문제는 그래프 모양보다 변수 갱신 시점과 평가 순서가 더 중요하다.
+- montage, motion matching, motion warping, linked layer는 pose 선택과 root motion 보정을 서로 다른 지점에서 처리한다.
+- 문제가 생기면 AnimInstance update, slot/layer 연결, root motion mode, mesh/component transform을 순서대로 확인한다.
+
+## 참고 자료
+
 [UAnimNotifyState_MotionWarping::OnBecomeRelevant | Unreal Engine 5.7 Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/MotionWarping/UAnimNotifyState_MotionWarping/OnBecomeRelevant) | [MotionWarpingTarget | Unreal Python 5.7](https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/MotionWarpingTarget?application_version=5.7)
 
-# 개요
-`모션 워핑(Motion Warping)`은 루트 모션 애니메이션의 이동/회전 결과를 런타임 목표 지점에 맞게 보정하는 기능이다.
+## 개요
+`모션 워핑(Motion Warping)`은 루트 모션(Root Motion) 애니메이션의 이동/회전 결과를 런타임 목표 지점에 맞게 보정하는 기능이다.
 공격, 처형, 벽 넘기, 상호작용처럼 애니메이션의 시작 위치는 매번 다르지만 끝 위치는 정확히 맞아야 하는 동작에 사용한다.
 
-# 전제조건
-- `Motion Warping` 플러그인이 활성화되어 있어야 한다.
+## 왜 필요한가
+
+애니메이션은 게임플레이 코드, movement, skeletal mesh, graph evaluation이 프레임마다 맞물린다. 모션 워핑(Motion Warping)을 볼 때는 "변수가 언제 바뀌었는가"와 "pose가 언제 평가되었는가"를 분리해야 한다.
+
+## 작동 모델
+
+SkeletalMeshComponent가 AnimInstance를 tick하고, AnimInstance는 update 단계에서 변수를 준비한 뒤 graph evaluation 단계에서 pose를 만든다. montage와 slot은 pose에 특정 재생 흐름을 끼워 넣고, motion matching/warping은 선택 또는 root motion 보정 단계에 개입한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `USkeletalMeshComponent` | 애니메이션 tick과 pose 적용 | tick option, update rate |
+| `UAnimInstance` | 변수 갱신과 graph 실행 | update/evaluate 순서 |
+| Anim Graph / State Machine | pose 선택과 전환 | transition 조건, blend time |
+| Montage / Slot | 액션 재생과 section 제어 | slot 연결, notify, root motion |
+| Motion Matching / Warping | pose 선택과 이동 보정 | database, sync, warp target |
+
+## 실행 흐름
+
+1. 게임플레이 코드와 movement가 속도, 상태, 입력 변수를 갱신한다.
+2. AnimInstance update가 그 값을 읽어 graph 평가에 필요한 상태를 만든다.
+3. State Machine, blend space, motion matching, montage slot이 최종 pose를 만든다.
+4. root motion이나 motion warping이 transform 보정에 개입한다.
+5. SkeletalMeshComponent가 pose를 적용하고 notify/event가 게임플레이로 되돌아간다.
+
+## 전제조건
+- `Motion Warping` 플러그인(Plugin)이 활성화되어 있어야 한다.
 - 캐릭터 또는 소유 actor에 `UMotionWarpingComponent`가 필요하다.
 - 애니메이션에 `AnimNotifyState_MotionWarping` window를 배치한다.
 - 코드나 블루프린트에서 warp target을 추가해야 한다.
 
-# 핵심 구성
+## 핵심 구성
 | 요소 | 역할 |
 | --- | --- |
 | `UMotionWarpingComponent` | warp target 보관, notify window 감지, root motion 보정 |
@@ -22,7 +74,7 @@
 | `URootMotionModifier_AdjustmentBlendWarp` | adjustment blend 방식 warping |
 | `URootMotionModifier_PrecomputedWarp` | stationary target에 적합한 precomputed 방식 |
 
-# 런타임 흐름
+## 런타임 흐름
 1. gameplay가 상호작용 지점, 적 위치, ledge 위치 같은 warp target을 계산한다.
 2. `UMotionWarpingComponent::AddOrUpdateWarpTarget()`으로 이름 있는 target을 등록한다.
 3. montage/sequence가 재생된다.
@@ -30,7 +82,7 @@
 5. component가 매 update마다 root motion을 modifier에 통과시킨다.
 6. modifier가 target 기준으로 translation/rotation을 보정한다.
 
-# 타겟 설계
+## 타겟 설계
 warp target 이름은 notify window와 gameplay 코드가 만나는 계약이다.
 예를 들어 처형이면 `ExecutionTarget`, 벽 넘기면 `VaultTarget`, 공격 위치 보정이면 `AttackWarpTarget`처럼 용도를 명확히 나눈다.
 
@@ -44,16 +96,16 @@ warp target 이름은 notify window와 gameplay 코드가 만나는 계약이다
 > [!caution]
 > target을 늦게 넣으면 notify window가 이미 지나가서 warping이 적용되지 않을 수 있다. 보통 montage 재생 직전 또는 notify window 시작 전에는 target이 준비되어야 한다.
 
-# 디버깅 체크리스트
+## 디버깅 체크리스트
 - 플러그인이 켜져 있는지 확인한다.
 - 캐릭터에 `UMotionWarpingComponent`가 있는지 확인한다.
 - notify state의 target name과 코드에서 등록한 target name이 같은지 확인한다.
 - root motion animation인지 확인한다.
 - montage section 전환 때문에 notify window가 건너뛰어지지 않는지 확인한다.
 - target이 moving component라면 follow component 설정과 offset 방향을 확인한다.
-- 네트워크에서는 서버 권한 위치와 클라이언트 시각 보정을 따로 검증한다.
+- 네트워크에서는 서버 권한(Authority) 위치와 클라이언트 시각 보정을 따로 검증한다.
 
-# 엔진 소스 참고 포인트
+## 엔진 소스 참고 포인트
 - `Engine\Plugins\Animation\MotionWarping\Source\MotionWarping\Public\MotionWarpingComponent.h`: component와 target 관리.
 - `Engine\Plugins\Animation\MotionWarping\Source\MotionWarping\Public\RootMotionModifier.h`: modifier와 target 구조.
 - `Engine\Plugins\Animation\MotionWarping\Source\MotionWarping\Public\AnimNotifyState_MotionWarping.h`: warping window notify.
@@ -63,7 +115,9 @@ warp target 이름은 notify window와 gameplay 코드가 만나는 계약이다
 
 ## 2026-05-12 심화 보강: 처형/벽넘기 예제로 이해하기
 
-# 학습 목표
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
+
+## 학습 목표
 모션 워핑을 온전히 이해하려면 “target을 넣으면 맞춰 준다”에서 멈추면 안 된다.
 아래 흐름을 설명할 수 있어야 한다.
 
@@ -72,7 +126,7 @@ warp target 이름은 notify window와 gameplay 코드가 만나는 계약이다
 - target name이 gameplay code와 animation notify 사이의 계약인 이유
 - 네트워크에서 위치 보정과 시각 보정이 왜 분리되어야 하는지
 
-# 사용법 1: 처형 몽타주를 적 위치에 맞추기
+## 사용법 1: 처형 몽타주(Montage)를 적 위치에 맞추기
 처형 애니메이션은 공격자와 피격자의 상대 위치가 정확해야 한다.
 이때 공격자 캐릭터의 root motion을 피격자 앞의 정렬 위치로 보정한다.
 
@@ -108,7 +162,7 @@ void AMyCharacter::PlayExecution(AActor* Victim)
 핵심은 montage를 재생하기 전에 target을 등록하는 것이다.
 notify window가 이미 지나간 뒤 target을 넣으면 modifier가 유효한 target을 찾지 못할 수 있다.
 
-# 사용법 2: 벽넘기 Vault에 적용하기
+## 사용법 2: 벽넘기 Vault에 적용하기
 벽넘기는 ledge trace 결과를 target으로 쓰기 좋다.
 흐름은 다음과 같다.
 
@@ -129,7 +183,7 @@ void AMyCharacter::StartVault(const FTransform& VaultLandingTransform)
 }
 ```
 
-# 왜 그렇게 동작하는가
+## 왜 그렇게 동작하는가
 엔진 코드 기준 흐름은 다음과 같다.
 
 1. `UMotionWarpingCharacterAdapter`가 `CharacterMovementComponent`의 `ProcessRootMotionPreConvertToWorld` delegate에 바인딩된다.
@@ -143,7 +197,10 @@ void AMyCharacter::StartVault(const FTransform& VaultLandingTransform)
 루트 모션 자체를 목표 transform에 맞도록 변형하는 기능이다.
 그래서 animation pose와 movement 결과의 싱크가 비교적 자연스럽다.
 
-# 실패 사례와 원인
+## 실패 사례와 원인
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
+
 ## 캐릭터가 전혀 보정되지 않는다
 - montage가 root motion을 사용하지 않는다.
 - notify window가 실제 재생 구간과 겹치지 않는다.
@@ -160,7 +217,7 @@ void AMyCharacter::StartVault(const FTransform& VaultLandingTransform)
 - montage 시작 시점이 replicated montage와 어긋났을 수 있다.
 - root motion source와 character movement correction이 서로 보정하고 있을 수 있다.
 
-# 실전 설계 팁
+## 실전 설계 팁
 - 처형처럼 결과 위치가 gameplay 판정에 중요하면 서버가 target을 확정한다.
 - 카메라용 연출 위치처럼 시각 품질만 중요하면 로컬 보정도 가능하다.
 - target name은 enum 또는 상수로 관리해서 notify와 코드 오타를 줄인다.
@@ -185,7 +242,7 @@ Motion Warping은 애니메이션 자체를 새로 굽는 기능이 아니다. M
 - 캐릭터가 목표에 맞지 않는다: warp target 이름과 Notify State의 target 이름이 같은지 확인한다.
 - 회전만 틀어진다: rotation warping 옵션과 root motion rotation 포함 여부를 확인한다.
 - 전혀 동작하지 않는다: Montage가 root motion을 추출하는지, CharacterMovement delegate가 연결되는지 확인한다.
-- 네트워크에서 어긋난다: 서버 권한, montage 재생 타이밍, warp target 복제/계산 위치를 분리해서 점검한다.
+- 네트워크에서 어긋난다: 서버 권한, montage 재생 타이밍, warp target 복제(Replication)/계산 위치를 분리해서 점검한다.
 
 ### 실습 과제
 
@@ -198,3 +255,18 @@ Motion Warping은 애니메이션 자체를 새로 굽는 기능이 아니다. M
 - 공식 문서: Motion Warping.
 - 엔진 소스: `Engine\Plugins\Animation\MotionWarping\Source\MotionWarping\Private\MotionWarpingComponent.cpp`.
 - 엔진 소스: `Engine\Plugins\Animation\MotionWarping\Source\MotionWarping\Private\RootMotionModifier.cpp`.
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 그래프에 노드가 있으면 언제나 평가된다. | blend weight, state transition, linked layer 연결을 확인한다. |
+| montage가 재생되면 slot 설정은 중요하지 않다. | AnimGraph 안에 해당 slot이 실제로 연결되어 있는지 본다. |
+| root motion 문제는 애니메이션 asset만 보면 된다. | movement mode, root motion mode, warp target, component transform을 함께 본다. |
+
+## 관련 문서
+
+- [[모션 매칭(Motion Matching)]]
+- [[무제]]
+- [[애니메이션 블루프린트 링크]]
+- [[애니메이션 최적화]]

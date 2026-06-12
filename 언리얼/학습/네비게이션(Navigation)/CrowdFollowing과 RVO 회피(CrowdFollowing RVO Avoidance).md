@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/navigation
+  - type/learning
+---
+
+# CrowdFollowing과 RVO 회피(CrowdFollowing RVO Avoidance)
+
+> [!summary] 요약
+> CrowdFollowing과 RVO 회피(CrowdFollowing RVO Avoidance)는 NavMesh 생성, pathfinding, path following, area/filter, link, avoidance가 연결되는 이동 시스템 주제다.
+> AI가 목적지까지 이동하지 못하거나 특정 영역을 잘못 선택할 때 확인한다.
+> 핵심은 nav data 생성 상태와 path following 실행 상태를 분리해서 보는 것이다.
+
+## 핵심 결론
+
+- NavMesh가 있는 것과 원하는 path가 선택되는 것은 다른 문제다.
+- area cost, query filter, link, crowd/avoidance는 경로 선택과 실제 이동을 서로 다른 지점에서 바꾼다.
+- 문제가 생기면 bounds, agent 설정, tile 상태, path following result, movement component 상태를 순서대로 확인한다.
+
+## 참고 자료
+
 [Navigation System in Unreal Engine](https://dev.epicgames.com/documentation/en-us/unreal-engine/navigation-system-in-unreal-engine) | [UCrowdFollowingComponent](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/Navigation/UCrowdFollowingComponent) | [UCharacterMovementComponent](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/GameFramework/UCharacterMovementComponent) | [UAvoidanceManager::GetAvoidanceVelocityForComponent](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/AI/Navigation/UAvoidanceManager/GetAvoidanceVelo-/1)
 
 ## 개요
@@ -15,6 +41,32 @@
 > [!info]
 > `[[네비게이션과 PathFollowing(Navigation)]]` 이 목적지까지의 기본 이동 실행 계층이라면, 이 문서는 여러 AI가 서로 간섭하는 상황에서 그 이동을 어떻게 보정하는지를 다룹니다.
 > `[[커스텀 네비게이션 영역과 Query Filter(Custom Navigation Areas Query Filters)]]` 가 pathfinding 정책 계층이라면, 이 문서는 pathfinding 이후의 군중 이동과 국소 회피 계층입니다.
+
+## 왜 필요한가
+
+이동 문제는 "목적지를 모른다", "경로를 못 찾는다", "경로는 있으나 따라가지 못한다"가 섞여 보인다. CrowdFollowing과 RVO 회피(CrowdFollowing RVO Avoidance)를 볼 때는 nav data, query, following, movement를 단계별로 끊어서 확인해야 한다.
+
+## 작동 모델
+
+RecastNavMesh는 월드 지오메트리를 tile 기반 nav data로 만들고, query filter는 어떤 영역을 얼마나 선호할지 정한다. PathFollowingComponent는 생성된 path를 segment 단위로 따라가며, Smart Link와 avoidance는 실제 이동 중 예외 처리를 담당한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `RecastNavMesh` | tile 기반 navigation data | bounds, agent radius/height, rebuild 상태 |
+| `UNavigationSystemV1` | path query와 nav data 선택 | supported agent, main nav data |
+| `UNavigationQueryFilter` | area cost와 통과 가능 여부 | include/exclude flag, cost |
+| `UPathFollowingComponent` | path segment 실행 | move result, current segment |
+| NavLink / Crowd / RVO | 단차 이동과 회피 | link 활성화, avoidance 설정 |
+
+## 실행 흐름
+
+1. NavMesh bounds와 agent 설정을 기준으로 tile이 생성된다.
+2. Move request가 들어오면 NavigationSystem이 적절한 nav data를 고른다.
+3. query filter와 area cost를 적용해 path를 계산한다.
+4. PathFollowingComponent가 path segment를 따라 movement component에 입력을 보낸다.
+5. link, obstacle, crowd/avoidance, dynamic obstacle 변화가 경로 갱신 또는 실패를 만든다.
 
 ## 핵심 구성
 | 구성 요소 | 엔진 클래스 | 역할 |
@@ -53,6 +105,7 @@ Super(ObjectInitializer.SetDefaultSubobjectClass<UCrowdFollowingComponent>(TEXT(
 > CrowdFollowing은 일반 `PathPoints` 중심 추종이 아닙니다. crowd simulation이 켜져 있으면 `OnPathfindingQuery()`에서 string pulling을 끄고, `SetMoveSegment()`도 `PathCorridor`를 기준으로 path part를 자릅니다.
 
 ## `UCrowdFollowingComponent`에서 중요한 지점
+
 ### 1. Crowd simulation state
 헤더에는 `ECrowdSimulationState::Enabled`, `ObstacleOnly`, `Disabled` 세 가지 상태가 있습니다.
 `SetCrowdSimulationState()`는 `Idle` 상태에서만 성공하며, 상태 변화에 따라 `UCrowdManager::RegisterAgent()` 또는 `UnregisterAgent()`를 호출합니다.
@@ -81,6 +134,7 @@ Super(ObjectInitializer.SetDefaultSubobjectClass<UCrowdFollowingComponent>(TEXT(
 `FinishUsingCustomLink()`, `OnNavNodeChanged()`, `ShouldTrackMovingGoal()` 같은 override 때문에 CrowdFollowing은 단순 회피기가 아니라 nav link와 moving goal을 포함한 path following 확장입니다.
 
 ## `UCrowdManager`에서 중요한 지점
+
 ### 1. 실제 계산 주체는 `UCrowdManager`
 `UCrowdFollowingComponent`가 직접 모든 회피를 계산하는 게 아니라, `UCrowdManager`에 agent를 등록하고 tick 결과를 받아옵니다.
 중요 멤버는 다음과 같습니다.
@@ -132,6 +186,7 @@ RVO는 CrowdFollowing과 달리 `UCharacterMovementComponent` 안에서 돌고, 
 > RVO 쪽은 코드에 authority 가드가 분명합니다. `OnRegister()`에서 클라이언트는 비활성화되고, `CalcAvoidanceVelocity()`도 `GetLocalRole() != ROLE_Authority`면 바로 반환합니다.
 
 ## `UCharacterMovementComponent::CalcAvoidanceVelocity()`에서 중요한 지점
+
 ### 1. 항상 도는 게 아니다
 아래 조건이 맞아야 실제 계산이 일어납니다.
 
@@ -143,7 +198,7 @@ RVO는 CrowdFollowing과 달리 `UCharacterMovementComponent` 안에서 돌고, 
 - `IsMovingOnGround()`
 - 캡슐 컴포넌트가 존재
 
-즉 RVO는 "캐릭터가 움직이기만 하면 자동"이 아니라, 권한/이동 모드/속도 조건이 모두 맞아야 개입합니다.
+즉 RVO는 "캐릭터가 움직이기만 하면 자동"이 아니라, 권한(Authority)/이동 모드/속도 조건이 모두 맞아야 개입합니다.
 
 ### 2. 계산 결과는 속도 보정이다
 RVO는 path corridor를 다시 만들지 않습니다.
@@ -155,6 +210,7 @@ RVO는 path corridor를 다시 만들지 않습니다.
 코드 주석 기준으로 이 lock은 이번 프레임의 회피 선택을 잠깐 유지해 다른 객체가 자신을 VO로 취급하도록 돕습니다.
 
 ## `UAvoidanceManager`에서 중요한 지점
+
 ### 1. 등록 시 UID와 가중치를 부여한다
 `RegisterMovementComponent()`는 새 `AvoidanceUID`를 만들고, `SetRVOAvoidanceUID()`와 `SetRVOAvoidanceWeight()`를 호출한 뒤 바로 `UpdateRVO_Internal()`로 초기 데이터를 넣습니다.
 즉 등록만 해도 매니저 내부의 avoidance object 테이블에 참여합니다.
@@ -179,12 +235,13 @@ RVO는 path corridor를 다시 만들지 않습니다.
 즉 RVO도 crowd와 마찬가지로 엔진 내부에 기본 디버그 진입점이 이미 있습니다.
 
 ## CrowdFollowing과 RVO를 어떻게 구분해서 봐야 하는가
+
 ### 1. CrowdFollowing은 path-aware, RVO는 velocity-aware다
 CrowdFollowing은 `PathCorridor`, smart link, nav poly 전환을 알고 있습니다.
 RVO는 현재 속도와 주변 회피 객체를 기준으로 local velocity만 보정합니다.
 
 ### 2. CrowdFollowing은 `AIModule`, RVO는 `Engine`에 있다
-이건 단순 모듈 차이가 아니라 설계 차이입니다.
+이건 단순 모듈(Module) 차이가 아니라 설계 차이입니다.
 CrowdFollowing은 AI path following 확장이고, RVO는 movement 계층 확장입니다.
 
 ### 3. CrowdFollowing은 Recast 의존성이 강하다
@@ -221,3 +278,26 @@ CrowdFollowing은 AI path following 확장이고, RVO는 movement 계층 확장�
 - `Engine\Source\Runtime\Engine\Private\Components\CharacterMovementComponent.cpp`
 - `Engine\Source\Runtime\Engine\Classes\AI\Navigation\AvoidanceManager.h`
 - `Engine\Source\Runtime\Engine\Private\AI\Navigation\AvoidanceManager.cpp`
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 초록 NavMesh가 보이면 이동은 반드시 성공한다. | agent 설정, query filter, path following result를 함께 본다. |
+| area cost는 이동 속도를 바꾼다. | area cost는 경로 선택 비용이며 실제 속도는 movement 쪽에서 처리한다. |
+| RVO와 CrowdFollowing은 같은 계층이다. | path following, crowd simulation, movement avoidance의 적용 위치를 구분한다. |
+
+## 디버깅 체크리스트
+
+- [ ] NavMesh bounds, supported agent, runtime generation 설정을 확인했다.
+- [ ] `Show Navigation`과 navmesh tile 상태가 목표 지점을 포함한다.
+- [ ] query filter의 area cost와 exclude flag가 의도와 맞다.
+- [ ] `MoveTo` 결과와 PathFollowingComponent 상태를 로그로 확인했다.
+- [ ] movement component, acceptance radius, link/crowd/avoidance 설정을 함께 점검했다.
+
+## 관련 문서
+
+- [[네비게이션과 PathFollowing(Navigation)]]
+- [[커스텀 네비게이션 영역과 Query Filter(Custom Navigation Areas Query Filters)]]
+- [[NavLink와 Smart Link(NavLink Smart Link)]]
+- [[RecastNavMesh와 Navigation Data(Custom Recast Navigation Data)]]

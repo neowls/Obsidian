@@ -1,3 +1,57 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/object-reference
+  - type/learning
+---
+
+# UPROPERTY Object Reference Guide
+
+> [!summary] 요약
+> UPROPERTY Object Reference Guide는 UObject 참조, GC, serialization, editor 노출, Blueprint 접근을 제어하는 언리얼 reflection 주제다.
+> 포인터가 사라지거나 에디터/Blueprint/cook에서 보이는 값이 달라질 때 확인한다.
+> 핵심은 "C++ 포인터"와 "엔진이 추적하는 reflected reference"를 구분하는 것이다.
+
+## 핵심 결론
+
+- UObject 참조가 GC와 serialization에 잡히려면 reflection 시스템이 볼 수 있는 형태여야 한다.
+- specifier는 editor 노출, Blueprint 접근, 저장/복제(Replication)/instancing 의미를 각각 다르게 바꾼다.
+- 문제가 생기면 property specifier, outer/lifetime, soft/hard reference, cook 포함 여부를 확인한다.
+
+## 개요
+
+UPROPERTY Object Reference Guide는 UObject 참조, GC, serialization, editor 노출, Blueprint 접근을 제어하는 언리얼 reflection 주제다.
+
+## 왜 필요한가
+
+Unreal의 객체 참조는 일반 C++ 포인터 규칙만으로 설명되지 않는다. UPROPERTY Object Reference Guide를 볼 때는 GC가 추적하는 참조인지, 에디터가 저장하는 값인지, 런타임 로딩을 지연하는 참조인지 나눠야 한다.
+
+## 작동 모델
+
+UPROPERTY는 UHT가 메타데이터를 생성하게 하고, 엔진은 그 정보를 사용해 GC, serialization, editor details, Blueprint 접근, replication 등을 처리한다. hard reference는 로딩 의존성을 만들고 soft reference는 경로를 저장해 필요할 때 로드한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| UHT metadata | property 정보를 엔진에 제공 | specifier, meta |
+| UObject reference | GC 추적 대상 | hard/weak/soft 여부 |
+| Editor property | details panel과 저장 | Edit/Visible, Defaults/Instance |
+| Blueprint access | BP 읽기/쓰기 노출 | BlueprintReadOnly/Write |
+| Asset reference | cook/load 의존성 | hard reference, soft path |
+
+## 실행 흐름
+
+1. C++ 헤더의 UPROPERTY를 UHT가 분석해 reflection metadata를 만든다.
+2. 에디터와 Blueprint는 metadata를 기준으로 값을 표시하고 저장한다.
+3. 런타임에서 GC와 serialization이 reflected reference를 따라간다.
+4. asset reference는 hard/soft 여부에 따라 로드와 cook 의존성이 달라진다.
+5. 객체 lifetime이 끝나면 weak/soft/hard reference 의미에 따라 접근 가능성이 달라진다.
+
 ## 문서 목적
 이 문서는 `UPROPERTY() TObjectPtr<T>` 와 `UPROPERTY() T*` 의 차이를 팀 내에서 빠르게 공유하기 위한 개요 문서입니다.
 
@@ -104,7 +158,7 @@ if (ObjectRef)
 중요한 포인트:
 - `sizeof(TObjectPtr<T>)` 는 포인터 크기와 같아서 메모리 부담은 거의 없다.
 - hot path 에서 raw pointer 보다 반드시 빠르지 않다.
-- 에디터 빌드에서는 tracking/resolve 비용 때문에 raw 보다 미세하게 느릴 수도 있다.
+- 에디터 빌드(Build)에서는 tracking/resolve 비용 때문에 raw 보다 미세하게 느릴 수도 있다.
 
 대신 기대할 수 있는 이점:
 - 에디터 참조 처리 안정성
@@ -233,3 +287,25 @@ void ApplyDamage(AActor* TargetActor);
 
 `UPROPERTY() UObject*` 는 여전히 유효한 strong reference 이지만, 새 멤버 선언에서는 `UPROPERTY() TObjectPtr<T>` 가 엔진의 현재 방향과 더 잘 맞는 기본 선택지다.
 
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| C++ 멤버 포인터면 UObject가 자동으로 유지된다. | GC가 볼 수 있는 UPROPERTY 또는 적절한 smart pointer를 사용한다. |
+| `EditAnywhere`는 Blueprint 접근과 같다. | editor 편집 specifier와 Blueprint 접근 specifier를 분리한다. |
+| soft reference는 항상 자동 로드된다. | 필요 시 명시적으로 async/sync load 경로를 설계한다. |
+
+## 디버깅 체크리스트
+
+- [ ] 참조가 UPROPERTY, `TObjectPtr`, weak/soft pointer 중 의도한 형태다.
+- [ ] property specifier가 editor 노출과 Blueprint 접근 요구를 만족한다.
+- [ ] hard reference가 불필요한 asset 로딩/cook 의존성을 만들지 않는다.
+- [ ] outer와 object lifetime이 참조보다 먼저 끝나지 않는다.
+- [ ] null, pending kill, unloaded soft reference 상태를 구분한다.
+
+## 관련 문서
+
+- [[에셋 매니저(Asset Manager)]]
+- [[에셋 레지스트리(Asset Registry)]]
+- [[언리얼 초기화 과정]]
+- [[Subsystem, Module, Plugin]]

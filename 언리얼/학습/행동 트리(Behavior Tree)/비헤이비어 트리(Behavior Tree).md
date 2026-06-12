@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/behavior-tree
+  - type/learning
+---
+
+# 비헤이비어 트리(Behavior Tree)
+
+> [!summary] 요약
+> 비헤이비어 트리(Behavior Tree)는 AIController, BrainComponent, Blackboard, Behavior Tree 노드가 함께 만드는 AI 의사결정 주제다.
+> AI가 선택한 행동이 왜 실행되거나 중단되는지 추적할 때 사용한다.
+> 핵심은 Blackboard 값 변화, decorator 조건, abort 범위, task 종료 신호를 같은 흐름에서 보는 것이다.
+
+## 핵심 결론
+
+- Behavior Tree는 노드 배치보다 Blackboard key와 observer/abort 조건 설계가 먼저다.
+- task는 반드시 성공, 실패, 진행 중 상태를 명확히 끝내야 한다.
+- 문제가 생기면 AIController possession, BrainComponent 실행 상태, Blackboard 값, decorator abort 로그를 확인한다.
+
+## 참고 자료
+
 [Behavior Tree Overview](https://dev.epicgames.com/documentation/en-us/unreal-engine/behavior-tree-in-unreal-engine---overview) | [Behavior Tree User Guide](https://dev.epicgames.com/documentation/en-us/unreal-engine/behavior-tree-in-unreal-engine---user-guide)
 
 ## 개요
@@ -8,15 +34,41 @@
 
 | 구성 요소 | 엔진 클래스 | 역할 |
 |---|---|---|
-| 비헤이비어 트리 에셋 | `UBehaviorTree` | 루트 컴포짓, 블랙보드, 루트 데코레이터를 보관하는 데이터 컨테이너 |
+| 비헤이비어 트리 에셋 | `UBehaviorTree` | 루트 컴포짓(Composite), 블랙보드(Blackboard), 루트 데코레이터(Decorator)를 보관하는 데이터 컨테이너 |
 | 블랙보드 | `UBlackboardData`, `UBlackboardComponent` | 의사결정에 필요한 상태 저장소 |
-| 실행기 | `UBehaviorTreeComponent` | 트리 시작, 탐색, 태스크 실행, 보조 노드 틱을 담당 |
+| 실행기 | `UBehaviorTreeComponent` | 트리 시작, 탐색, 태스크(Task) 실행, 보조 노드 틱을 담당 |
 | 분기 루트 | `UBTCompositeNode` | 자식 선택 규칙과 분기 생명주기를 담당 |
 | 조건/관찰자 | `UBTDecorator` | 분기 진입 가능 여부와 Abort를 제어 |
 | 백그라운드 갱신 | `UBTService` | 분기 활성 중 주기적으로 지식 업데이트 |
 | 실제 액션 | `UBTTaskNode` | 이동, 대기, EQS, 애니메이션 등 실제 행동 수행 |
 
 ![[Pasted image 20250122154533.png]]
+
+## 왜 필요한가
+
+AI 문제는 눈에 보이는 task가 아니라 그 task에 도달하기 전의 조건 평가에서 자주 발생한다. 비헤이비어 트리(Behavior Tree)를 볼 때는 실행 중인 노드만 보지 말고 Blackboard 변경과 재선택 조건까지 추적해야 한다.
+
+## 작동 모델
+
+AIController가 pawn을 소유하고 BrainComponent가 Behavior Tree를 구동한다. Blackboard는 의사결정 상태를 저장하고, Composite는 탐색 순서, Decorator는 조건, Service는 주기적 갱신, Task는 실제 행동을 담당한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `AAIController` | pawn 소유와 AI 실행 시작점 | possess, `RunBehaviorTree` |
+| `UBrainComponent` | AI 로직 실행/정지 관리 | start/stop/restart 상태 |
+| `UBehaviorTreeComponent` | 트리 탐색과 노드 실행 | active node, execution index |
+| `UBlackboardComponent` | 의사결정 데이터 저장 | key type, 값 갱신 시점 |
+| Task/Decorator/Service | 행동, 조건, 주기 갱신 | finish, abort, tick interval |
+
+## 실행 흐름
+
+1. AIController가 pawn을 possess하고 Blackboard/Behavior Tree를 초기화한다.
+2. Composite가 child 순서를 따라 실행 후보를 고른다.
+3. Decorator가 Blackboard와 조건을 검사하고 observer abort를 등록한다.
+4. Service가 주기적으로 key를 갱신하고 Task가 실제 행동을 시작한다.
+5. Task 완료, 실패, abort, key 변경이 다음 선택 흐름을 만든다.
 
 ## 런타임 구조
 엔진은 비헤이비어 트리를 다음 경로로 실행합니다.
@@ -65,6 +117,7 @@
 즉, 실무에서 “비헤이비어 트리를 실행한다”는 말은 사실상 “AIController가 BehaviorTreeComponent를 통해 루프 실행을 시작한다”는 뜻입니다.
 
 ## 언리얼 비헤이비어 트리의 핵심 차이점
+
 ### 1. 이벤트 주도형(Event-Driven)
 ![[Pasted image 20250122155259.png]]
 언리얼의 비헤이비어 트리는 매 프레임 전체 트리를 재평가하는 방식보다, 조건 변화가 생겼을 때 필요한 분기만 다시 평가하는 방향에 가깝습니다.
@@ -99,6 +152,7 @@
 이 방식은 `BehaviorTreeComponent`의 탐색/Abort 로직을 최적화하기 쉽고, 디버깅도 더 단순합니다.
 
 ## 엔진 코드 관점에서 꼭 알아둘 점
+
 ### NodeMemory와 인스턴싱
 모든 노드는 UObject지만, 런타임 상태를 무조건 UObject 멤버에 저장하는 구조가 아닙니다.
 기본적으로 템플릿 노드는 여러 AI가 공유하므로, 런타임 상태는 `NodeMemory`에 저장해야 합니다.
@@ -144,4 +198,27 @@
 - `Engine\Source\Runtime\AIModule\Classes\BehaviorTree\BTNode.h`
 - `Engine\Source\Runtime\AIModule\Classes\BehaviorTree\BTAuxiliaryNode.h`
 
+## 흔한 실수와 안전한 대안
 
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 트리 모양만 맞으면 AI가 의도대로 움직인다. | Blackboard key 타입, 초기값, 갱신 주기를 함께 검증한다. |
+| Task는 실행 함수만 구현하면 된다. | `FinishLatentTask` 또는 종료 신호가 모든 경로에서 호출되는지 확인한다. |
+| Decorator 조건은 한 번만 검사된다. | observer abort 설정과 Blackboard 변경 알림 범위를 같이 본다. |
+
+## 디버깅 체크리스트
+
+- [ ] AIController가 pawn을 정상 possess했고 Behavior Tree를 실행했다.
+- [ ] Blackboard asset과 Behavior Tree가 같은 key 정의를 사용한다.
+- [ ] 현재 active node, selected branch, abort 원인을 Behavior Tree debugger에서 확인했다.
+- [ ] Task가 success/fail/in progress 상태를 명확히 반환한다.
+- [ ] Service tick interval과 Decorator observer abort 설정이 의도와 맞다.
+
+## 관련 문서
+
+- [[데코레이터(Decorator)]]
+- [[블랙보드(Blackboard)]]
+- [[비헤이비어 트리 디버거(Behavior Tree Debugger)]]
+- [[서비스(Service)]]
+- [[컴포짓(Composite)]]
+- [[태스크(Task)]]

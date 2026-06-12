@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/ai-perception
+  - type/learning
+---
+
+# AI 지각(AI Perception)
+
+> [!summary] 요약
+> AI 지각(AI Perception)은 AI가 월드 정보를 감지하고 후보 위치나 대상을 평가해 의사결정에 넘기는 감지/쿼리 주제다.
+> AI가 대상을 보지 못하거나 EQS 결과가 기대와 다를 때 먼저 확인한다.
+> 핵심은 stimuli 등록, 감지 캐시, query item 생성, test scoring, Blackboard 반영 순서를 나눠 보는 것이다.
+
+## 핵심 결론
+
+- 감지와 의사결정은 다른 단계이므로 Perception/EQS 결과가 Behavior Tree에 어떻게 전달되는지 확인한다.
+- query는 generator, test, score, filter 순서가 바뀌면 전혀 다른 결과를 낸다.
+- 문제가 생기면 sense 설정, stimulus source, listener 위치, EQS debugger, Blackboard 갱신을 순서대로 확인한다.
+
+## 참고 자료
+
 [AI Components in Unreal Engine](https://dev.epicgames.com/documentation/en-us/unreal-engine/ai-components-in-unreal-engine?application_version=5.6) | [UAIPerceptionComponent](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/Perception/UAIPerceptionComponent) | [UAIPerceptionSystem](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/Perception/UAIPerceptionSystem) | [FAIStimulus](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/FAIStimulus)
 
 ## 개요
@@ -17,11 +43,38 @@
 즉 AI Perception은 "AI가 무엇을 봤는가"를 즉시 반환하는 함수라기보다, `sense -> stimulus -> listener memory -> gameplay response` 흐름을 가진 런타임 입력 계층으로 보는 편이 정확합니다.
 
 > [!info]
-> 비헤이비어 트리와 블랙보드는 의사결정 계층이고, AI Perception은 그 앞단에서 외부 자극을 수집하는 입력 계층입니다.
+> 비헤이비어 트리(Behavior Tree)와 블랙보드(Blackboard)는 의사결정 계층이고, AI Perception은 그 앞단에서 외부 자극을 수집하는 입력 계층입니다.
+
+## 왜 필요한가
+
+AI가 "모른다"는 증상은 감지 실패, 결과 평가 실패, Blackboard 반영 실패 중 어디에서든 생긴다. AI 지각(AI Perception)을 볼 때는 데이터를 생성하는 단계와 그 데이터를 소비하는 단계를 분리해야 한다.
+
+## 작동 모델
+
+AIPerceptionSystem은 stimulus와 listener를 갱신하고 PerceptionComponent는 actor별 감지 정보를 저장한다. EQS는 generator로 item을 만들고 test로 필터/점수를 계산해 Behavior Tree나 AI 코드가 사용할 후보를 반환한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `UAIPerceptionSystem` | sense update와 listener 관리 | sense 활성화, update interval |
+| `UAIPerceptionComponent` | actor별 감지 결과 보관 | configured senses, delegates |
+| Stimulus Source | 감지 대상 등록 | auto/register 설정 |
+| EQS Generator/Test | 후보 생성과 평가 | context, filter, score |
+| Blackboard | 감지/쿼리 결과 소비 | key type, update timing |
+
+## 실행 흐름
+
+1. stimulus source와 listener가 perception system에 등록된다.
+2. sense가 시야, 청각, 팀, 거리 조건으로 stimulus를 갱신한다.
+3. PerceptionComponent가 감지 변화를 delegate나 Blackboard 갱신으로 전달한다.
+4. EQS가 context를 기준으로 item을 생성하고 test로 필터/점수화한다.
+5. Behavior Tree task나 service가 선택 결과를 사용해 다음 행동을 정한다.
 
 ## 핵심 구성
+
 ### `UAIPerceptionSystem`
-`UAIPerceptionSystem`은 `UAISubsystem` 기반의 AI 서브시스템입니다.
+`UAIPerceptionSystem`은 `UAISubsystem` 기반의 AI 서브시스템(Subsystem)입니다.
 핵심 필드는 다음과 같습니다.
 
 | 필드 | 의미 |
@@ -75,6 +128,7 @@
 > AI Perception은 sense마다 "매 프레임 같은 비용"으로 도는 구조가 아닙니다. `UAISense::ProgressTime()`과 `Update()`를 통해 sense별 업데이트 타이밍을 조절합니다.
 
 ## 런타임 처리 흐름
+
 ### 1. Listener 등록
 `UAIPerceptionComponent::OnRegister()`가 실행되면:
 
@@ -125,6 +179,7 @@ sense는 내부 규칙에 따라 `FAIStimulus`를 만들어 listener에게 전�
 > 즉 perception은 sense가 곧바로 블랙보드를 만지는 구조가 아닙니다. 먼저 `PerceptualData`에 sense별 자극이 저장되고, 그 결과를 gameplay 쪽이 delegate나 조회 API로 소비합니다.
 
 ## `FAIStimulus`와 타깃 기억
+
 ### `FAIStimulus`
 `FAIStimulus`는 한 번의 감지 결과를 나타내는 데이터 구조입니다.
 
@@ -170,6 +225,7 @@ sense는 내부 규칙에 따라 `FAIStimulus`를 만들어 listener에게 전�
 > `DominantSense`는 "무엇을 감지할 수 있는가"를 바꾸는 옵션이 아닙니다. 여러 자극이 있을 때 어떤 sense의 위치를 더 우선해서 마지막 위치로 볼지 결정하는 우선순위입니다.
 
 ## 감각 설정(Sense Config)
+
 ### `UAISenseConfig_Sight`
 시야 설정에서 자주 보는 항목은 다음과 같습니다.
 
@@ -224,6 +280,7 @@ sense는 내부 규칙에 따라 `FAIStimulus`를 만들어 listener에게 전�
 > pawn 기반 sight는 자동 등록 경로가 이미 강하게 잡혀 있으므로, `StimuliSourceComponent`는 비-pawn 액터, hearing, custom sense, 명시적 등록 제어가 필요할 때 더 의미가 큽니다.
 
 ## 블루프린트와 런타임 API
+
 ### 자주 쓰는 조회 API
 
 | API | 의미 |
@@ -257,8 +314,8 @@ AI Perception은 비헤이비어 트리와 자동으로 직결되지 않습니�
 
 1. `UAIPerceptionComponent` delegate 수신
 2. `GetActorsPerception()` 또는 `FAIStimulus` 확인
-3. 블랙보드 키 갱신
-4. 데코레이터 observer abort 또는 서비스 갱신
+3. 블랙보드 키(Blackboard Key) 갱신
+4. 데코레이터(Decorator) observer abort 또는 서비스(Service) 갱신
 5. 비헤이비어 트리 재평가
 
 예를 들면:
@@ -291,7 +348,7 @@ AI Perception은 코드 차원에서 gameplay debugger와 visual logger를 염�
 - `GetCurrentlyPerceivedActors()`와 `GetKnownPerceivedActors()`를 구분하지 않으면 BT 조건이 쉽게 꼬인다.
 - 시야 기반 추적은 `TargetActor`와 `LastKnownLocation`을 분리해 저장하는 편이 안전하다.
 - custom sense를 만들더라도 시스템 구조는 동일하다. 결국 `UAISense::Update()`가 자극을 만들고 listener가 이를 처리한다.
-- perception은 네트워크 복제가 아니다. 멀티플레이 게임에서는 서버와 클라이언트 중 누가 perception을 돌리는지 먼저 정해야 한다.
+- perception은 네트워크 복제(Replication)가 아니다. 멀티플레이 게임에서는 서버와 클라이언트 중 누가 perception을 돌리는지 먼저 정해야 한다.
 
 ## 엔진 소스 참고 포인트
 - `Engine\Source\Runtime\AIModule\Classes\Perception\AIPerceptionComponent.h`
@@ -322,3 +379,23 @@ AI Perception을 한 줄로 줄이면 다음과 같습니다.
 4. gameplay 쪽이 이를 블랙보드와 행동 로직으로 연결한다.
 
 즉 앞으로 `EQS`, `Navigation`, `StateTree`를 공부하더라도, 그 앞단 입력 계층은 결국 이 perception 구조 위에 놓인다고 이해하면 됩니다.
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| AI가 못 보면 Behavior Tree 문제다. | sense 설정, stimulus source, listener 위치부터 확인한다. |
+| EQS는 가장 가까운 위치를 자동으로 고른다. | generator, test weight, filter/score purpose를 직접 확인한다. |
+| 감지된 actor는 항상 최신 상태다. | forget/stale time, line of sight, Blackboard 갱신 주기를 같이 본다. |
+
+## 디버깅 체크리스트
+
+- [ ] perception sense config, affiliation, sight radius, lose sight radius가 의도와 맞다.
+- [ ] stimulus source가 등록되었고 감지 대상 actor가 올바른 team/visibility 상태다.
+- [ ] perception debugger에서 listener, stimulus, last sensed time을 확인했다.
+- [ ] EQS debugger에서 generator item, filter 실패, score 분포를 확인했다.
+- [ ] 결과가 Blackboard key 타입과 Behavior Tree 조건에 맞게 반영된다.
+
+## 관련 문서
+
+- 관련 문서가 아직 정리되지 않았다.

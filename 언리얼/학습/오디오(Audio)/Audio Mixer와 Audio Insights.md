@@ -1,10 +1,62 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/audio
+  - type/learning
+---
+
+# Audio Mixer와 Audio Insights
+
+> [!summary] 요약
+> Audio Mixer와 Audio Insights은 런타임 기능을 관찰, 조정, 검증하기 위한 언리얼 도구/서브시스템(Subsystem) 주제다.
+> 성능, 카메라, 오디오, 자동화 검증처럼 결과를 눈으로만 판단하기 어려운 영역을 점검할 때 사용한다.
+> 핵심은 편집기 설정, 런타임 상태, 전용 디버거/프로파일러 출력을 함께 보는 것이다.
+
+## 핵심 결론
+
+- 도구성 시스템은 설정값과 런타임 출력이 분리되어 있으므로 양쪽을 함께 확인한다.
+- 카메라, 오디오, 테스트, 프로파일링은 재현 조건과 관찰 지점을 고정해야 비교가 가능하다.
+- 문제가 생기면 subsystem 활성화, runtime console/log, 전용 inspector, 자동화 재현 절차를 확인한다.
+
+## 참고 자료
+
 [Audio Mixer Overview | Unreal Engine Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/en-us/unreal-engine/audio-mixer-overview?application_version=4.27) | [Audio Mixer API | Unreal Engine 5.7 Documentation](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AudioMixer)
 
-# 개요
+## 개요
 `Audio Mixer`는 플랫폼별 오디오 출력을 공통 렌더링 구조로 다루는 오디오 엔진 계층이다.
 게임플레이 문서에서는 사운드 큐, 사운드 웨이브, 오디오 컴포넌트가 먼저 보이지만, 성능과 믹싱 문제는 audio device, source voice, submix, effect chain 관점으로 내려가야 한다.
 
-# 핵심 구성
+## 왜 필요한가
+
+관찰 도구와 런타임 기능은 "보이는 결과"만으로 원인을 찾기 어렵다. Audio Mixer와 Audio Insights을 볼 때는 입력 조건, 설정, 실제 frame/runtime 출력을 같은 표로 맞춰야 한다.
+
+## 작동 모델
+
+도구성 시스템은 editor/project setting에서 기본값을 정하고, runtime subsystem이나 component가 실제 상태를 만든다. 로그, profiler, visualizer, automation test는 그 상태를 반복해서 관찰할 수 있게 해준다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| Project/Editor Setting | 기본 동작과 플러그인(Plugin) 설정 | 활성화 여부, platform 차이 |
+| Runtime Component | 실제 상태 생성 | owner, tick, priority |
+| Subsystem | 전역 또는 월드 단위 관리 | init, state, console command |
+| Debug/Profiler Tool | 관찰과 기록 | capture 범위, stat group |
+| Automation Test | 반복 검증 | test flag, map/context |
+
+## 실행 흐름
+
+1. 프로젝트 설정과 plugin 활성화 상태를 확인한다.
+2. 런타임에서 subsystem/component가 언제 생성되는지 확인한다.
+3. 입력 조건을 고정하고 로그, visualizer, profiler, test로 관찰한다.
+4. 결과가 기대와 다르면 priority, tick order, platform setting을 좁힌다.
+5. 재현 가능한 절차나 automation test로 회귀 여부를 남긴다.
+
+## 핵심 구성
 | 요소 | 역할 |
 | --- | --- |
 | `UAudioComponent` | 월드의 사운드 재생 컴포넌트 |
@@ -16,14 +68,14 @@
 | `USoundSubmix` | 여러 소스를 섞고 effect를 적용하는 버스 |
 | Audio Insights | 오디오 분석/디버깅 툴 |
 
-# 런타임 흐름
+## 런타임 흐름
 1. gameplay 코드가 `PlaySound`, `SpawnSound`, `UAudioComponent::Play()`로 재생을 요청한다.
 2. `USoundBase::Parse()` 계열이 wave instance와 parameter를 만든다.
 3. audio device가 source를 관리한다.
 4. Audio Mixer가 source voice를 믹싱하고 submix graph를 거친다.
 5. 최종 output stream으로 보낸다.
 
-# 실무 체크포인트
+## 실무 체크포인트
 | 문제 | 확인할 것 |
 | --- | --- |
 | 소리가 안 남 | component activation, attenuation, concurrency, owner destruction |
@@ -35,14 +87,14 @@
 > [!tip]
 > 액션 게임에서는 타격음 하나보다 `피격 사운드 + 무기 레이어 + 피치/볼륨 랜덤 + submix ducking + 카메라/진동`을 함께 설계해야 피드백이 안정된다.
 
-# 디버깅 체크리스트
+## 디버깅 체크리스트
 - 사운드가 spawn되지 않은 것인지, spawn됐지만 culled/virtualized된 것인지 구분한다.
 - `UAudioComponent` lifetime이 actor destruction에 같이 묶여 있는지 확인한다.
 - concurrency 때문에 새 소리가 이전 소리를 끊는지 본다.
 - attenuation shape가 실제 위치와 맞는지 시각화한다.
 - submix/effect chain이 전체 mix를 과도하게 누르지 않는지 확인한다.
 
-# 엔진 소스 참고 포인트
+## 엔진 소스 참고 포인트
 - `Engine\Source\Runtime\Engine\Classes\Components\AudioComponent.h`: `UAudioComponent`.
 - `Engine\Source\Runtime\Engine\Classes\Sound\SoundBase.h`: `USoundBase`와 parse 진입점.
 - `Engine\Source\Runtime\Engine\Classes\Sound\SoundCue.h`: sound cue 구조.
@@ -188,3 +240,15 @@ Audio Insights는 소리가 왜 안 들리는가를 추측이 아니라 데이�
 - 엔진 소스: `Engine\Source\Runtime\Engine\Private\AudioDevice.cpp`.
 - 엔진 소스: `Engine\Source\Runtime\AudioMixer`.
 - 실험 도구: Audio Insights, `stat audio`, `au.Debug.Sounds` 계열 콘솔 명령.
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 에디터 preview 결과가 실제 런타임과 같다. | PIE, standalone, packaged, platform별 상태를 비교한다. |
+| 도구 창에 값이 보이지 않으면 기능이 꺼진 것이다. | capture 범위, stat group, subsystem 활성화를 먼저 확인한다. |
+| 수동 확인만으로 충분하다. | 반복되는 문제는 최소 automation test나 재현 절차로 고정한다. |
+
+## 관련 문서
+
+- 관련 문서가 아직 정리되지 않았다.

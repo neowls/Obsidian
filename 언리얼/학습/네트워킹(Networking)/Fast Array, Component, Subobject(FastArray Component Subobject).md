@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/networking
+  - type/learning
+---
+
+# Fast Array, Component, Subobject(FastArray Component Subobject)
+
+> [!summary] 요약
+> Fast Array, Component, Subobject 복제(Replication)는 단순 property 복제를 넘어 동적 목록과 하위 객체 상태를 효율적으로 동기화하는 네트워킹 패턴이다.
+> 인벤토리, 상태 목록, 장비 슬롯, replicated component/subobject처럼 항목 추가/삭제/변경이 많은 데이터를 복제할 때 확인한다.
+> 핵심은 어떤 객체가 replication owner인지, 어떤 항목이 dirty로 표시되는지, 클라이언트에서 어떤 callback이 호출되는지를 추적하는 것이다.
+
+## 핵심 결론
+
+- Fast Array는 변경된 item만 delta로 보내기 위해 item key와 dirty marking 규칙을 사용한다.
+- Component/Subobject 복제는 outer, owner actor, replication registration 경로가 맞아야 클라이언트에 생성/갱신된다.
+- 동기화가 안 되면 `MarkItemDirty`, registered subobject list, stable name, owner relevancy, channel 상태를 확인한다.
+
+## 참고 자료
+
 [Replicating UObjects in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/replicating-uobjects-in-unreal-engine) | [Replicate Actor Properties in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/replicate-actor-properties-in-unreal-engine)
 
 ## 개요
@@ -12,6 +38,32 @@
 
 > [!info]
 > 이 주제의 핵심은 "actor가 무엇을 복제할까"가 아니라 `UActorChannel`이 actor, component, subobject를 어떤 순서와 규칙으로 흘려보내는가입니다.
+
+## 왜 필요한가
+
+네트워크 버그는 기능 코드가 틀려서보다 실행 위치와 복제 조건을 잘못 가정해서 생기는 경우가 많다. Fast Array, Component, Subobject(FastArray Component Subobject)를 볼 때는 "서버의 사실", "클라이언트의 요청", "복제로 전달되는 상태"를 분리해야 한다.
+
+## 작동 모델
+
+서버가 게임 상태의 기준을 갖고, 클라이언트는 입력을 요청하거나 복제된 결과를 받는다. actor channel, relevancy, dormancy, update frequency는 어떤 객체가 언제 어떤 클라이언트에 전달되는지를 결정한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `AActor` | 복제 대상의 기본 단위 | `bReplicates`, relevancy, dormancy |
+| `UNetDriver` / `UNetConnection` | 연결과 패킷 흐름 관리 | client connection, channel 상태 |
+| Owner / `PlayerController` | Client RPC 호출 가능 여부 결정 | owning connection 존재 여부 |
+| Replicated Property | 오래 남는 상태 동기화 | RepNotify, 조건, 초기값 |
+| RPC | 순간 요청 또는 이벤트 전달 | 호출 위치, reliable 여부, 대상 |
+
+## 실행 흐름
+
+1. 서버가 actor를 생성하거나 상태를 변경한다.
+2. NetDriver가 relevancy와 priority를 기준으로 actor channel을 갱신한다.
+3. 변경된 property가 조건에 맞는 클라이언트로 복제된다.
+4. RPC는 호출 주체와 owner connection 조건을 통과할 때만 원격 실행된다.
+5. 클라이언트는 OnRep, prediction correction, visual update 순서로 결과를 반영한다.
 
 ## 1. Fast Array가 필요한 이유
 `FastArraySerializer.h` 상단 주석은 일반 replication과 dynamic property replication의 차이를 아주 직접적으로 설명합니다.
@@ -61,6 +113,7 @@
 > 삭제 시 `MarkItemDirty()`가 아니라 `MarkArrayDirty()`가 필요한 이유는, 삭제는 "어느 원소가 사라졌는지"를 배열 레벨에서 다시 계산해야 하기 때문입니다. 헤더 주석의 warning도 이 점을 직접 말합니다.
 
 ## 4. Fast Array 직렬화 흐름
+
 ### 서버 쓰기 경로
 `FFastArraySerializer::FastArrayDeltaSerialize()` 또는 `FastArrayDeltaSerialize_DeltaSerializeStructs()`가 호출되면:
 
@@ -133,6 +186,7 @@
 > `ReadyForReplication()`은 "component 생성 완료"가 아니라 "이제 channel 위에서 복제해도 되는 시점"에 가깝습니다.
 
 ## 7. Legacy 방식과 Registered List 방식
+
 ### Legacy: `ReplicateSubobjects()`
 actor나 component가 virtual `ReplicateSubobjects()`를 override해서 직접 `Channel->ReplicateSubobject()`를 호출하는 방식입니다.
 
@@ -210,3 +264,27 @@ subobject를 리스트에서 빼는 것과 클라이언트에서 즉시 제거�
 - `Engine\Source\Runtime\Engine\Classes\GameFramework\Actor.h`
 - `Engine\Source\Runtime\Engine\Private\ActorReplication.cpp`
 - `Engine\Source\Runtime\Engine\Private\DataChannel.cpp`
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| `HasAuthority()`가 true면 항상 서버 전용 코드다. | authority, net mode, local control, owner를 각각 확인한다. |
+| Client RPC는 아무 actor에서나 호출할 수 있다. | owning connection이 있는 actor인지 먼저 확인한다. |
+| 모든 이벤트를 RPC로 보내면 된다. | 남아야 하는 값은 replicated property와 RepNotify로 처리한다. |
+
+## 디버깅 체크리스트
+
+- [ ] 대상 actor의 `bReplicates`, relevancy, dormancy 설정을 확인했다.
+- [ ] RPC 호출 actor에 owning connection이 있다.
+- [ ] 서버/클라이언트 양쪽에서 net mode와 role 로그를 찍었다.
+- [ ] RepNotify가 초기 복제, 변경 복제, late join 상황에서 기대대로 호출된다.
+- [ ] Net update frequency, dormancy 해제, relevancy 거리 때문에 누락되지 않는다.
+
+## 관련 문서
+
+- [[언리얼 네트워킹]]
+- [[CharacterMovement와 예측(CharacterMovement Prediction)]]
+- [[Iris와 Replication Graph(Iris Replication Graph)]]
+- [[Replication]]
+- [[RPC]]

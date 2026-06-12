@@ -1,5 +1,29 @@
-# 개요
-언리얼 엔진의 **모션 매칭(Motion Matching)** 은 쿼리 기반 애니메이션 포즈 선택 시스템입니다. **포즈 서치(Pose Search)** 플러그인에 포함된 모션 매칭 애니메이션 블루프린트 노드를 스테이트 머신 또는 블렌드 스페이스의 동적인 대안으로 사용할 수 있습니다. 기존 애니메이션 시스템과 달리 모션 매칭은 애니메이션 데이터 세트에서 정보에 기반한 애니메이션 포즈를 선택하여 애니메이션 시퀀스 간에 트랜지션 또는 블렌딩 로직을 구성하지 않고도 반응형 애니메이션 시스템을 생성할 수 있습니다.
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/animation
+  - type/learning
+---
+
+# 모션 매칭(Motion Matching)
+
+> [!summary] 요약
+> 모션 매칭(Motion Matching)은 SkeletalMeshComponent, AnimInstance, pose graph, montage, root motion이 연결되는 애니메이션 주제다.
+> 캐릭터 모션이 끊기거나 원하는 pose/section/warping 결과가 나오지 않을 때 확인한다.
+> 핵심은 gameplay 변수 갱신, animation update, pose evaluation, root motion 적용 시점을 구분하는 것이다.
+
+## 핵심 결론
+
+- 애니메이션 문제는 그래프 모양보다 변수 갱신 시점과 평가 순서가 더 중요하다.
+- montage, motion matching, motion warping, linked layer는 pose 선택과 root motion 보정을 서로 다른 지점에서 처리한다.
+- 문제가 생기면 AnimInstance update, slot/layer 연결, root motion mode, mesh/component transform을 순서대로 확인한다.
+
+## 개요
+언리얼 엔진의 **모션 매칭(Motion Matching)** 은 쿼리 기반 애니메이션 포즈 선택 시스템입니다. **포즈 서치(Pose Search)** 플러그인(Plugin)에 포함된 모션 매칭 애니메이션 블루프린트 노드를 스테이트 머신 또는 블렌드 스페이스의 동적인 대안으로 사용할 수 있습니다. 기존 애니메이션 시스템과 달리 모션 매칭은 애니메이션 데이터 세트에서 정보에 기반한 애니메이션 포즈를 선택하여 애니메이션 시퀀스 간에 트랜지션 또는 블렌딩 로직을 구성하지 않고도 반응형 애니메이션 시스템을 생성할 수 있습니다.
 
 ![[image_000.gif]]
 
@@ -11,12 +35,38 @@ Motion Matching 노드는 본의 위치 및 속도 같은 스키마를 통해 �
 
 이 문서에서는 언리얼 엔진의 모션 매칭과 모션 매칭을 사용하여 캐릭터의 로코모션 애니메이션 시스템을 구성하는 방법에 대한 워크플로 예시를 간략하게 살펴봅니다
 
+## 왜 필요한가
+
+애니메이션은 게임플레이 코드, movement, skeletal mesh, graph evaluation이 프레임마다 맞물린다. 모션 매칭(Motion Matching)을 볼 때는 "변수가 언제 바뀌었는가"와 "pose가 언제 평가되었는가"를 분리해야 한다.
+
+## 작동 모델
+
+SkeletalMeshComponent가 AnimInstance를 tick하고, AnimInstance는 update 단계에서 변수를 준비한 뒤 graph evaluation 단계에서 pose를 만든다. montage와 slot은 pose에 특정 재생 흐름을 끼워 넣고, motion matching/warping은 선택 또는 root motion 보정 단계에 개입한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `USkeletalMeshComponent` | 애니메이션 tick과 pose 적용 | tick option, update rate |
+| `UAnimInstance` | 변수 갱신과 graph 실행 | update/evaluate 순서 |
+| Anim Graph / State Machine | pose 선택과 전환 | transition 조건, blend time |
+| Montage / Slot | 액션 재생과 section 제어 | slot 연결, notify, root motion |
+| Motion Matching / Warping | pose 선택과 이동 보정 | database, sync, warp target |
+
+## 실행 흐름
+
+1. 게임플레이 코드와 movement가 속도, 상태, 입력 변수를 갱신한다.
+2. AnimInstance update가 그 값을 읽어 graph 평가에 필요한 상태를 만든다.
+3. State Machine, blend space, motion matching, montage slot이 최종 pose를 만든다.
+4. root motion이나 motion warping이 transform 보정에 개입한다.
+5. SkeletalMeshComponent가 pose를 적용하고 notify/event가 게임플레이로 되돌아간다.
+
 ## 전제조건
 - **포즈 서치(Pose Search)** 플러그인을 활성화합니다. **메뉴 바(Menu Bar)** 의 **편집(Edit) > 플러그인(Plugins)** 으로 이동하여 **애니메이션(Animation)** 섹션에서 플러그인을 찾거나 **검색창(Search Bar)** 을 사용합니다. 플러그인을 활성화하고 에디터를 재시작합니다.
 
 ![[Pasted image 20250120081145.png]]
 
-# 모션 매칭 구성
+## 모션 매칭 구성
 이 섹션에서는 프로젝트에서 모션 매칭 시스템을 기반으로 간단한 로코모션을 구성하는 방법에 대한 워크플로 예시를 따라가 볼 수 있습니다.
 
 ## 포즈 서치 스키마 에셋 생성하기
@@ -28,7 +78,7 @@ Motion Matching 노드는 본의 위치 및 속도 같은 스키마를 통해 �
 
 ![[Pasted image 20250120081422.png]]
 
-새 포즈 서치 스키마 에셋을 생성하면 모션 매칭 시스템을 빌드할 캐릭터의 스켈레톤을 선택하라는 메시지가 표시됩니다.
+새 포즈 서치 스키마 에셋을 생성하면 모션 매칭 시스템을 빌드(Build)할 캐릭터의 스켈레톤을 선택하라는 메시지가 표시됩니다.
 
 ![[Pasted image 20250120081946.png]]
 
@@ -88,7 +138,7 @@ Motion Matching 노드는 본의 위치 및 속도 같은 스키마를 통해 �
 |**본(Bone)**|캐릭터의 스켈레톤에서 포즈 선택 쿼리에 사용할 본을 할당할 수 있습니다. 드롭다운 메뉴를 사용하여 스켈레톤의 계층구조에서 본을 선택할 수 있습니다.|
 |**원점 본(Origin Bone)**|스켈레톤에서 헤딩 방향을 결정하는 원점 본 역할을 할 본을 설정합니다. 드롭다운 계층구조 메뉴를 사용하여 캐릭터의 스켈레톤에서 본을 선택할 수 있습니다.|
 |**가중치(Weight)**|모션 데이터베이스 환경설정 에셋의 다른 채널과 대비하여 이 채널이 출력 포즈에 미치는 영향력에 가중치를 부여하는 데 사용할 가중치 값을 설정합니다.|
-|**샘플 어트리뷰트 ID(Sample Attribute ID)**|샘플 어트리뷰트 ID로 사용할 값을 설정합니다. 이 값이 `0.0` 보다 크면 이 채널에 포함된, 이 포즈 서치 스키마 에셋과 관련된 포즈 서치 데이터베이스에 포함된 모든 애니메이션에는 포즈 서치: 샘플링 어트리뷰트 ID 노티파이 스테이트(Pose Search: Sampling Attribute ID Notify State)가 있고 샘플링 어트리뷰트 프로퍼티가 정의되어 있을 것으로 예상됩니다. 이 프로퍼티에 설정된 값은 본 채널 대신 데이터 소스로 사용됩니다. 샘플링 어트리뷰트 프로퍼티의 값은 원점 본 스페이스로 변환됩니다.|
+|**샘플 어트리뷰트 ID(Sample Attribute ID)**|샘플 어트리뷰트 ID로 사용할 값을 설정합니다. 이 값이 `0.0` 보다 크면 이 채널에 포함된, 이 포즈 서치 스키마 에셋과 관련된 포즈 서치 데이터베이스에 포함된 모든 애니메이션에는 포즈 서치: 샘플링 어트리뷰트 ID 노티파이(Notify) 스테이트(Pose Search: Sampling Attribute ID Notify State)가 있고 샘플링 어트리뷰트 프로퍼티가 정의되어 있을 것으로 예상됩니다. 이 프로퍼티에 설정된 값은 본 채널 대신 데이터 소스로 사용됩니다. 샘플링 어트리뷰트 프로퍼티의 값은 원점 본 스페이스로 변환됩니다.|
 |**샘플 시간 오프셋(Sample Time Offset)**|샘플 시간에 대한 오프셋으로 사용할 값을 설정할 수 있습니다.|
 |**원점 시간 오프셋(Origin Time Offset)**|원점 시간을 오프셋하는 데 사용할 값을 설정할 수 있습니다. 이 채널의 원점 본(루트 또는 궤적 본)과 관련된 샘플링 시간을 기준으로 하는 데이터는 이 프로퍼티의 값(초)만큼 오프셋됩니다. 예를 들어 원점 본이 캐릭터의 머리 본으로 설정되어 있고, 샘플 시간 오프셋이 `0.5`, 원점 시간 오프셋이 `0.5` 로 설정된 경우, 이 채널은 캐릭터 머리 본의 미래 방향을 동시에 미래 루트 본을 기준으로 `0.5` 초 미래 방향에 일치시키려 시도합니다.|
 |**헤딩 축(Heading Axis)**|샘플링된 **본(Bone)** 프로퍼티의 모션 쿼리에 사용할 축**(X,** **Y** 또는 **Z)** 을 설정합니다.|
@@ -184,7 +234,7 @@ Motion Matching 노드는 본의 위치 및 속도 같은 스키마를 통해 �
 ![[Pasted image 20250120083040.png]]
 
 > [!Info] 　
-> 로코모션에 대한 모션 매칭 구성에 사용되는 애니메이션에는 루트 모션이 포함되어 있어야 하며, 애니메이션 시퀀스에는 루트 모션 프로퍼티가 활성화되어 있어야 합니다.
+> 로코모션에 대한 모션 매칭 구성에 사용되는 애니메이션에는 루트 모션(Root Motion)이 포함되어 있어야 하며, 애니메이션 시퀀스에는 루트 모션 프로퍼티가 활성화되어 있어야 합니다.
 
 원하는 퀄리티를 달성하는 데 필요한 만큼의 애니메이션 에셋을 사용할 수 있으며, 제공하는 애니메이션 에셋이 많을수록 Motion Matching 노드가 선택해야 할 데이터도 늘어납니다.
 니메이션 에셋을 추가하려면 **에셋 목록(Asset List)** 패널에서 (**+**) **추가** 를 사용하거나, **콘텐츠 브라우저** 또는 **에셋 브라우저** 패널을 사용하여 에셋을 드래그 앤 드롭하면 됩니다.
@@ -192,7 +242,7 @@ Motion Matching 노드는 본의 위치 및 속도 같은 스키마를 통해 �
 ![[image_1100.gif]]
 
 > [!Tip] 　
-> 포즈 서치 데이터베이스 에셋은 다양한 애니메이션 에셋 타입을 지원하며, **애니메이션 시퀀스** 에셋을 디폴트 에셋으로 사용할 수 있고, 필요에 따라 **애니메이션 컴포짓, 블렌드 스페이스**를 사용할 수 있습니다.
+> 포즈 서치 데이터베이스 에셋은 다양한 애니메이션 에셋 타입을 지원하며, **애니메이션 시퀀스** 에셋을 디폴트 에셋으로 사용할 수 있고, 필요에 따라 **애니메이션 컴포짓(Composite), 블렌드 스페이스**를 사용할 수 있습니다.
 
 ![[image_1300.gif]]
 
@@ -216,6 +266,7 @@ Motion Matching 노드는 본의 위치 및 속도 같은 스키마를 통해 �
 | **주요 컴포넌트 수(Number Of Principal Components)**          | **포즈 서치 모드(Pose Search Mode)** 프로퍼티가 **PCAKDTree** 로 설정된 경우, KDTree 생성에 사용되는 차원 수를 설정합니다. 값이 클수록 차원 수가 많아져서 데이터 세트의 편차를 더 잘 설명할 수 있습니다. 보통 차원 수가 많을수록 검색 결과가 좋아지지만, 프로젝트의 메모리 사용량도 많아져서 퍼포먼스가 나빠집니다.<br><br>이 프로퍼티는 **포즈 서치 모드(Pose Search Mode)** 프로퍼티가 **PCAKDTree** 로 설정된 경우에만 액세스할 수 있습니다.<br>                                                                                                                                                                                                                                                            |
 | **KDTree 최대 리프 크기(KDTree Max Leaf Size)**              | KDTree의 각 가지에 달릴 수 있는 최대 나뭇잎 수를 설정합니다.<br><br>이 프로퍼티는 **포즈 서치 모드(Pose Search Mode)** 프로퍼티가 **PCAKDTree** 로 설정된 경우에만 액세스할 수 있습니다.<br>                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | **KNN 쿼리 이웃 수(KNNQueryNumNeighbors)**                  | KDTree 검색을 사용하면 대략적인 비용만 결과로 얻을 수 있으므로, 데이터베이스 검색에서 몇 개의 포즈를 선택하여 전체 비용 분석을 수행하여 최고의 포즈를 선택할 수 있습니다. 이 프로퍼티에서 값을 설정하여 KDTree 검색에서 전체 비용 분석을 위해 선택할 포즈 수를 선택합니다. 이 프로퍼티는 **VPTree 포즈 서치 모드(VPTree Pose Search Mode)** 사용 시 전체 비용 분석을 수행하기 위해 VPTree 검색의 포즈 수를 설정하는 데에도 사용할 수 있습니다.                                                                                                                                                                                                                                                                             |
+
 ## Motion Matching 노드
 아래에서 Motion Matching 노드의 세팅 목록과 그 기능에 대한 설명을 참조할 수 있습니다.
 ![[Pasted image 20250120083642.png]]
@@ -254,13 +305,12 @@ Motion Matching 노드는 본의 위치 및 속도 같은 스키마를 통해 �
 
 ![[Pasted image 20250120083803.png]]
 
-**노티파이 필터링 필요(Should Filter Notifies)** 프로퍼티를 활성화하면, 모든 애님 노티파이를 똑같이 처리하고 **최근 노티파이 필터링 시간(Notify Recency Time Out)** 프로퍼티에 설정된 설정값에 대해 같은 노티파이의 반복 인스턴스를 필터링합니다. 애니메이션에 필터링하고 싶지 않은 노티파이가 포함되어 있으면, 애니메이션 시퀀스 또는 몽타주에서 그 노티파이를 선택하고 해당 노티파이의 **디테일(Details)** 패널에서 **요청을 통해 필터링 가능(Can Be Filtered Via Request)** 프로퍼티를 비활성화합니다. 기본적으로 이 프로퍼티는 모든 애님 노티파이에 대해 활성화되어 있습니다.
+**노티파이 필터링 필요(Should Filter Notifies)** 프로퍼티를 활성화하면, 모든 애님 노티파이를 똑같이 처리하고 **최근 노티파이 필터링 시간(Notify Recency Time Out)** 프로퍼티에 설정된 설정값에 대해 같은 노티파이의 반복 인스턴스를 필터링합니다. 애니메이션에 필터링하고 싶지 않은 노티파이가 포함되어 있으면, 애니메이션 시퀀스 또는 몽타주(Montage)에서 그 노티파이를 선택하고 해당 노티파이의 **디테일(Details)** 패널에서 **요청을 통해 필터링 가능(Can Be Filtered Via Request)** 프로퍼티를 비활성화합니다. 기본적으로 이 프로퍼티는 모든 애님 노티파이에 대해 활성화되어 있습니다.
 
 ![[Pasted image 20250120085531.png]]
 
 > [!Info] 　
 > 애님 노티파이 필터링은 애님 노티파이에만 적용되며, 애님 노티파이 스테이트에 대해서는 작동하지 않습니다.
-
 
 ## 포즈 서치 스키마 채널 가중치
 포즈 서치 스키마 에셋 내에 있는 각 채널의 가중치 프로퍼티를 사용하여 각 채널이 선택 프로세스에 미치는 영향력을 제어할 수 있습니다.
@@ -299,3 +349,26 @@ Motion Matching 노드는 본의 위치 및 속도 같은 스키마를 통해 �
 |**포즈 서치: 지속 포즈 비용 바이어스 오버라이드(Override Continuing Pose Cost Bias)**|이 노티파이 스테이트를 사용하면 지속 포즈에 대한 포즈 서치 비용을 설정하여 노티파이 파라미터에 따라 지속 재생을 위해 애니메이션 세그먼트가 다시 선택될 가능성을 높이거나 낮출 수 있습니다.|
 |**포즈 서치: 샘플링 어트리뷰트(Sampling Attribute)**|포즈 서치 스키마 채널은 채널의 샘플링 어트리뷰트 ID(Sampling Attribute ID) 프로퍼티를 노티파이 스테이트의 샘플링 어트리뷰트 ID 프로퍼티와 일치하도록 지정하여 데이터베이스 인덱싱 중에 이 노티파이 스테이트를 애니메이션 스페이스 위치, 회전 및 선형 속도 제공자로 사용할 수 있습니다.|
 |**포즈 서치 샘플링 이펙트(Pose Search Sampling Effect)**|포즈 서치 스키마 채널은 채널의 샘플링 어트리뷰트 ID 프로퍼티를 노티파이 스테이트의 샘플링 어트리뷰트 ID 프로퍼티와 일치하도록 지정하여 데이터베이스 인덱싱 중에 이 노티파이 스테이트를 사용하여 샘플링 어트리뷰트 ID 프로퍼티로 식별되는 이벤트의 경계를 구분할 수 있습니다.|
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 그래프에 노드가 있으면 언제나 평가된다. | blend weight, state transition, linked layer 연결을 확인한다. |
+| montage가 재생되면 slot 설정은 중요하지 않다. | AnimGraph 안에 해당 slot이 실제로 연결되어 있는지 본다. |
+| root motion 문제는 애니메이션 asset만 보면 된다. | movement mode, root motion mode, warp target, component transform을 함께 본다. |
+
+## 디버깅 체크리스트
+
+- [ ] AnimInstance가 올바른 mesh에 연결되어 있고 update가 실행된다.
+- [ ] transition 조건, blend weight, active state를 Animation debugger에서 확인했다.
+- [ ] montage slot, section, notify, root motion mode가 의도와 맞다.
+- [ ] motion matching database와 trajectory, motion warping target이 유효하다.
+- [ ] networked character라면 server/client montage 재생과 movement correction을 함께 확인했다.
+
+## 관련 문서
+
+- [[모션 워핑(Motion Warping)]]
+- [[무제]]
+- [[애니메이션 블루프린트 링크]]
+- [[애니메이션 최적화]]

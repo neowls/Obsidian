@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/eqs
+  - type/learning
+---
+
+# 환경 쿼리 시스템(EQS)
+
+> [!summary] 요약
+> 환경 쿼리 시스템(EQS)은 AI가 월드 정보를 감지하고 후보 위치나 대상을 평가해 의사결정에 넘기는 감지/쿼리 주제다.
+> AI가 대상을 보지 못하거나 EQS 결과가 기대와 다를 때 먼저 확인한다.
+> 핵심은 stimuli 등록, 감지 캐시, query item 생성, test scoring, Blackboard 반영 순서를 나눠 보는 것이다.
+
+## 핵심 결론
+
+- 감지와 의사결정은 다른 단계이므로 Perception/EQS 결과가 Behavior Tree에 어떻게 전달되는지 확인한다.
+- query는 generator, test, score, filter 순서가 바뀌면 전혀 다른 결과를 낸다.
+- 문제가 생기면 sense 설정, stimulus source, listener 위치, EQS debugger, Blackboard 갱신을 순서대로 확인한다.
+
+## 참고 자료
+
 [Environment Query System in Unreal Engine](https://dev.epicgames.com/documentation/en-us/unreal-engine/environment-query-system-in-unreal-engine) | [FEnvQueryRequest](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/EnvironmentQuery/FEnvQueryRequest) | [UEnvQuery::CollectQueryParams](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/EnvironmentQuery/UEnvQuery/CollectQueryParams) | [UBTTask_RunEQSQuery](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/UBTTask_RunEQSQuery)
 
 ## 개요
@@ -14,14 +40,41 @@
 | 테스트 | `UEnvQueryTest` | 후보를 필터링하거나 점수화 |
 | 컨텍스트 | `UEnvQueryContext` | Querier, Target 같은 기준점을 제공 |
 | 아이템 타입 | `UEnvQueryItemType` | 결과 아이템의 실제 데이터 해석 방식 정의 |
-| BT 연결 | `UBTTask_RunEQSQuery` | EQS를 실행하고 결과를 블랙보드에 저장 |
+| BT 연결 | `UBTTask_RunEQSQuery` | EQS를 실행하고 결과를 블랙보드(Blackboard)에 저장 |
 
 즉 EQS는 `기억(memory)` 계층이 아니라, 현재 시점의 후보들을 평가해서 결과를 뽑는 `질의(query)` 계층으로 보는 편이 정확합니다.
 
 > [!info]
 > `[[AI 지각(AI Perception)]]` 이 자극을 수집하는 입력 계층이라면, EQS는 그 입력과 현재 월드 상태를 바탕으로 "지금 가장 적절한 위치/대상은 무엇인가"를 계산하는 평가 계층입니다.
 
+## 왜 필요한가
+
+AI가 "모른다"는 증상은 감지 실패, 결과 평가 실패, Blackboard 반영 실패 중 어디에서든 생긴다. 환경 쿼리 시스템(EQS)을 볼 때는 데이터를 생성하는 단계와 그 데이터를 소비하는 단계를 분리해야 한다.
+
+## 작동 모델
+
+AIPerceptionSystem은 stimulus와 listener를 갱신하고 PerceptionComponent는 actor별 감지 정보를 저장한다. EQS는 generator로 item을 만들고 test로 필터/점수를 계산해 Behavior Tree나 AI 코드가 사용할 후보를 반환한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `UAIPerceptionSystem` | sense update와 listener 관리 | sense 활성화, update interval |
+| `UAIPerceptionComponent` | actor별 감지 결과 보관 | configured senses, delegates |
+| Stimulus Source | 감지 대상 등록 | auto/register 설정 |
+| EQS Generator/Test | 후보 생성과 평가 | context, filter, score |
+| Blackboard | 감지/쿼리 결과 소비 | key type, update timing |
+
+## 실행 흐름
+
+1. stimulus source와 listener가 perception system에 등록된다.
+2. sense가 시야, 청각, 팀, 거리 조건으로 stimulus를 갱신한다.
+3. PerceptionComponent가 감지 변화를 delegate나 Blackboard 갱신으로 전달한다.
+4. EQS가 context를 기준으로 item을 생성하고 test로 필터/점수화한다.
+5. Behavior Tree task나 service가 선택 결과를 사용해 다음 행동을 정한다.
+
 ## 핵심 구성
+
 ### `UEnvQuery`
 `UEnvQuery`는 `UDataAsset` 기반 에셋입니다.
 핵심 필드는 단순합니다.
@@ -104,6 +157,7 @@
 > EQS는 기본적으로 한 프레임에 모든 일을 끝내는 구조가 아닙니다. `UEnvQueryManager::Tick()`이 `MaxAllowedTestingTime` 안에서 `ExecuteOneStep()`를 돌리며, 큰 쿼리는 다음 프레임으로 넘어갈 수 있습니다.
 
 ## Generator / Test / Context / ItemType
+
 ### Generator
 `UEnvQueryGenerator`는 후보 아이템을 만듭니다.
 대표적으로:
@@ -164,13 +218,13 @@ generator는 후보를 만들고 끝나는 계층이지, 최종 답을 고르는
 | `AllMatching` | 살아남은 모든 결과 반환 |
 
 `FinalizeQuery()`는 이 run mode에 따라 정렬, 정규화, 랜덤 선택, 전체 반환을 다르게 처리합니다.
-특히 `AllMatching`은 C++/Blueprint 결과에서는 여러 아이템을 유지할 수 있지만, `UBTTask_RunEQSQuery`가 블랙보드에 저장할 때는 결국 블랙보드 키 하나에 맞는 단일 값만 기록합니다.
+특히 `AllMatching`은 C++/Blueprint 결과에서는 여러 아이템을 유지할 수 있지만, `UBTTask_RunEQSQuery`가 블랙보드에 저장할 때는 결국 블랙보드 키(Blackboard Key) 하나에 맞는 단일 값만 기록합니다.
 
 > [!caution]
 > BT의 `Run EQS Query`에서 `AllMatching`을 썼다고 해서 블랙보드에 배열이 저장되는 것은 아닙니다. 블랙보드 저장 단계에서는 item type에 맞는 단일 actor/vector/object 값으로 축약됩니다.
 
-## 블랙보드와 비헤이비어 트리 연결
-`UBTTask_RunEQSQuery`는 EQS를 BT에 연결하는 핵심 태스크입니다.
+## 블랙보드와 비헤이비어 트리(Behavior Tree) 연결
+`UBTTask_RunEQSQuery`는 EQS를 BT에 연결하는 핵심 태스크(Task)입니다.
 핵심 필드는 다음과 같습니다.
 
 | 필드 | 의미 |
@@ -193,6 +247,7 @@ generator는 후보를 만들고 끝나는 계층이지, 최종 답을 고르는
 즉 BT 기준 EQS는 “노드 안에서 즉시 계산하는 함수”가 아니라, 비동기 질의를 던지고 결과 메시지를 받아 블랙보드를 갱신하는 태스크입니다.
 
 ## Blueprint와 디버깅
+
 ### `UEnvQueryInstanceBlueprintWrapper`
 Blueprint에서 EQS 결과를 다루는 얇은 래퍼입니다.
 
@@ -216,6 +271,7 @@ Blueprint에서 EQS 결과를 다루는 얇은 래퍼입니다.
 즉 EQS는 에디터용 그래프 기능만 있는 것이 아니라, 런타임 성능과 디버그 스냅샷을 위한 계측 경로를 갖고 있습니다.
 
 ## 실무 관점에서 꼭 알아둘 점
+
 ### 1. EQS는 기억이 아니라 평가기다
 `PerceptualData`처럼 상태를 오래 들고 있는 시스템이 아닙니다.
 감지 결과를 장기 기억하려면 perception이나 blackboard와 함께 써야 합니다.
@@ -238,8 +294,8 @@ manager tick, finish delegate, BT message 흐름까지 포함해서 생각해야
 ## AI 스택 안에서의 위치
 - [[AI 지각(AI Perception)]] : 외부 자극을 수집
 - [[환경 쿼리 시스템(EQS)]] : 후보 위치/대상을 평가
-- [[비헤이비어 트리(Behavior Tree)]] : 의사결정 흐름 제어 
-- [[네비게이션과 PathFollowing(Navigation)]] : 선택된 목적지를 실제 이동 요청과 경로 추종으로 실행
+- [[비헤이비어 트리(Behavior Tree)]] : 의사결정 흐름 제어
+- [[네비게이션과 PathFollowing(Navigation)]] : 선택된 목적지를 실제 이동 요청과 경로 추종(Path Following)으로 실행
 - [[블랙보드(Blackboard)]] : 선택된 결과를 저장해 다른 노드와 공유
 
 ## 엔진 소스 참고 포인트
@@ -252,3 +308,23 @@ manager tick, finish delegate, BT message 흐름까지 포함해서 생각해야
 - `Engine\Source\Runtime\AIModule\Private\BehaviorTree\Tasks\BTTask_RunEQSQuery.cpp`
 - `Engine\Source\Runtime\AIModule\Private\GameplayDebugger\GameplayDebuggerCategory_EQS.cpp`
 - `Engine\Source\Runtime\AIModule\Private\EnvironmentQuery\EQSTestingPawn.cpp`
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| AI가 못 보면 Behavior Tree 문제다. | sense 설정, stimulus source, listener 위치부터 확인한다. |
+| EQS는 가장 가까운 위치를 자동으로 고른다. | generator, test weight, filter/score purpose를 직접 확인한다. |
+| 감지된 actor는 항상 최신 상태다. | forget/stale time, line of sight, Blackboard 갱신 주기를 같이 본다. |
+
+## 디버깅 체크리스트
+
+- [ ] perception sense config, affiliation, sight radius, lose sight radius가 의도와 맞다.
+- [ ] stimulus source가 등록되었고 감지 대상 actor가 올바른 team/visibility 상태다.
+- [ ] perception debugger에서 listener, stimulus, last sensed time을 확인했다.
+- [ ] EQS debugger에서 generator item, filter 실패, score 분포를 확인했다.
+- [ ] 결과가 Blackboard key 타입과 Behavior Tree 조건에 맞게 반영된다.
+
+## 관련 문서
+
+- 관련 문서가 아직 정리되지 않았다.

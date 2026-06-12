@@ -1,10 +1,62 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/camera
+  - type/learning
+---
+
+# Gameplay Cameras
+
+> [!summary] 요약
+> Gameplay Cameras는 런타임 기능을 관찰, 조정, 검증하기 위한 언리얼 도구/서브시스템(Subsystem) 주제다.
+> 성능, 카메라, 오디오, 자동화 검증처럼 결과를 눈으로만 판단하기 어려운 영역을 점검할 때 사용한다.
+> 핵심은 편집기 설정, 런타임 상태, 전용 디버거/프로파일러 출력을 함께 보는 것이다.
+
+## 핵심 결론
+
+- 도구성 시스템은 설정값과 런타임 출력이 분리되어 있으므로 양쪽을 함께 확인한다.
+- 카메라, 오디오, 테스트, 프로파일링은 재현 조건과 관찰 지점을 고정해야 비교가 가능하다.
+- 문제가 생기면 subsystem 활성화, runtime console/log, 전용 inspector, 자동화 재현 절차를 확인한다.
+
+## 참고 자료
+
 [GameplayCameraComponent | Unreal Engine 5.7 Python API | Epic Developer Community](https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/GameplayCameraComponent?application_version=5.7) | [UGameplayCameraComponent API](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayCameras/GameFramework/UGameplayCameraComponent/__ctor)
 
-# 개요
+## 개요
 `Gameplay Cameras`는 기존 `CameraComponent`와 `PlayerCameraManager`만으로 처리하기 어려운 복잡한 카메라 규칙을 asset, node, evaluator, evaluation context로 분리하는 카메라 프레임워크다.
 액션 게임에서는 락온, 벽 충돌, 자동 회전, 조준, 연출 카메라가 동시에 영향을 주므로 카메라를 단순 spring arm 설정으로만 보지 않는 것이 중요하다.
 
-# 기존 카메라와의 구분
+## 왜 필요한가
+
+관찰 도구와 런타임 기능은 "보이는 결과"만으로 원인을 찾기 어렵다. Gameplay Cameras를 볼 때는 입력 조건, 설정, 실제 frame/runtime 출력을 같은 표로 맞춰야 한다.
+
+## 작동 모델
+
+도구성 시스템은 editor/project setting에서 기본값을 정하고, runtime subsystem이나 component가 실제 상태를 만든다. 로그, profiler, visualizer, automation test는 그 상태를 반복해서 관찰할 수 있게 해준다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| Project/Editor Setting | 기본 동작과 플러그인(Plugin) 설정 | 활성화 여부, platform 차이 |
+| Runtime Component | 실제 상태 생성 | owner, tick, priority |
+| Subsystem | 전역 또는 월드 단위 관리 | init, state, console command |
+| Debug/Profiler Tool | 관찰과 기록 | capture 범위, stat group |
+| Automation Test | 반복 검증 | test flag, map/context |
+
+## 실행 흐름
+
+1. 프로젝트 설정과 plugin 활성화 상태를 확인한다.
+2. 런타임에서 subsystem/component가 언제 생성되는지 확인한다.
+3. 입력 조건을 고정하고 로그, visualizer, profiler, test로 관찰한다.
+4. 결과가 기대와 다르면 priority, tick order, platform setting을 좁힌다.
+5. 재현 가능한 절차나 automation test로 회귀 여부를 남긴다.
+
+## 기존 카메라와의 구분
 | 계층 | 역할 |
 | --- | --- |
 | `UCameraComponent` | actor에 붙는 전통 카메라 컴포넌트 |
@@ -14,14 +66,14 @@
 | `FCameraSystemEvaluator` | camera node graph를 평가하는 런타임 |
 | `UCameraNode` / evaluator | 카메라 동작을 구성하는 노드와 실행 객체 |
 
-# 핵심 흐름
+## 핵심 흐름
 1. 카메라 규칙을 camera asset/node로 구성한다.
 2. `UGameplayCameraComponent` 또는 system host가 evaluation context를 만든다.
 3. active camera rig가 evaluator에 의해 평가된다.
 4. blend stack, input node, shake, framing node가 최종 pose/FOV를 만든다.
 5. PlayerCameraManager 또는 host가 결과를 실제 view에 반영한다.
 
-# 액션 게임 기준 체크포인트
+## 액션 게임 기준 체크포인트
 | 문제 | 봐야 할 축 |
 | --- | --- |
 | 락온 카메라 | target actor, yaw/pitch clamp, obstacle handling |
@@ -31,16 +83,16 @@
 | 멀티플레이 | local player 전용 카메라와 replicated state 분리 |
 
 > [!caution]
-> 카메라 결과는 대개 로컬 플레이어 표현이다. 서버 상태로 복제할 값과 로컬 카메라 보정 값을 섞으면 네트워크 설계가 복잡해진다.
+> 카메라 결과는 대개 로컬 플레이어 표현이다. 서버 상태로 복제(Replication)할 값과 로컬 카메라 보정 값을 섞으면 네트워크 설계가 복잡해진다.
 
-# 디버깅 체크리스트
+## 디버깅 체크리스트
 - 어떤 actor/component가 active camera evaluation context를 소유하는지 확인한다.
 - blend stack에 남은 이전 camera rig가 있는지 본다.
 - control rotation을 카메라가 쓰는지, character movement가 쓰는지 분리한다.
 - Gameplay Camera와 기존 SpringArm/CameraComponent를 동시에 쓸 때 최종 POV 주체를 확인한다.
 - camera shake와 gameplay camera node가 같은 축을 중복 수정하지 않는지 본다.
 
-# 엔진 소스 참고 포인트
+## 엔진 소스 참고 포인트
 - `Engine\Plugins\Cameras\GameplayCameras\Source\GameplayCameras\Public\GameFramework\GameplayCameraComponent.h`: `UGameplayCameraComponent`.
 - `Engine\Plugins\Cameras\GameplayCameras\Source\GameplayCameras\Public\GameFramework\GameplayCameraSystemComponent.h`: camera system component.
 - `Engine\Plugins\Cameras\GameplayCameras\Source\GameplayCameras\Public\Core\CameraSystemEvaluator.h`: evaluator 본체.
@@ -64,7 +116,7 @@ Gameplay Cameras는 카메라 동작을 Camera Rig/Node/Evaluator로 분리해 �
 
 ### 기본 사용 흐름
 
-1. 프로젝트에서 Gameplay Cameras 플러그인/모듈 사용 여부를 확인한다.
+1. 프로젝트에서 Gameplay Cameras 플러그인/모듈(Module) 사용 여부를 확인한다.
 2. Camera Asset 또는 Camera Rig Asset을 만든다.
 3. 기본 Follow, Aim, Offset, Blend 같은 노드를 구성한다.
 4. PlayerController 또는 Pawn 쪽에 Gameplay Camera 관련 Component를 둔다.
@@ -112,7 +164,7 @@ UE5.7 엔진 소스의 `Engine\Plugins\Cameras\GameplayCameras\Source`를 기준
 
 ### 기존 CameraComponent와 섞어 쓸 때의 원칙
 
-- 하나의 프레임에 최종 카메라 권한을 가진 시스템은 하나로 정한다.
+- 하나의 프레임에 최종 카메라 권한(Authority)을 가진 시스템은 하나로 정한다.
 - Pawn의 SpringArm 값과 Gameplay Camera Rig가 동시에 같은 값을 보간하면 흔들림이 생긴다.
 - 카메라 충돌은 SpringArm 충돌, Camera Rig collision node, 커스텀 trace 중 어디에서 처리할지 정한다.
 - 시네마틱 카메라와 게임플레이 카메라의 우선순위 전환 규칙을 명확히 한다.
@@ -132,7 +184,7 @@ NPC와 대화할 때는 일반 카메라를 그대로 쓰기보다 대화용 Rig
 
 처형 연출에서는 카메라가 애니메이션과 정밀하게 맞아야 한다.
 
-- 애니메이션 몽타주 구간 시작 시 처형 Camera Rig를 활성화한다.
+- 애니메이션 몽타주(Animation Montage) 구간 시작 시 처형 Camera Rig를 활성화한다.
 - 타겟 소켓 또는 Motion Warping target과 같은 기준 transform을 카메라 입력으로 사용한다.
 - 연출 구간 중 플레이어 입력 카메라 회전을 잠근다.
 - 종료 직전에 일반 게임플레이 Rig로 블렌드한다.
@@ -142,7 +194,7 @@ NPC와 대화할 때는 일반 카메라를 그대로 쓰기보다 대화용 Rig
 ### 자주 막히는 문제
 
 - 카메라가 한 프레임 튄다: Rig 활성화 시 초기값이 현재 카메라와 맞지 않거나 블렌드 시간이 0일 수 있다.
-- 입력 회전과 Rig 회전이 싸운다: Controller rotation, Pawn control rotation, Camera Rig의 yaw/pitch 소유권을 정리한다.
+- 입력 회전과 Rig 회전이 싸운다: Controller rotation, Pawn control rotation, Camera Rig의 yaw/pitch 소유권(Ownership)을 정리한다.
 - 시네마틱 후 카메라가 돌아오지 않는다: 이전 Rig를 stack에서 제거하거나 우선순위를 복구했는지 확인한다.
 - 멀티플레이에서 다른 플레이어 카메라가 바뀐다: 카메라 활성화는 로컬 PlayerController 기준으로 처리해야 한다.
 - 패키지에서 asset이 누락된다: Camera Asset 참조가 soft reference라면 cook 경로를 확인한다.
@@ -159,3 +211,15 @@ NPC와 대화할 때는 일반 카메라를 그대로 쓰기보다 대화용 Rig
 - 공식 문서: Gameplay Cameras, PlayerCameraManager, Camera Components.
 - 엔진 소스: `Engine\Plugins\Cameras\GameplayCameras\Source\Runtime\GameplayCameras`.
 - 확인 파일: `GameplayCameraComponent.cpp`, `GameplayCamerasPlayerCameraManager.cpp`, `ControllerGameplayCameraEvaluationComponent.cpp`.
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 에디터 preview 결과가 실제 런타임과 같다. | PIE, standalone, packaged, platform별 상태를 비교한다. |
+| 도구 창에 값이 보이지 않으면 기능이 꺼진 것이다. | capture 범위, stat group, subsystem 활성화를 먼저 확인한다. |
+| 수동 확인만으로 충분하다. | 반복되는 문제는 최소 automation test나 재현 절차로 고정한다. |
+
+## 관련 문서
+
+- 관련 문서가 아직 정리되지 않았다.

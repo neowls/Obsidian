@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/navigation
+  - type/learning
+---
+
+# 네비게이션과 PathFollowing(Navigation)
+
+> [!summary] 요약
+> 네비게이션과 PathFollowing(Navigation)은 NavMesh 생성, pathfinding, path following, area/filter, link, avoidance가 연결되는 이동 시스템 주제다.
+> AI가 목적지까지 이동하지 못하거나 특정 영역을 잘못 선택할 때 확인한다.
+> 핵심은 nav data 생성 상태와 path following 실행 상태를 분리해서 보는 것이다.
+
+## 핵심 결론
+
+- NavMesh가 있는 것과 원하는 path가 선택되는 것은 다른 문제다.
+- area cost, query filter, link, crowd/avoidance는 경로 선택과 실제 이동을 서로 다른 지점에서 바꾼다.
+- 문제가 생기면 bounds, agent 설정, tile 상태, path following result, movement component 상태를 순서대로 확인한다.
+
+## 참고 자료
+
 [Basic Navigation in Unreal Engine](https://dev.epicgames.com/documentation/en-us/unreal-engine/basic-navigation-in-unreal-engine?application_version=5.6) | [Navigation System in Unreal Engine](https://dev.epicgames.com/documentation/es-es/unreal-engine/navigation-system-in-unreal-engine?application_version=5.6) | [UPathFollowingComponent](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/Navigation/UPathFollowingComponent) | [FAIMoveRequest::SetProjectGoalLocation](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/FAIMoveRequest/SetProjectGoalLocation)
 
 ## 개요
@@ -10,15 +36,42 @@
 | 네비게이션 데이터 | `ANavigationData` 및 구현체 | 실제 pathfinding과 navmesh 질의 수행 |
 | 이동 요청 | `FAIMoveRequest` | 목표, acceptance radius, pathfinding, partial path, filter 같은 이동 옵션 묶음 |
 | 경로 쿼리 | `FPathFindingQuery` | start, goal, nav data, filter를 포함한 pathfinding 입력 데이터 |
-| 경로 추종기 | `UPathFollowingComponent` | 경로 수락, 상태 전이, 세그먼트 이동, 도착 판정, 완료 통지 |
+| 경로 추종(Path Following)기 | `UPathFollowingComponent` | 경로 수락, 상태 전이, 세그먼트 이동, 도착 판정, 완료 통지 |
 | 이동 진입점 | `AAIController` | `MoveToActor`, `MoveToLocation`, `MoveTo`, `RequestMove` 제공 |
 
-즉 EQS나 블랙보드가 목적지를 선택하는 계층이라면, Navigation / PathFollowing은 그 목적지를 실제 이동 요청으로 바꾸고 끝까지 추종하는 실행 계층입니다.
+즉 EQS나 블랙보드(Blackboard)가 목적지를 선택하는 계층이라면, Navigation / PathFollowing은 그 목적지를 실제 이동 요청으로 바꾸고 끝까지 추종하는 실행 계층입니다.
 
 > [!info]
 > `[[환경 쿼리 시스템(EQS)]]` 이 "어디로 갈지"를 고른다면, `네비게이션과 PathFollowing(Navigation)` 은 "그곳까지 어떻게 갈지"를 담당합니다.
 
+## 왜 필요한가
+
+이동 문제는 "목적지를 모른다", "경로를 못 찾는다", "경로는 있으나 따라가지 못한다"가 섞여 보인다. 네비게이션과 PathFollowing(Navigation)을 볼 때는 nav data, query, following, movement를 단계별로 끊어서 확인해야 한다.
+
+## 작동 모델
+
+RecastNavMesh는 월드 지오메트리를 tile 기반 nav data로 만들고, query filter는 어떤 영역을 얼마나 선호할지 정한다. PathFollowingComponent는 생성된 path를 segment 단위로 따라가며, Smart Link와 avoidance는 실제 이동 중 예외 처리를 담당한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `RecastNavMesh` | tile 기반 navigation data | bounds, agent radius/height, rebuild 상태 |
+| `UNavigationSystemV1` | path query와 nav data 선택 | supported agent, main nav data |
+| `UNavigationQueryFilter` | area cost와 통과 가능 여부 | include/exclude flag, cost |
+| `UPathFollowingComponent` | path segment 실행 | move result, current segment |
+| NavLink / Crowd / RVO | 단차 이동과 회피 | link 활성화, avoidance 설정 |
+
+## 실행 흐름
+
+1. NavMesh bounds와 agent 설정을 기준으로 tile이 생성된다.
+2. Move request가 들어오면 NavigationSystem이 적절한 nav data를 고른다.
+3. query filter와 area cost를 적용해 path를 계산한다.
+4. PathFollowingComponent가 path segment를 따라 movement component에 입력을 보낸다.
+5. link, obstacle, crowd/avoidance, dynamic obstacle 변화가 경로 갱신 또는 실패를 만든다.
+
 ## 핵심 구성
+
 ### `UNavigationSystemV1`
 `UNavigationSystemV1`는 월드의 네비게이션 질의 진입점입니다.
 문서보다 엔진 코드에서 먼저 보이는 중요한 역할은 다음과 같습니다.
@@ -90,6 +143,7 @@
 > 실제 이동의 중심은 `AAIController`가 아니라 `UPathFollowingComponent`입니다. `AI Move To` 같은 노드는 진입점일 뿐이고, 프레임 단위 추종과 완료 판정은 path following이 담당합니다.
 
 ## `AAIController::MoveTo` 흐름
+
 ### `MoveToActor()` / `MoveToLocation()`
 두 함수는 먼저 현재 script 이동이 있으면 `ForcedScript | NewRequest` 플래그로 `AbortMove()`를 호출합니다.
 그 뒤 각각 actor 또는 location 기반 `FAIMoveRequest`를 세팅하고 `MoveTo()`로 넘깁니다.
@@ -180,6 +234,7 @@ reach mode에 따라 다음이 합쳐질 수 있습니다.
 전자는 "도달 가능성"이 더 강하고, 후자는 "navigable 공간 내부"에 초점이 있습니다.
 
 ## 실무 관점에서 꼭 알아둘 점
+
 ### 1. `MoveTo`는 pathfinding 호출 그 자체가 아니다
 중간에 목표 투영, 즉시 도착 판정, partial path 허용 여부, 이전 경로 병합 여부가 모두 개입합니다.
 
@@ -221,3 +276,26 @@ partial path는 실패가 아니라 "끝까지는 못 가지만 중간까지는 
 - `Engine\Source\Runtime\AIModule\Private\AIController.cpp`
 - `Engine\Source\Runtime\AIModule\Classes\Navigation\PathFollowingComponent.h`
 - `Engine\Source\Runtime\AIModule\Private\Navigation\PathFollowingComponent.cpp`
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 초록 NavMesh가 보이면 이동은 반드시 성공한다. | agent 설정, query filter, path following result를 함께 본다. |
+| area cost는 이동 속도를 바꾼다. | area cost는 경로 선택 비용이며 실제 속도는 movement 쪽에서 처리한다. |
+| RVO와 CrowdFollowing은 같은 계층이다. | path following, crowd simulation, movement avoidance의 적용 위치를 구분한다. |
+
+## 디버깅 체크리스트
+
+- [ ] NavMesh bounds, supported agent, runtime generation 설정을 확인했다.
+- [ ] `Show Navigation`과 navmesh tile 상태가 목표 지점을 포함한다.
+- [ ] query filter의 area cost와 exclude flag가 의도와 맞다.
+- [ ] `MoveTo` 결과와 PathFollowingComponent 상태를 로그로 확인했다.
+- [ ] movement component, acceptance radius, link/crowd/avoidance 설정을 함께 점검했다.
+
+## 관련 문서
+
+- [[커스텀 네비게이션 영역과 Query Filter(Custom Navigation Areas Query Filters)]]
+- [[CrowdFollowing과 RVO 회피(CrowdFollowing RVO Avoidance)]]
+- [[NavLink와 Smart Link(NavLink Smart Link)]]
+- [[RecastNavMesh와 Navigation Data(Custom Recast Navigation Data)]]

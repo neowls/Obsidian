@@ -1,16 +1,65 @@
 ---
-cssclasses:
-  - width-100
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/gas
+  - type/learning
 ---
 
-# 1. GameplayAbilitySystem Plugin 소개
+# GAS Documentation
+
+> [!summary] 요약
+> GAS Documentation은 Gameplay Ability System의 주요 개념, 설정, 복제(Replication), prediction, GameplayEffect/Ability 패턴을 폭넓게 정리한 참조 문서다.
+> 개별 GAS 노트를 읽다가 더 깊은 원리나 엔진 구조 확인이 필요할 때 색인처럼 사용한다.
+> 핵심은 이 문서를 처음부터 외우는 것이 아니라 ASC, GA, GE, Attribute, Tag, Prediction 항목을 문제 상황에 맞게 찾아보는 것이다.
+
+## 핵심 결론
+
+- 프로젝트 설정, ASC 배치, replication mode, prediction, GameplayEffect 처리 같은 큰 흐름을 한 문서에서 확인할 수 있다.
+- 세부 주제는 개별 GAS 노트로 분리해 읽고, 이 문서는 원리 확인과 교차 참조용으로 사용한다.
+- 문제가 생기면 관련 섹션의 엔진 클래스와 call flow를 찾아 현재 프로젝트의 ASC/Ability/Effect 구성을 비교한다.
+
+## 개요
+
+GAS Documentation은 Gameplay Ability System의 주요 개념, 설정, 복제, prediction, GameplayEffect/Ability 패턴을 폭넓게 정리한 참조 문서다.
+
+## 왜 필요한가
+
+GAS 문제는 단일 클래스 하나보다 여러 객체의 책임 경계가 어긋날 때 발생한다. GAS Documentation을 볼 때는 "누가 상태를 소유하는가", "어느 시점에 서버와 클라이언트가 합의하는가", "실패했을 때 어디서 되돌아가는가"를 먼저 분리해야 한다.
+
+## 작동 모델
+
+ASC는 상태와 실행 요청의 중심이고, GA는 행동의 절차, GE는 수치/상태 변화, Tag는 조건과 차단, AttributeSet은 계산 대상이다. Ability Task는 대기와 비동기 이벤트를 GA 바깥의 작은 실행 단위로 나누며, Gameplay Cue는 효과의 표현 계층으로 본다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `AbilitySystemComponent` | 어빌리티, 이펙트, 태그, 예측 상태의 중심 | 초기화, owner/avatar, replication mode |
+| `GameplayAbility` | 입력이나 이벤트로 시작되는 행동 절차 | activation 조건, commit, end/cancel |
+| `GameplayEffect` | attribute, tag, modifier, duration 변화 | 적용 대상, stacking, duration policy |
+| `GameplayTag` | 상태 표현, 차단, 요구 조건 | blocked/required tag와 loose tag |
+| `AttributeSet` | 수치 상태와 변경 지점 | `PreAttributeChange`, `PostGameplayEffectExecute` |
+
+## 실행 흐름
+
+1. Actor가 ASC를 초기화하고 owner/avatar 정보를 맞춘다.
+2. 서버가 ability spec을 부여하고 입력 또는 이벤트가 activation을 요청한다.
+3. ASC가 tag, cost, cooldown, prediction 조건을 검사한다.
+4. GA가 commit 후 GE, Ability Task, Gameplay Cue를 통해 실제 행동을 실행한다.
+5. 종료 또는 취소 시 active task와 effect 상태를 정리하고 필요한 값만 복제한다.
+
+## 1. GameplayAbilitySystem Plugin 소개
 
 ---
 
 >Gameplay Ability System(GAS)은 RPG 또는 MOBA 타이틀에서 볼 수 있는 능력과 속성을 구축하기 위한 매우 유연한 프레임워크입니다. 게임에서 캐릭터가 사용할 액션이나 패시브 능력을 구축하고, 이러한 액션의 결과로 다양한 속성을 강화하거나 약화시키는 상태 효과를 구현하고, 이러한 액션의 사용을 규제하기 위해 "쿨다운" 타이머 또는 리소스 비용을 구현하고, 각 레벨에서 능력과 효과의 레벨을 변경하고, 파티클 또는 사운드 효과를 활성화하는 등의 작업을 수행할 수 있습니다. 간단히 말해, 이 시스템은 최신 RPG 또는 MOBA 타이틀에서 좋아하는 캐릭터의 능력 세트만큼 복잡한 게임 내 능력을 설계, 구현 및 효율적으로 네트워크화하는 데 도움이 될 수 있습니다.
 
-GameplayAbilitySystem 플러그인은 Epic Games에서 개발했으며 Paragon 및 Fortnite와 같은 AAA 상업용 게임에서 테스트를 거쳤습니다.
-   
+GameplayAbilitySystem 플러그인(Plugin)은 Epic Games에서 개발했으며 Paragon 및 Fortnite와 같은 AAA 상업용 게임에서 테스트를 거쳤습니다.
+ 
 이 플러그인은 싱글 플레이어 및 멀티플레이어 게임에서 다음과 같은 기본 기능을 제공합니다.
 - 레벨 기반 캐릭터 능력 또는 선택적 비용과 재사용 대기시간이 있는 스킬 구현 (GameplayAbilities)
 - 액터에 속하는 수치 속성 조작 (Attributes)
@@ -22,7 +71,7 @@ GameplayAbilitySystem 플러그인은 Epic Games에서 개발했으며 Paragon �
 **멀티플레이어 게임에서 GAS는 다음에 대한 클라이언트 측 예측을 지원합니다.**
 
 - 능력 활성화
-- 애니메이션 몽타주 재생
+- 애니메이션 몽타주(Animation Montage) 재생
 - 속성 변경
 - GameplayTag 적용
 - GameplayCue 생성
@@ -36,7 +85,7 @@ GAS는 C++로 설정해야 하지만 GameplayAbilities 및 GameplayEffects는 �
 - GameplayEffect 제거 예측 불가 (역 효과로 GameplayEffect를 추가하여 효과적으로 제거할 수 있지만 항상 적절하거나 실현 가능한 것은 아니며 여전히 문제로 남아 있음)
 - 상용구 템플릿, 멀티플레이어 예제 및 문서 부족
 
-# 2. 샘플 프로젝트
+## 2. 샘플 프로젝트
 
 이 문서에는 GameplayAbilitySystem 플러그인을 처음 접하는 사람들을 위해 멀티플레이어 슈팅 게임 샘플 프로젝트가 포함되어 있습니다. C++, 블루프린트, UMG, 복제 및 기타 UE의 중급 주제에 익숙한 사용자를 대상으로 합니다.
 
@@ -46,7 +95,7 @@ GAS는 C++로 설정해야 하지만 GameplayAbilities 및 GameplayEffects는 �
 
 - PlayerState와 Character에서 ASC 사용
 - 복제된 속성
-- 복제된 애니메이션 몽타주
+- 복제된 애니메이션 몽타주(Montage)
 - GameplayTags
 - GameplayAbilities 내부 및 외부에서 GameplayEffect 적용 및 제거
 - 캐릭터의 체력을 변경하기 위해 방어력에 의해 완화된 피해 적용
@@ -93,7 +142,7 @@ GameplayAbility 이름 지정의 경우 접미사 `_BP`를 사용하여 Gameplay
 |GC_|GameplayCue|
 |GE_|GameplayEffect|
 
-# 3. GAS를 사용하는 프로젝트 설정
+## 3. GAS를 사용하는 프로젝트 설정
 
 GAS를 사용하는 프로젝트를 설정하는 기본 단계:
 
@@ -104,7 +153,9 @@ GAS를 사용하는 프로젝트를 설정하는 기본 단계:
 
 GAS를 활성화하려면 위 단계를 수행하면 됩니다. 여기에서 Character 또는 PlayerState에 ASC와 AttributeSet을 추가하고 GameplayAbilities 및 GameplayEffects를 만들 수 있습니다!
 
-# 4. GAS 개념
+## 4. GAS 개념
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## 4.1 Ability System Component
 
@@ -197,7 +248,7 @@ void AGDHeroCharacter::PossessedBy(AController * NewController)
     // PlayerController가 있는 영웅의 경우 두 번 초기화해도 문제가 없습니다.
     PS->GetAbilitySystemComponent()->InitAbilityActorInfo(PS, this);
   }
-  
+
   // ...
 }
 
@@ -273,13 +324,11 @@ ASC는 GameplayTag가 추가되거나 제거될 때 대한 대리자를 제공�
 
 EGameplayTagEventType를 사용하면 GameplayTag가 추가/제거될 때 또는 GameplayTag의 TagMapCount가 변경될 때만 실행되도록 지정할 수 있습니다.
 
-
 ```C++
 AbilitySystemComponent->RegisterGameplayTagEvent(FGameplayTag::RequestGameplayTag(FName("State.Debuff.Stun")), EGameplayTagEventType::NewOrRemoved).AddUObject(this, &AGDPlayerState::StunTagChanged);
 ```
 
 콜백 함수에는 GameplayTag 및 새 TagCount에 대한 매개변수가 있습니다.
-
 
 ```C++
 virtual void StunTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
@@ -290,7 +339,6 @@ virtual void StunTagChanged(const FGameplayTag CallbackTag, int32 NewCount);
 GameplayTag가 있는 자체 .ini 파일이 있는 플러그인을 만드는 경우 플러그인의 StartupModule() 함수에서 해당 플러그인의 GameplayTag .ini 디렉터리를 로드할 수 있습니다.
 
 예를 들어, Unreal Engine과 함께 제공되는 CommonConversation 플러그인은 다음과 같이 수행합니다.
-
 
 ```C++
 void FCommonConversationRuntimeModule::StartupModule()
@@ -327,7 +375,6 @@ Attributes는 FGameplayAttributeData 구조체에 의해 정의된 float 값입�
 
 UI 또는 기타 게임 플레이를 업데이트하기 위해 속성이 변경될 때를 수신하려면 UAbilitySystemComponent::GetGameplayAttributeValueChangeDelegate(FGameplayAttribute Attribute)를 사용합니다. 이 함수는 속성이 변경될 때마다 자동으로 호출되는 바인딩할 수 있는 대리자를 반환합니다. 대리자는 NewValue, OldValue 및 FGameplayEffectModCallbackData가 있는 FOnAttributeChangeData 매개변수를 제공합니다. 참고: FGameplayEffectModCallbackData는 서버에서만 설정됩니다.
 
-
 ```C++
 AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSetBase->GetHealthAttribute()).AddUObject(this, &AGDPlayerState::HealthChanged);
 virtual void HealthChanged(const FOnAttributeChangeData& Data);
@@ -360,13 +407,12 @@ AttributeSet은 속성에 대한 변경 사항을 정의, 보유 및 관리합�
 
 ### 4.4.2 AttributeSet 설계
 
-ASC는 하나 혹은 여러 개의 AttributeSet을 가질 수 있습니다. AttributeSet은 메모리 오버헤드가 미미하기 때문에 얼마나 많은 AttributeSet을 사용할지는 사용자의 조직적인 결정에 달려있습니다.  
-   
+ASC는 하나 혹은 여러 개의 AttributeSet을 가질 수 있습니다. AttributeSet은 메모리 오버헤드가 미미하기 때문에 얼마나 많은 AttributeSet을 사용할지는 사용자의 조직적인 결정에 달려있습니다.
+ 
 게임 내 모든 액터가 공유하는 하나의 큰 모놀리식 AttributeSet을 사용하고, 필요한 Attribute만 사용하는 방식도 가능합니다. 이 경우 사용되지 않는 Attribute는 무시합니다.
 
 또는 Attribute들을 그룹화하여 여러 개의 AttributeSet을 만들어 Actor에 필요한 것만 선택적으로 추가할 수도 있습니다. 예를 들어, 체력 관련 Attribute를 위한 AttributeSet, 마나 관련 Attribute를 위한 AttributeSet을 만들 수 있습니다. MOBA 게임에서 영웅은 마나를 필요로 하지만 미니언은 필요하지 않다면, 영웅은 마나 관련 AttributeSet을, 미니언은 이를 제외한 AttributeSet을 가지게 하면 됩니다.
 
-  
 또한 AttributeSet은 서브 클래싱할 수 있기 때문에, 이를 통해 Actor가 가질 Attribute를 선택적으로 결정할 수 있습니다. Attribute들은 내부적으로 AttributeSetClassName.AttributeName 형식으로 참조되는데, AttributeSet을 서브 클래싱했을 경우에도 부모 클래스의 Attribute들은 똑같이 부모 클래스의 이름을 접두사로 사용하게 됩니다.
 
 여러 개의 AttributeSet을 가질 수는 있지만, 동일한 클래스의 AttributeSet은 하나만 ASC에 포함시킬 수 있습니다. 동일한 클래스의 AttributeSet을 두 개 이상 추가할 경우 ASC가 어느 AttributeSet을 사용할지 알지 못하고, 그냥 그 중 하나를 선택하게 됩니다.
@@ -381,39 +427,36 @@ Pawn에 여러 개의 피해를 입을 수 있는 컴포넌트가 있을 경우(
 
 #### 4.4.2.2 런타임에 AttributeSet 추가 및 제거하기
 
-AttributeSet은 런타임에 ASC에서 추가 및 제거할 수 있지만, 다소 위험할 수 있습니다. 예를 들어, 클라이언트에서 서버보다 먼저 AttributeSet을 제거한 후 서버에서 Attribute 값 변경이 클라이언트로 리플리케이트되면 클라이언트에서는 Attribute가 해당 AttributeSet을 찾지 못해 게임이 크래시가 일어날 수 있습니다.  
-  
-예시) 무기를 인벤토리에 추가할 때:
+AttributeSet은 런타임에 ASC에서 추가 및 제거할 수 있지만, 다소 위험할 수 있습니다. 예를 들어, 클라이언트에서 서버보다 먼저 AttributeSet을 제거한 후 서버에서 Attribute 값 변경이 클라이언트로 리플리케이트되면 클라이언트에서는 Attribute가 해당 AttributeSet을 찾지 못해 게임이 크래시가 일어날 수 있습니다.
 
+예시) 무기를 인벤토리에 추가할 때:
 
 ```C++
 AbilitySystemComponent->GetSpawnedAttributes_Mutable().AddUnique(WeaponAttributeSetPointer);
 AbilitySystemComponent->ForceReplication();
 ```
 
-   
-예시) 무기를 인벤토리에서 제거할 때:  
+ 
+예시) 무기를 인벤토리에서 제거할 때:
 
 ```C++
 AbilitySystemComponent->GetSpawnedAttributes_Mutable().Remove(WeaponAttributeSetPointer);
 AbilitySystemComponent->ForceReplication();
 ```
 
-  
-#### 4.4.2.3 아이템 Attribute (무기 탄약)  
+#### 4.4.2.3 아이템 Attribute (무기 탄약)
 
 Attribute를 가진 장착 가능한 아이템(무기 탄약, 방어구 내구도 등)을 구현하는 방법은 여러 가지가 있습니다. 이 모든 접근 방식은 아이템에 직접 값을 저장하며, 이는 여러 플레이어가 아이템을 장착할 수 있는 경우 필수적입니다.
 
-> 1. 아이템에 float 사용(권장)  
-> 2. 아이템에 별도의 AttributeSet 사용  
+> 1. 아이템에 float 사용(권장)
+> 2. 아이템에 별도의 AttributeSet 사용
 > 3. 아이템에 별도의 ASC 사용
 
-##### 4.4.2.3.1 아이템에 일반 float 사용  
+##### 4.4.2.3.1 아이템에 일반 float 사용
 
 Attribute를 사용하는 대신, 아이템 클래스 인스턴스에 일반 float 값을 저장해보세요. 포트나이트와 GASShooter는 해당 방식으로 총기의 탄약을 관리합니다. 예를 들어, 총기의 경우 최대 탄창 크기, 현재 탄창 내 탄약, 보유 탄약 등을 총기 인스턴스에 COND_OwnerOnly로 리플리케이트된 float 값으로 직접 저장합니다. 무기가 보유 탄약을 공유한다면, 보유 탄약을 캐릭터의 Attribute로 옮겨 공유되는 탄약 AttributeSet에 저장할 수 있습니다(재장전 어빌리티는 Cost GE를 사용해 보유 탄약에서 탄창 내 탄약으로 이동시킬 수 있습니다). 현재 탄창 내 탄약을 Attribute로 사용하지 않기 때문에, UGameplayAbility의 일부 함수를 재정의하여 총기에서 float 값을 기준으로 비용을 확인하고 적용해야 합니다. GamepalyAbility를 부여할 때  총기를 GameplayAbilitySpec의 SourceObject로 설정하면, 어빌리티 내부에서 해당 어빌리티를 부여한 총기에 접근할 수 있습니다.
 
 자동 사격 중 로컬 탄약 수가 리플리케이트되어 클라이언트 측 탄약 수가 서버의 탄약 수로 덮어씌워지지 않도록 하려면, PreReplication()에서 IsFiring GameplayTag가 있는 동안에는 리플리케이트를 비활성화하면 됩니다. 이로써 자체적으로 로컬 예측을 수행하게 됩니다. 
-
 
 ```C++
 void AGSWeapon::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
@@ -425,21 +468,18 @@ void AGSWeapon::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracke
 }
 ```
 
-
-장점:  
+장점:
 1. AttributeSet 사용의 제한을 피할 수 있습니다. (아래 참조)
 
-한계:  
-1. 기존 GameplayEffect 워크플로를 사용할 수 없음. (탄약 소모에 대한 Cost GE 등)  
+한계:
+1. 기존 GameplayEffect 워크플로를 사용할 수 없음. (탄약 소모에 대한 Cost GE 등)
 2. UGameplayAbility의 주요 함수를 오버라이드하여 총기의 float 값에 대해 탄약 비용을 확인하고 적용해야 합니다.
 
-  
 ##### 4.4.2.3.2 아이템의 AttributeSet
 
-플레이어의 인벤토리에 아이템을 추가할 때 플레이어의 ASC에 추가되는 아이템에 별도의 AttributeSet을 사용하면 작동할 수 있지만 몇 가지 주요 제한사항이 있습니다. 제 경우 GASShooter 초기 버전에서 무기의 탄약 시스템에서 해당 방식을 사용한 적이 있습니다. 무기는 최대 탄창 크기, 현재 탄창에 있는 탄약, 예비 탄약 등과 같은 Attribute를 무기 클래스에 있는 AttributeSet에 저장합니다. 만약 무기가 예비 탄약을 공유하는 경우, 예비 탄약을 캐릭터의 공유 탄약 AttributeSet으로 이동시키는 것이 좋습니다. 무기가 서버에서 플레이어의 인벤토리에 추가되면, 무기는 자신의 AttributeSet을 플레이어의 ASC::SpawnedAttributes에 추가합니다. 그러면 서버는 이를 클라이언트에 리플리케이트합니다. 무기가 인벤토리에서 제거되면, 무기의 AttributeSet도 ASC::SpawnedAttributes에서 제거됩니다.  
-  
-AttributeSet이 소유자 액터가 아닌 다른 곳(예: 무기)에 있는 경우, 처음에는 AttributeSet에서 컴파일 오류가 발생할 수 있습니다. 이를 해결하려면 AttributeSet을 생성할 때 생성자 대신 BeginPlay()에서 생성하고 무기에IAbilitySystemInterface(플레이어 인벤토리에 무기를 추가할 때 ASC에 대한 포인터를 설정)를 구현하면 됩니다.
+플레이어의 인벤토리에 아이템을 추가할 때 플레이어의 ASC에 추가되는 아이템에 별도의 AttributeSet을 사용하면 작동할 수 있지만 몇 가지 주요 제한사항이 있습니다. 제 경우 GASShooter 초기 버전에서 무기의 탄약 시스템에서 해당 방식을 사용한 적이 있습니다. 무기는 최대 탄창 크기, 현재 탄창에 있는 탄약, 예비 탄약 등과 같은 Attribute를 무기 클래스에 있는 AttributeSet에 저장합니다. 만약 무기가 예비 탄약을 공유하는 경우, 예비 탄약을 캐릭터의 공유 탄약 AttributeSet으로 이동시키는 것이 좋습니다. 무기가 서버에서 플레이어의 인벤토리에 추가되면, 무기는 자신의 AttributeSet을 플레이어의 ASC::SpawnedAttributes에 추가합니다. 그러면 서버는 이를 클라이언트에 리플리케이트합니다. 무기가 인벤토리에서 제거되면, 무기의 AttributeSet도 ASC::SpawnedAttributes에서 제거됩니다.
 
+AttributeSet이 소유자 액터가 아닌 다른 곳(예: 무기)에 있는 경우, 처음에는 AttributeSet에서 컴파일 오류가 발생할 수 있습니다. 이를 해결하려면 AttributeSet을 생성할 때 생성자 대신 BeginPlay()에서 생성하고 무기에IAbilitySystemInterface(플레이어 인벤토리에 무기를 추가할 때 ASC에 대한 포인터를 설정)를 구현하면 됩니다.
 
 ```C++
 void AGSWeapon::BeginPlay()
@@ -452,42 +492,39 @@ void AGSWeapon::BeginPlay()
 }
 ```
 
-이 부분은 GASShooter의 이전 버전을 통해 확인할 수 있습니다.  
-  
-장점:  
-1. 기존 GameplayAbility 및 GameplayEffect 워크플로를 사용할 수 있습니다. (탄약 사용에 대한 Cost GE 등)  
+이 부분은 GASShooter의 이전 버전을 통해 확인할 수 있습니다.
+
+장점:
+1. 기존 GameplayAbility 및 GameplayEffect 워크플로를 사용할 수 있습니다. (탄약 사용에 대한 Cost GE 등)
 2. 아이템이 매우 적은 경우 설정이 간단합니다.
 
-제한 사항:  
+제한 사항:
 1. 모든 무기 유형에 대해 새로운 AttributeSet 클래스를 만들어야 합니다. Attribute를 변경하면 ASC의 SpawnedAttributes 배열에서 해당 AttributeSet 클래스의 첫 번째 인스턴스를 찾기 때문에 ASC는 기능적으로 한 클래스의 AttributeSet 인스턴스를 하나만 가질 수 있습니다. 동일한 AttributeSet 클래스의 인스턴스를 추가할 경우 무시됩니다. 플레이어의 인벤토리에는 각 유형의 무기가 하나씩만 지닐 수 있는데, 이는 앞서 설명한 AttributeSet 클래스당 하나의 AttributeSet 인스턴스만 허용하기 때문이었습니다.
 
 2. AttributeSet을 제거하는 것은 위험합니다. GASShooter에서 플레이어가 로켓으로 자폭한 경우, 플레이어는 즉시 인벤토리에서 로켓 발사기를 제거(ASC에서 해당 AttributeSet 포함)합니다. 서버가 로켓 발사기의 탄약 Attribute 변경을 클라이언트에 리플리케이트할 때 해당 AttributeSet가 클라이언트의 ASC에 더 이상 존재하지 않게 되어 게임이 크래시합니다.
 
-  
 ##### 4.4.2.3.3 아이템의 ASC
 
 각 아이템에 AbilitySystemComponent를 전체적으로 넣는 것은 극단적인 접근 방식입니다. 저는 개인적으로 이 작업을 해본 적도 없고 본 적도 없습니다. 이렇게 작동하려면 많은 엔지니어링이 필요할 것입니다
 
-> 질문: 여러 개의 AbilitySystemComponent를 동일한 소유자에게 두고, 서로 다른 아바타(예: pawn, 무기/아이템/투사체)에 대해 사용하려는 경우가 가능할까요? (소유자는 PlayerState로 설정)  
->   
-> 
+> 질문: 여러 개의 AbilitySystemComponent를 동일한 소유자에게 두고, 서로 다른 아바타(예: pawn, 무기/아이템/투사체)에 대해 사용하려는 경우가 가능할까요? (소유자는 PlayerState로 설정)
+>
+>
 > 답변: 여기서 첫 번째로 보이는 문제는 소유자 액터에 IGameplayTagAssetInterface와 IAbilitySystemInterface를 구현하는 것입니다. 첫 번째는 가능할 수도 있습니다: 모든 ASC에서 태그를 집합으로 모은 후, HasAllMatchingGameplayTags를 각 ASC에 호출하고 결과를 OR 연산으로 합치는 방식으로 해결할 수 있습니다. 그러나 후자는 더 어려운 문제입니다: 어느 ASC가 권위 있는 것인가요? 누군가 GameplayEffect를 적용하려고 할 때, 어떤 ASC가 받아야 할까요? 이 문제는 해결할 수 있을지도 모르지만, 가장 어려운 부분이 될 것입니다. 소유자는 여러 개의 ASC를 갖게 됩니다. 그러나 pawn과 무기에 별도의 ASC를 사용하는 것은 그 자체로 의미가 있을 수 있습니다. 예를 들어, 무기를 설명하는 태그와 소유한 pawn을 설명하는 태그를 구분할 수 있습니다. 무기에게 부여된 태그가 소유자에게도 적용되며, 다른 객체에는 적용되지 않는 것이 의미 있을 수 있습니다(예: 속성과 GameplayEffect는 독립적이지만, 소유자는 위에서 설명한 대로 소유한 태그를 집합으로 모은다). 이것은 확실히 작동할 수 있습니다. 그러나 동일한 소유자에게 여러 개의 ASC를 사용하는 것은 문제가 될 수 있습니다.
 
-[커뮤니티 질문에 대한 에픽 게임즈의 데이브 라티 답변](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89)  
-  
-장점:  
-1. 기존 GameplayAbility 및 GameplayEffect 워크플로를 사용할 수 있습니다(탄약 사용에 대한 cost GE 등).  
-2. AttributeSet 클래스 재사용 가능(각 무기의 ASC에 하나씩).  
-   
-제한 사항:  
-1. 엔지니어링 비용이 어느 정도일지 알 수 없음.  
+[커뮤니티 질문에 대한 에픽 게임즈의 데이브 라티 답변](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89)
+
+장점:
+1. 기존 GameplayAbility 및 GameplayEffect 워크플로를 사용할 수 있습니다(탄약 사용에 대한 cost GE 등).
+2. AttributeSet 클래스 재사용 가능(각 무기의 ASC에 하나씩).
+ 
+제한 사항:
+1. 엔지니어링 비용이 어느 정도일지 알 수 없음.
 2. 이게 과연 가능한가?
 
-  
 ### 4.4.3 Attribute 정의
 
 Attribute는 AttributeSet의 헤더 파일에서 C++로만 정의할 수 있습니다. 이 매크로 블록을 모든 AttributeSet 헤더 파일의 맨 위에 추가하는 것이 좋습니다. **그러면 Attribute에 대한 게터 및 세터 함수가 자동으로 생성됩니다.**
-
 
 ```C++
 // AttributeSet.h의 매크로 사용
@@ -498,7 +535,6 @@ Attribute는 AttributeSet의 헤더 파일에서 C++로만 정의할 수 있습�
 	GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 ```
 
-  
 리플리케이트된 생명력 Attribute는 다음과 같이 정의할 수 있습니다:
 
 ```C++
@@ -507,9 +543,7 @@ FGameplayAttributeData Health;
 ATTRIBUTE_ACCESSORS(UGDAttributeSetBase, Health)
 ```
 
-  
 또한 헤더에 OnRep 함수를 정의합니다:
-
 
 ```C++
 UPROPERTY(BlueprintReadOnly, Category = "Health", ReplicatedUsing = OnRep_Health)
@@ -517,9 +551,8 @@ FGameplayAttributeData Health;
 ATTRIBUTE_ACCESSORS(UGDAttributeSetBase, Health)
 ```
 
-   
+ 
 AttributeSet의 .cpp 파일은 예측 시스템에서 사용하는 GAMEPLAYATTRIBUTE_REPNOTIFY 매크로로 OnRep 함수를 채워야 합니다:
-
 
 ```C++
 void UGDAttributeSetBase::OnRep_Health(const FGameplayAttributeData& OldHealth)
@@ -528,9 +561,7 @@ void UGDAttributeSetBase::OnRep_Health(const FGameplayAttributeData& OldHealth)
 }
 ```
 
-  
 마지막으로, Attribute를 GetLifetimeReplicatedProps에 추가해야 합니다:
-
 
 ```C++
 void UGDAttributeSetBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -540,21 +571,17 @@ void UGDAttributeSetBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 }
 ```
 
-  
-REPNOTIFY_Always는 (예측으로 인해) 로컬 값이 서버에서 내려오는 값과 이미 같은 경우 OnRep 함수가 트리거되도록 지시합니다. 기본적으로 로컬 값이 서버에서 피드백되는 값과 동일한 경우 OnRep 함수가 트리거되지 않습니다.  
-  
+REPNOTIFY_Always는 (예측으로 인해) 로컬 값이 서버에서 내려오는 값과 이미 같은 경우 OnRep 함수가 트리거되도록 지시합니다. 기본적으로 로컬 값이 서버에서 피드백되는 값과 동일한 경우 OnRep 함수가 트리거되지 않습니다.
+
 Attribute가 Mata Attribute처럼 리플리케이트되지 않는 경우 OnRep 및 GetLifetimeReplicatedProps 단계를 건너뛸 수 있습니다.
 
-  
 ### 4.4.4 Attribute 초기화하기
 
-Attribute를 초기화하는 방법에는 여러 가지가 있습니다 (BaseValue와 그에 따른 CurrentValue를 초기값으로 설정하는 방법). 에픽 게임즈는 Instant GameplayEffect 사용을 권장합니다. 샘플 프로젝트에서도 이 방법을 사용했습니다.  
-  
-Attribute를 초기화하는 인스턴트 GameplayEffect를 만드는 방법은 샘플 프로젝트의 GE_HeroAttributes 블루프린트 문서를 참고하세요. 이 GameplayEffect의 적용은 C++에서 이루어집니다.  
-  
-Attribute를 정의할 때 ATTRIBUTE_ACCESSORS 매크로를 사용한 경우, 각 Attribute에 대한 초기화 함수가 각 AttributeSet에 자동으로 생성되어 C++에서 마음대로 호출할 수 있습니다.  
-  
+Attribute를 초기화하는 방법에는 여러 가지가 있습니다 (BaseValue와 그에 따른 CurrentValue를 초기값으로 설정하는 방법). 에픽 게임즈는 Instant GameplayEffect 사용을 권장합니다. 샘플 프로젝트에서도 이 방법을 사용했습니다.
 
+Attribute를 초기화하는 인스턴트 GameplayEffect를 만드는 방법은 샘플 프로젝트의 GE_HeroAttributes 블루프린트 문서를 참고하세요. 이 GameplayEffect의 적용은 C++에서 이루어집니다.
+
+Attribute를 정의할 때 ATTRIBUTE_ACCESSORS 매크로를 사용한 경우, 각 Attribute에 대한 초기화 함수가 각 AttributeSet에 자동으로 생성되어 C++에서 마음대로 호출할 수 있습니다.
 
 ```C++
 // InitHealth(float InitialValue)는 `ATTRIBUTE_ACCESSORS` 매크로로 정의된 Attribute 'Health'에 대해 자동으로 생성되는 함수입니다.
@@ -563,13 +590,11 @@ AttributeSet->InitHealth(100.0f);
 
 > 💡 **NOTE**: PIE에서 여러 클라이언트를 사용하는 경우 Editor Preferences에서 Run Under One Process(하나의 프로세스 아래에서 실행)를 비활성화해야 합니다. 그렇지 않으면 파생 Attributes가 첫 번째 클라이언트가 아닌 다른 클라이언트에서 업데이트될 때 업데이트되지 않습니다.
 
-  
 ### 4.4.5 PreAttributeChange()
 
-PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)는 변경이 일어나기 전에 Attribute의 CurrentValue 변경에 대응하는 AttributeSet의 주요 함수 중 하나입니다. 이 함수는 참조 매개변수 NewValue를 통해 들어오는 변경 사항을 CurrentValue에 클램핑하기에 이상적인 곳입니다.  
-  
-예를 들어 이동 속도 수정자를 클램프하려면 샘플 프로젝트에서 다음과 같이 합니다:
+PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)는 변경이 일어나기 전에 Attribute의 CurrentValue 변경에 대응하는 AttributeSet의 주요 함수 중 하나입니다. 이 함수는 참조 매개변수 NewValue를 통해 들어오는 변경 사항을 CurrentValue에 클램핑하기에 이상적인 곳입니다.
 
+예를 들어 이동 속도 수정자를 클램프하려면 샘플 프로젝트에서 다음과 같이 합니다:
 
 ```C++
 if (Attribute == GetMoveSpeedAttribute())
@@ -579,36 +604,32 @@ if (Attribute == GetMoveSpeedAttribute())
 }
 ```
 
-  
-이 함수는 AttributeSet.h (Definig Attritbute)의 매크로 블록에 정의된 Attribute Setter를 사용하든 GameplayEffect를 사용하든, Attribute을 변경할 때 트리거됩니다.  
-  
+이 함수는 AttributeSet.h (Definig Attritbute)의 매크로 블록에 정의된 Attribute Setter를 사용하든 GameplayEffect를 사용하든, Attribute을 변경할 때 트리거됩니다.
+
 참고: 여기서 발생하는 클램핑은 ASC의 모디파이어를 영구적으로 변경하지 않습니다. 모디파이어 쿼리에서 반환된 값만 변경합니다. 즉, GameplayEffectExecutionCalculations 및 ModifierMagnitudeCalculations와 같은 모든 모디파이어에서 CurrentValue 를 재계산하는 것은 클램핑을 다시 구현해야 한다는 뜻이죠.
 
 > 💡 **NOTE**: 에픽 게임즈의 PreAttributeChange() 코멘트에 따르면 GameplayEvent에는 사용하지 말고 클램핑에 주로 사용하라고 합니다. Attribute 변경에 대한 GameplayEvent에 권장되는 위치는 UAbilitySystemComponent::GetGameplayAttributeValueChangeDelegate(FGameplayAttribute Attribute) (Attribute 변경에 대응하기)입니다.
 
-   
+ 
 ### 4.4.6 PostGameplayEffectExecute()
 
-PostGameplayEffectExecute(const FGameplayEffectModCallbackData & Data)는 인스턴트GameplayEffect로부터 Attribute의 베이스값이 변경된 이후에만 발동됩니다. GameplayEffect에서 Attribute가 변경될 때 더 많은 조작을 하기에 적합한 곳입니다.  
-  
-예를 들어, 샘플 프로젝트에서는 여기서 생명력 Attribute에서 최종 피해 Meta Attribute를 뺍니다. 보호막 Attribute가 있다면, 먼저 보호막 Attribute에서 데미지를 뺀 다음 나머지 데미지를 체력에서 뺄 것입니다. 샘플 프로젝트에서는 이 위치를 사용하여 타격 리액트 애니메이션을 적용하고, 플로팅 데미지 숫자를 표시하고, 킬러에게 경험치와 골드 현상금을 할당합니다. 설계 상 데미지 Meta Attribute는 항상 즉각적인 GameplayEffect를 통해 전달되며 Attribute Setter가 전달되지 않습니다.  
-  
+PostGameplayEffectExecute(const FGameplayEffectModCallbackData & Data)는 인스턴트GameplayEffect로부터 Attribute의 베이스값이 변경된 이후에만 발동됩니다. GameplayEffect에서 Attribute가 변경될 때 더 많은 조작을 하기에 적합한 곳입니다.
+
+예를 들어, 샘플 프로젝트에서는 여기서 생명력 Attribute에서 최종 피해 Meta Attribute를 뺍니다. 보호막 Attribute가 있다면, 먼저 보호막 Attribute에서 데미지를 뺀 다음 나머지 데미지를 체력에서 뺄 것입니다. 샘플 프로젝트에서는 이 위치를 사용하여 타격 리액트 애니메이션을 적용하고, 플로팅 데미지 숫자를 표시하고, 킬러에게 경험치와 골드 현상금을 할당합니다. 설계 상 데미지 Meta Attribute는 항상 즉각적인 GameplayEffect를 통해 전달되며 Attribute Setter가 전달되지 않습니다.
+
 마나나 스태미나처럼 인스턴트 GameplayEffect를 통해서만 베이스값이 변경되는 다른 Attribute도 여기에서 최대값에 해당하는 Attribute에 클램핑할 수 있습니다.
 
 > 💡 **NOTE**: PostGameplayEffectExecute()가 호출될 때 Attribute 변경은 이미 일어났지만, 아직 클라이언트에 리플리케이트되지 않았으므로 여기에 값을 클램핑해도 클라이언트에 두 번의 네트워크 업데이트가 일어나지 않습니다. 클라이언트는 클램핑 후에만 업데이트를 수신합니다.
 
-  
 ### 4.4.7 OnAttributeAggregatorCreated()
 
-OnAttributeAggregatorCreated(const FGameplayAttribute& Attribute, FAggregator* NewAggregator)는 해당 Set의 Attribute에 대한 Aggregator가 생성될 때 발동합니다. 이 함수를 통해 FAggregatorEvaluateMetaData를 커스텀 설정할 수 있습니다. AggregatorEvaluateMetaData는 Aggregator가 Attribute에 적용된 모든 모디파이어를 기반으로 Attribute의 현재값을 평가할 때 사용됩니다. 기본적으로 AggregatorEvaluateMetaData는 모든 긍정적인 모디파이어는 허용하지만 부정적인 모디파이어는 가장 부정적인 모디파이어로만 제한하는 MostNegativeMod_AllPositiveMods의 예를 사용하여 어떤 모디파이어가 자격이 있는지 결정하는 데만 Aggregator에서 사용됩니다. 파라곤에서는 모든 이동 속도 버프를 적용하면서 동시에 플레이어의 이동 속도 둔화 효과 수에 관계없이 가장 부정적인 이동 속도 둔화 효과만 적용하도록 허용하는 데 이 방법을 사용했습니다. 적용되지 않는 수식어는 여전히 ASC에 존재하지만, 최종 현재 값에 합산되지 않을 뿐입니다. 가장 마이너스인 모디파이어가 만료되면 다음으로 가장 마이너스인 모디파이어(존재하는 경우)가 자격을 얻는 경우와 같이 조건이 변경되면 나중에 자격을 얻을 수 있습니다.  
-  
-가장 마이너스인 모디파이어만 허용하고 모든 플러스적 모디파이어를 허용하는 예제에서 AggregatorEvaluateMetaData를 사용하려면 다음과 같아야 합니다.:
+OnAttributeAggregatorCreated(const FGameplayAttribute& Attribute, FAggregator* NewAggregator)는 해당 Set의 Attribute에 대한 Aggregator가 생성될 때 발동합니다. 이 함수를 통해 FAggregatorEvaluateMetaData를 커스텀 설정할 수 있습니다. AggregatorEvaluateMetaData는 Aggregator가 Attribute에 적용된 모든 모디파이어를 기반으로 Attribute의 현재값을 평가할 때 사용됩니다. 기본적으로 AggregatorEvaluateMetaData는 모든 긍정적인 모디파이어는 허용하지만 부정적인 모디파이어는 가장 부정적인 모디파이어로만 제한하는 MostNegativeMod_AllPositiveMods의 예를 사용하여 어떤 모디파이어가 자격이 있는지 결정하는 데만 Aggregator에서 사용됩니다. 파라곤에서는 모든 이동 속도 버프를 적용하면서 동시에 플레이어의 이동 속도 둔화 효과 수에 관계없이 가장 부정적인 이동 속도 둔화 효과만 적용하도록 허용하는 데 이 방법을 사용했습니다. 적용되지 않는 수식어는 여전히 ASC에 존재하지만, 최종 현재 값에 합산되지 않을 뿐입니다. 가장 마이너스인 모디파이어가 만료되면 다음으로 가장 마이너스인 모디파이어(존재하는 경우)가 자격을 얻는 경우와 같이 조건이 변경되면 나중에 자격을 얻을 수 있습니다.
 
+가장 마이너스인 모디파이어만 허용하고 모든 플러스적 모디파이어를 허용하는 예제에서 AggregatorEvaluateMetaData를 사용하려면 다음과 같아야 합니다.:
 
 ```C++
 virtual void OnAttributeAggregatorCreated(const FGameplayAttribute& Attribute, FAggregator* NewAggregator) const override;
 ```
-
 
 ```C++
 void UGSAttributeSetBase::OnAttributeAggregatorCreated(const FGameplayAttribute& Attribute, FAggregator* NewAggregator) const
@@ -627,14 +648,13 @@ void UGSAttributeSetBase::OnAttributeAggregatorCreated(const FGameplayAttribute&
 }
 ```
 
-   
-한정자에 대한 커스텀 AggregatorEvaluateMetaData는 정적 변수로  
+ 
+한정자에 대한 커스텀 AggregatorEvaluateMetaData는 정적 변수로
 FAggregatorEvaluateMetaDataLibrary에 추가해야 합니다.
-
 
 ## 4.5 Gameplay Effect
 
-### 4.5.1 Gameplay Effect 정의  
+### 4.5.1 Gameplay Effect 정의
 
 GameplayEffect(GameplayEffect, GE)는 Ability가 자신을 포함한 다른 객체의 Attribute 및 GameplayTag를 변경하기 위한 수단입니다. 즉각적인 Attribute 변화를 일으킬 수 있으며(예: 피해나 치유) 이동 속도 증가나 기절과 같은 장기적인 상태 버프/디버프를 적용할 수도 있습니다. UGameplayEffect 클래스는 단일 GameplayEffect를 정의하는 데이터 전용 클래스입니다. 추가적인 로직은 GameplayEffect에 포함되지 않아야 합니다. 보통 디자이너는 UGameplayEffect의 여러 블루프린트 자식 클래스를 생성하여 사용합니다.
 
@@ -659,7 +679,6 @@ Duration 및 Infinite GameplayEffect는 적용 후 Ongoing 태그 요구 사항
 
 Duration 및 Infinite GameplayEffect의 수정자를 수동으로 다시 계산해야 하는 경우(예: 속성에서 가져오지 않는 데이터를 사용하는 MMC가 있는 경우), UAbilitySystemComponent::ActiveGameplayEffects.SetActiveGameplayEffectLevel(FActiveGameplayEffectHandle ActiveHandle, int32 NewLevel)를 호출하여 이미 가지고 있는 동일한 레벨을 적용할 수 있습니다. 이를 위해 UAbilitySystemComponent::ActiveGameplayEffects.GetActiveGameplayEffect(ActiveHandle).Spec.GetLevel()을 사용할 수 있습니다. Attribute에서 기반을 둔 수정자는 해당 Attribute가 업데이트될 때 자동으로 업데이트됩니다. SetActiveGameplayEffectLevel() 함수의 주요 기능은 수정자를 업데이트하는 것입니다:
 
-
 ```C++
 MarkItemDirty(Effect);
 Effect.Spec.CalculateModifierMagnitudes();
@@ -669,14 +688,13 @@ UpdateAllAggregatorModMagnitudes(Effect);
 
 GameplayEffect는 일반적으로 인스턴스화되지 않습니다. Ability 또는 ASC가 GameplayEffect를 적용하려고 할 때 GameplayEffect의 ClassDefaultObject를 기반으로 GameworkEffectSpec을 생성합니다. 성공적으로 적용된 GameworkEffectSpec은 FAactiveGameplayEffect라는 새로운 구조체에 추가되며, 해당 구조체는 ASC가 ActiveGameplayEffect라는 특수한 컨테이너 구조체에서 관리합니다.
 
-### 4.5.2 Gameplay Effect 적용  
+### 4.5.2 Gameplay Effect 적용
 
 GameplayEffect는 다양한 방법으로 적용할 수 있으며, 주로 GameplayAbility의 함수나 ASC의 함수를 통해 이루어집니다. 이러한 함수들은 보통 ApplyGameplayEffectTo 형식을 따르며, 결국에는 UAbilitySystemComponent::ApplyGameplayEffectSpecToSelf()를 호출하여 Target에 효과를 적용합니다.
 
 예를 들어 GameplayAbility를 통해 GameplayEffect를 적용하는 방식이 아니라 투사체를 맞은 적에게 직접 효과를 적용하려는 경우, Target의 ASC를 가져온 다음 ASC의 함수를 사용하여 ApplyGameplayEffectToSelf를 호출해야 합니다.
 
 ASC에서 Duration 또는 Infinite GameplayEffect가 적용될 때 이를 감지하려면, ASC의 Delegate에 바인딩하여 이벤트를 수신할 수 있습니다.
-
 
 ```C++
 AbilitySystemComponent->OnActiveGameplayEffectAddedDelegateToSelf.AddUObject(this, &APACharacterBase::OnActiveGameplayEffectAddedCallback);
@@ -688,7 +706,7 @@ AbilitySystemComponent->OnActiveGameplayEffectAddedDelegateToSelf.AddUObject(thi
 virtual void OnActiveGameplayEffectAddedCallback(UAbilitySystemComponent* Target, const FGameplayEffectSpec& SpecApplied, FActiveGameplayEffectHandle ActiveHandle);
 ```
 
-서버는 리플리케이션 모드에 관계없이 항상 이 함수를 호출합니다. Autonomous Proxy는 리플리케이션 모드가 Full 혹은 Mixed인 상태에서 리플리케이트된 GameplayEffect에 대해서만 이 함수를 호출합니다. Simulated Proxy는 리플리케이션 모드가 Full인 경우에만 이 함수를 호출합니다.
+서버는 리플리케이션(Replication) 모드에 관계없이 항상 이 함수를 호출합니다. Autonomous Proxy는 리플리케이션 모드가 Full 혹은 Mixed인 상태에서 리플리케이트된 GameplayEffect에 대해서만 이 함수를 호출합니다. Simulated Proxy는 리플리케이션 모드가 Full인 경우에만 이 함수를 호출합니다.
 
 ### 4.5.3 Gameplay Effect 삭제
 
@@ -698,13 +716,11 @@ GameplayEffect는 GameplayAbility의 함수나 ASC의 함수를 통해 다양한
 
 ASC에서 Duration 또는 Infinite GameplayEffect가 제거될 때 이를 감지하려면, ASC의 Delegate에 바인딩하여 해당 이벤트를 수신할 수 있습니다:
 
-
 ```
 AbilitySystemComponent->OnAnyGameplayEffectRemovedDelegate().AddUObject(this, &APACharacterBase::OnRemoveGameplayEffectCallback);
 ```
 
 해당 콜백 함수입니다:
-
 
 ```
 virtual void OnRemoveGameplayEffectCallback(const FActiveGameplayEffect& EffectRemoved);
@@ -748,7 +764,6 @@ Attribute의 현재값은 기본값에 추가된 모든 모디파이어의 집�
 
 기본적으로 모든 곱셈 및 나눗셈 모디파이어는 Attribute 기본값으로 곱하거나 나누기 전에 함께 추가됩니다.
 
-
 ```
 float FAggregatorModChannel::EvaluateWithBase(float InlineBaseValue, const FAggregatorEvaluateParameters& Parameters) const
 {
@@ -761,7 +776,6 @@ float FAggregatorModChannel::EvaluateWithBase(float InlineBaseValue, const FAggr
 	...
 }
 ```
-
 
 ```
 float FAggregatorModChannel::SumMods(const TArray<FAggregatorMod>& InMods, float Bias, const FAggregatorEvaluateParameters& Parameters)
@@ -779,7 +793,6 @@ float FAggregatorModChannel::SumMods(const TArray<FAggregatorMod>& InMods, float
 	return Sum;
 }
 ```
-
 
 곱셈 및 나눗셈 모디파이어 모두 이 공식에서 치우침 값이 1입니다.(추가는 치우침이 0입니다)
 
@@ -822,7 +835,6 @@ float FAggregatorModChannel::SumMods(const TArray<FAggregatorMod>& InMods, float
 
 많은 게임에서 곱하기 및 나누기 모디파이어가 기본값에 적용하기 전에 함께 곱하고 나누기를 원할 것입니다. 이를 위해서는 FAggregatorModChannel::EvaluateWithBase()에 대한 엔진 코드를 변경해야 합니다.
 
-
 ```
 float FAggregatorModChannel::EvaluateWithBase(float InlineBaseValue, const FAggregatorEvaluateParameters& Parameters) const
 {
@@ -834,7 +846,6 @@ float FAggregatorModChannel::EvaluateWithBase(float InlineBaseValue, const FAggr
     return ((InlineBaseValue + Additive) * Multiplicitive) / Division;
 }
 ```
-
 
 ```
 float FAggregatorModChannel::MultiplyMods(const TArray<FAggregatorMod>& InMods, const FAggregatorEvaluateParameters& Parameters)
@@ -883,8 +894,8 @@ Stacking에는 두 가지 유형이 있습니다: 소스별 집계와 대상별 
 
 GameplayEffect는 ASC에 새로운 GameplayAbility를 부여할 수 있습니다. Duration 혹은 Infinite GameplayEffect만 Ability를 부여할 수 있습니다.
 
-일반적인 사용 사례는 다른 플레이어를 밀치거나 당겨서 이동시키는 것과 같은 동작을 강제로 수행하려는 경우입니다. 플레이어에게 원하는 동작을 하는 자동 활성화 어빌리티를 부여하는 GameplayEffect를 적용하면 됩니다. (어빌리티가 부여되면 동으로 활성화하는 방법은 패시브 어빌리티를 참조하세요)  
-  
+일반적인 사용 사례는 다른 플레이어를 밀치거나 당겨서 이동시키는 것과 같은 동작을 강제로 수행하려는 경우입니다. 플레이어에게 원하는 동작을 하는 자동 활성화 어빌리티를 부여하는 GameplayEffect를 적용하면 됩니다. (어빌리티가 부여되면 동으로 활성화하는 방법은 패시브 어빌리티를 참조하세요)
+
 디자이너는 GameplayEffect가 부여하는 어빌리티, 부여할 레벨, 바인딩할 입력, 부여된 어빌리티의 제거 정책(Removal Policy)을 선택할 수 있습니다.
 
 |   |   |
@@ -909,18 +920,18 @@ GameplayEffect는 여러 GameplayTagContainer를 포함합니다. 디자이너�
 
 ### 4.5.8 면역
 
-GameplayEffect는 GameplayTag를 기반으로 다른 GameplayEffect의 적용을 효과적으로 차단하는 면역을 부여할 수 있습니다. 면역은 애플리케이션 태그 요구사항과 같은 다른 수단을 통해서도 효과적으로 달성할 수 있지만, 이 시스템을 사용하면 면역으로 인해 GameplayEffect가 차단될 때를 위한 델리게이트 UAbilitySystemComponent::OnImmunityBlockGameplayEffectDelegate를 제공합니다.  
-  
-GrantedApplicationImmunityTags는 소스 ASC(소스 어빌리티의 AbilityTags에 태그가 있는 경우 그 태그 포함)에 지정된 태그가 있는지 확인합니다. 태그를 기반으로 특정 캐릭터 또는 소스의 모든 GameplayEffect에 대한 면역을 부여하는 방법입니다.  
-  
-부여된 애플리케이션 면역 쿼리는 들어오는 GameplayEffectSpec이 쿼리 중 하나라도 일치하는지 확인하여 해당 애플리케이션을 차단하거나 허용합니다.  
-  
+GameplayEffect는 GameplayTag를 기반으로 다른 GameplayEffect의 적용을 효과적으로 차단하는 면역을 부여할 수 있습니다. 면역은 애플리케이션 태그 요구사항과 같은 다른 수단을 통해서도 효과적으로 달성할 수 있지만, 이 시스템을 사용하면 면역으로 인해 GameplayEffect가 차단될 때를 위한 델리게이트 UAbilitySystemComponent::OnImmunityBlockGameplayEffectDelegate를 제공합니다.
+
+GrantedApplicationImmunityTags는 소스 ASC(소스 어빌리티의 AbilityTags에 태그가 있는 경우 그 태그 포함)에 지정된 태그가 있는지 확인합니다. 태그를 기반으로 특정 캐릭터 또는 소스의 모든 GameplayEffect에 대한 면역을 부여하는 방법입니다.
+
+부여된 애플리케이션 면역 쿼리는 들어오는 GameplayEffectSpec이 쿼리 중 하나라도 일치하는지 확인하여 해당 애플리케이션을 차단하거나 허용합니다.
+
 쿼리에는 GameplayEffect 블루프린트에 유용한 호버 툴팁이 있습니다.
 
 ### 4.5.9 Gameplay Effect Spec
 
-GameplayEffectSpec(GESpec)은 **GameplayEffect의 인스턴스**라고 생각하면 됩니다. 이 인스턴스에는 해당 인스턴스가 나타내는 GameplayEffect 클래스, 생성된 레벨, 생성자가 누구인지에 대한 레퍼런스가 들어 있습니다. 디자이너가 런타임 전에 생성해야 하는 GameplayEffect와는 달리 런타임 전에 자유롭게 생성하고 수정할 수 있습니다. GameplayEffect를 적용할 때, GameplayEffect로부터 GameplayEffectSpec이 생성되고 이것이 실제로 타겟에 적용됩니다.  
-  
+GameplayEffectSpec(GESpec)은 **GameplayEffect의 인스턴스**라고 생각하면 됩니다. 이 인스턴스에는 해당 인스턴스가 나타내는 GameplayEffect 클래스, 생성된 레벨, 생성자가 누구인지에 대한 레퍼런스가 들어 있습니다. 디자이너가 런타임 전에 생성해야 하는 GameplayEffect와는 달리 런타임 전에 자유롭게 생성하고 수정할 수 있습니다. GameplayEffect를 적용할 때, GameplayEffect로부터 GameplayEffectSpec이 생성되고 이것이 실제로 타겟에 적용됩니다.
+
 GameplayEffectSpec은 블루프린트 콜러블인 UAbilitySystemComponent::MakeOutgoingSpec()을 사용하여 GameplayEffect로부터 생성됩니다. GameplayEffectSpec을 즉시 적용할 필요는 없습니다. 어빌리티에서 생성된 프로젝타일에 GameplayEffectSpec을 전달하여 나중에 그 프로젝타일이 타격하는 타깃에 적용할 수 있도록 하는 것이 일반적입니다. GameplayEffectSpec가 성공적으로 적용되면 FActiveGameplayEffect라는 새 구조체를 반환합니다.
 
 참고해두면 좋은 GameplayEffectSpec 내용입니다:
@@ -929,7 +940,7 @@ GameplayEffectSpec은 블루프린트 콜러블인 UAbilitySystemComponent::Make
 - 이 GameplayEffectSpec의 레벨입니다. 보통 GameplayEffectSpec을 생성한 어빌리티의 레벨과 같지만 다를 수 있습니다.
 - GameplayEffectSpec의 지속시간입니다. 기본값은 GameplayEffect 의 지속시간이지만 다를 수 있습니다.
 - 주기적 이펙트의 GameplayEffectSpec 기간입니다. 기본값은 GameplayEffect의 기간이지만 다를 수 있습니다.
-- 이 GameplayEffectSpec의 현재 스택 수입니다. 스택 제한은 GameplayEffect에 있습니다.  
+- 이 GameplayEffectSpec의 현재 스택 수입니다. 스택 제한은 GameplayEffect에 있습니다.
     GameplayEffectContextHandle](<[https://github.com/tranek/GASDocumentation/tree/master#concepts-ge-context](https://github.com/tranek/GASDocumentation/tree/master#concepts-ge-context)>)은 누가 이 GameplayEffectSpec을 생성했는지 알려줍니다.
 - GameplayEffectSpec 생성 시 스냅샷으로 인해 캡처된 어트리뷰트입니다.
 - GameplayEffect가 부여하는 GameplayTag 외에 GameplayEffect가 타겟에 부여하는 DynamicGrantedTags 입니다.
@@ -950,14 +961,12 @@ SetByCaller를 사용하면 GameplayEffectSpec에 GameplayTag 또는 FName 과 �
 
 ![](https://blog.kakaocdn.net/dn/cXCxXc/btsjeYvp5KW/iKOMW1PKIkkK88l2UGmFG0/img.png)
 
-블루프린트에서 SetByCaller 값을 읽으려면, 블루프린트 라이브러리에서 커스텀 노드를 만들어야 합니다.  
+블루프린트에서 SetByCaller 값을 읽으려면, 블루프린트 라이브러리에서 커스텀 노드를 만들어야 합니다.
 C++에서 SetByCaller 값을 할당하려면 필요한 함수 버전(GameplayTag 또는 FName)을 사용하세요:
-
 
 ```
 void FGameplayEffectSpec::SetSetByCallerMagnitude(FName DataName, float Magnitude);
 ```
-
 
 ```
 void FGameplayEffectSpec::SetSetByCallerMagnitude(FGameplayTag DataTag, float Magnitude);
@@ -965,11 +974,9 @@ void FGameplayEffectSpec::SetSetByCallerMagnitude(FGameplayTag DataTag, float Ma
 
 C++에서 SetByCaller 값을 읽으려면 필요한 함수 버전(GameplayTag 또는 FName)을 사용하세요:
 
-
 ```
 float GetSetByCallerMagnitude(FName DataName, bool WarnIfNotFound = true, float DefaultIfNotFound = 0.f) const;
 ```
-
 
 ```
 float GetSetByCallerMagnitude(FGameplayTag DataTag, bool WarnIfNotFound = true, float DefaultIfNotFound = 0.f) const;
@@ -990,15 +997,15 @@ GameplayEffectContext를 서브클래싱합니다:
 5. 부모 구조체 FGameplayEffectContext 에 있는 것처럼 서브클래스에 TStructOpsTypeTraits 를 구현합니다.
 6. AbilitySystemGlobals 클래스에서 AllocGameplayEffectContext()를 오버라이드하여 서브클래스의 새 오브젝트를 반환합니다.
 
-[GASShooter](https://github.com/tranek/GASShooter)는 서브클래싱된 GameplayEffectContext를 사용하여 GameplayCue에서 액세스할 수 있는 타겟 데이터를 추가하는데, 특히 산탄총은 적을 두 명 이상 맞출 수 있기 때문입니다.
+[GASShooter](https://github.com/tranek/GASShooter)는 서브클래싱된 GameplayEffectContext를 사용하여 GameplayCue에서 액세스할 수 있는 타겟 데이터(Target Data)를 추가하는데, 특히 산탄총은 적을 두 명 이상 맞출 수 있기 때문입니다.
 
 ### 4.5.11 Modifier Magnitude Calculation
 
 ModifierMagnitudeCalculation(ModMagCalc 또는 MMC)는 ameplayEffect에서 모디파이어로 사용되는 강력한 클래스입니다. GameplayEffectExecutionCalculation와 비슷하게 작동하지만 덜 강력하며 가장 중요한 것은 예측할 수 있다는 점입니다. 이 함수의 유일한 목적은 CalculateBaseMagnitude_Implementation()에서 실수 값을 반환하는 것입니다. 블루프린트와 C++에서 이 함수를 서브클래싱하고 오버라이드할 수 있습니다.
 
-MMC는 인스턴트, 지속시간, 무한, 주기적 등 모든 GameplayEffect의 지속시간에 사용할 수 있습니다.  
-  
-MMC의 강점은 GameplayTag와 SetByCaller를 읽기 위해 GameplayEffectSpec에 대한 전체 액세스 권한으로 GameplayEffect의 소스 또는 타깃에서 원하는 수의 어트리뷰트 값을 캡처할 수 있다는 점입니다. 어트리뷰트는 스냅샷할 수도 있고 아닐 수도 있습니다. 스냅샷 어트리뷰트는 GameplayEffectSpec이 생성될 때 캡처되는 반면, 스냅샷이 아닌 어트리뷰트는 GameplayEffectSpec이 적용될 때 캡처되어 무한 및 지속시간 GameplayEffect에 대해 어트리뷰트가 변경되면 자동으로 업데이트됩니다. 어트리뷰트 캡처는 ASC 의 기존 모드로부터 CurrentValue 를 재계산합니다. 이 재계산은 어빌리티 세트에서 PreAttributeChange()를 실행하지 않으므로 여기서 클램핑을 다시 해야 합니다.
+MMC는 인스턴트, 지속시간, 무한, 주기적 등 모든 GameplayEffect의 지속시간에 사용할 수 있습니다.
+
+MMC의 강점은 GameplayTag와 SetByCaller를 읽기 위해 GameplayEffectSpec에 대한 전체 액세스 권한(Authority)으로 GameplayEffect의 소스 또는 타깃에서 원하는 수의 어트리뷰트 값을 캡처할 수 있다는 점입니다. 어트리뷰트는 스냅샷할 수도 있고 아닐 수도 있습니다. 스냅샷 어트리뷰트는 GameplayEffectSpec이 생성될 때 캡처되는 반면, 스냅샷이 아닌 어트리뷰트는 GameplayEffectSpec이 적용될 때 캡처되어 무한 및 지속시간 GameplayEffect에 대해 어트리뷰트가 변경되면 자동으로 업데이트됩니다. 어트리뷰트 캡처는 ASC 의 기존 모드로부터 CurrentValue 를 재계산합니다. 이 재계산은 어빌리티 세트에서 PreAttributeChange()를 실행하지 않으므로 여기서 클램핑을 다시 해야 합니다.
 
 |   |   |   |   |
 |---|---|---|---|
@@ -1008,10 +1015,9 @@ MMC의 강점은 GameplayTag와 SetByCaller를 읽기 위해 GameplayEffectSpec
 |No|Source|Application|Yes|
 |No|Target|Application|Yes|
 
-MMC의 결과 float는 GameplayEffect의 모디파이어에서 계수와 사전 및 사후 계수 추가를 통해 추가로 수정할 수 있습니다.  
-  
-예를 들어 대상의 마나 속성을 캡처하는 MMC는 대상의 마나 양과 대상에 있을 수 있는 태그에 따라 감소량이 달라지는 독 효과에서 마나를 감소시킵니다:
+MMC의 결과 float는 GameplayEffect의 모디파이어에서 계수와 사전 및 사후 계수 추가를 통해 추가로 수정할 수 있습니다.
 
+예를 들어 대상의 마나 속성을 캡처하는 MMC는 대상의 마나 양과 대상에 있을 수 있는 태그에 따라 감소량이 달라지는 독 효과에서 마나를 감소시킵니다:
 
 ```
 UPAMMC_PoisonMana::UPAMMC_PoisonMana()
@@ -1068,10 +1074,10 @@ float UPAMMC_PoisonMana::CalculateBaseMagnitude_Implementation(const FGameplayEf
 
 ### 4.5.12 Gameplay Effect Execution Calculation
 
-GameplayEffect Execution Calculation(실행 계산. 플러그인 소스 코드에서 이 용어를 자주 볼 수 있음.)은 GameplayEffect가 ASC를 변경할 수 있는 가장 강력한 방식입니다. ModifierMagnitudeCalculations와 마찬가지로 어트리뷰트를 캡처하고 선택적으로 스냅샷을 찍을 수 있습니다. MMC와 달리 둘 이상의 어트리뷰트를 변경할 수 있으며 기본적으로 프로그래머가 원하는 모든 것을 할 수 있습니다. 이러한 강력한 성능과 유연성의 단점은 예측할 수 없으며 C++로 구현해야 한다는 것입니다.  
-  
-ExecutionCalculation는 인스턴트 및 주기적 GameplayEffect와만 사용할 수 있습니다. '실행'이라는 단어가 들어간 것은 일반적으로 이 두 가지 유형의 GameplayEffect를 나타냅니다.  
-  
+GameplayEffect Execution Calculation(실행 계산. 플러그인 소스 코드에서 이 용어를 자주 볼 수 있음.)은 GameplayEffect가 ASC를 변경할 수 있는 가장 강력한 방식입니다. ModifierMagnitudeCalculations와 마찬가지로 어트리뷰트를 캡처하고 선택적으로 스냅샷을 찍을 수 있습니다. MMC와 달리 둘 이상의 어트리뷰트를 변경할 수 있으며 기본적으로 프로그래머가 원하는 모든 것을 할 수 있습니다. 이러한 강력한 성능과 유연성의 단점은 예측할 수 없으며 C++로 구현해야 한다는 것입니다.
+
+ExecutionCalculation는 인스턴트 및 주기적 GameplayEffect와만 사용할 수 있습니다. '실행'이라는 단어가 들어간 것은 일반적으로 이 두 가지 유형의 GameplayEffect를 나타냅니다.
+
 스냅샷을 하면 GameplayEffectSpec이 생성될 때 어트리뷰트를 캡처하는 반면, 스냅샷을 하지 않으면 GameplayEffectSpec이 적용될 때 어트리뷰트를 캡처합니다. 어트리뷰트를 캡처하면 ASC 의 기존 모드에서 CurrentValue 를 재계산합니다. 이 재계산은 어빌리티 세트에서 PreAttributeChange()를 실행하지 않으므로 여기서 클램핑을 다시 수행해야 합니다.
 
 |   |   |   |
@@ -1082,10 +1088,10 @@ ExecutionCalculation는 인스턴트 및 주기적 GameplayEffect와만 사용�
 |No|Source|Application|
 |No|Target|Application|
 
-어트리뷰트 캡처를 설정하려면, 에픽의 ActionRPG 샘플 프로젝트에서 제시하는 패턴을 따라 어트리뷰트를 보유하는 구조체를 정의하고 캡처 방법을 정의한 다음 구조체의 생성자에서 그 사본 하나를 생성합니다. 모든 ExecCalc에 대해 이와 같은 구조체를 갖게 됩니다. 참고: 각 구조체는 동일한 네임스페이스를 공유하므로 고유한 이름이 필요합니다. 구조체에 동일한 이름을 사용하면 속성 캡처 시 잘못된 동작이 발생할 수 있습니다. (대부분 잘못된 속성 값을 캡처)  
-  
-로컬 예측, 서버 전용, 서버 시작 GameplayAbility의 경우, ExecCalc 는 서버에서만 호출합니다.  
-  
+어트리뷰트 캡처를 설정하려면, 에픽의 ActionRPG 샘플 프로젝트에서 제시하는 패턴을 따라 어트리뷰트를 보유하는 구조체를 정의하고 캡처 방법을 정의한 다음 구조체의 생성자에서 그 사본 하나를 생성합니다. 모든 ExecCalc에 대해 이와 같은 구조체를 갖게 됩니다. 참고: 각 구조체는 동일한 네임스페이스를 공유하므로 고유한 이름이 필요합니다. 구조체에 동일한 이름을 사용하면 속성 캡처 시 잘못된 동작이 발생할 수 있습니다. (대부분 잘못된 속성 값을 캡처)
+
+로컬 예측, 서버 전용, 서버 시작 GameplayAbility의 경우, ExecCalc 는 서버에서만 호출합니다.
+
 소스 및 타깃의 여러 어트리뷰트에서 읽은 복잡한 수식을 기반으로 받는 대미지를 계산하는 것이 ExecCalc의 가장 일반적인 예입니다. 포함된 샘플 프로젝트에는 GameplayEffectSpec의 SetByCaller에서 대미지 값을 읽은 다음 타깃에서 캡처한 방어구 어트리뷰트를 기반으로 그 값을 완화하는 간단한 대미지 계산용 ExecCalc 가 있습니다. GDDamageExecCalculation.cpp/.h를 참조하세요.
 
 #### 4.5.12.1  Execution Calculation 실행 계산에 데이터 보내기
@@ -1096,7 +1102,6 @@ ExecutionCalculation는 인스턴트 및 주기적 GameplayEffect와만 사용�
 
 GameplayEffectSpec에 설정된 모든 SetByCaller는 실행 계산에서 직접 읽을 수 있습니다.
 
-
 ```
 const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
 float Damage = FMath::Max<float>(Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage")), false, -1.0f), 0.0f);
@@ -1104,8 +1109,8 @@ float Damage = FMath::Max<float>(Spec.GetSetByCallerMagnitude(FGameplayTag::Requ
 
 ##### 4.5.12.1.2 Backing Data Attribute Calculation Modifier
 
-GameplayEffect에 값을 하드코딩하려면, 캡처한 어트리뷰트 중 하나를 백업 데이터로 사용하는 CalculationModifier를 사용하여 값을 전달하면 됩니다.  
-  
+GameplayEffect에 값을 하드코딩하려면, 캡처한 어트리뷰트 중 하나를 백업 데이터로 사용하는 CalculationModifier를 사용하여 값을 전달하면 됩니다.
+
 이 스크린샷 예제에서는 캡처한 대미지 어트리뷰트에 50을 추가하고 있습니다. 오버라이드로 설정하여 하드코딩된 값만 가져오도록 할 수도 있습니다.
 
 ![](https://blog.kakaocdn.net/dn/YRAkP/btsjdmDi8bl/e94KST4dGUhQp5j6JsOFN0/img.png)
@@ -1132,13 +1137,11 @@ GameplayEffect에 값을 하드코딩하려면, C++에서 호출되는 임시 �
 
 백업 임시 변수를 ExecutionCalculation의 생성자에 추가합니다:
 
-
 ```
 ValidTransientAggregatorIdentifiers.AddTag(FGameplayTag::RequestGameplayTag("Data.Damage"));
 ```
 
 실행 계산은 어트리뷰트 캡처 함수와 유사한 특수 캡처 함수를 사용하여 이 값을 읽습니다.
-
 
 ```
 float Damage = 0.0f;
@@ -1149,14 +1152,12 @@ ExecutionParams.AttemptCalculateTransientAggregatorMagnitude(FGameplayTag::Reque
 
 GameplayEffectSpec의 커스텀 GameplayEffectContext를 통해 ExecutionCalculation 에 데이터를 전송할 수 있습니다. ExecutionCalculation에서 FGameplayEffectCustomExecutionParameter에서 EffectContext에 액세스할 수 있습니다.
 
-
 ```
 float Damage = 0.0f;
 ExecutionParams.AttemptCalculateTransientAggregatorMagnitude(FGameplayTag::RequestGameplayTag("Data.Damage"), EvaluationParameters, Damage);
 ```
 
 GameplayEffectSpec 또는 EffectContext에서 무언가를 변경해야 하는 경우:
-
 
 ```
 FGameplayEffectSpec* MutableSpec = ExecutionParams.GetOwningSpecForPreExecuteMod();
@@ -1165,7 +1166,6 @@ FGSGameplayEffectContext* ContextHandle = static_cast<FGSGameplayEffectContext*>
 
 실행 계산에서 GameplayEffectSpec을 수정할 때는 주의하세요. GetOwningSpecForPreExecuteMod()에 대한 코멘트를 참고하세요.
 
-
 ```
 /** Non const access. Be careful with this, especially when modifying a spec after attribute capture. */
 FGameplayEffectSpec* GetOwningSpecForPreExecuteMod() const;
@@ -1173,8 +1173,8 @@ FGameplayEffectSpec* GetOwningSpecForPreExecuteMod() const;
 
 ### 4.5.13 Custom Application Requirement
 
-Custom Application Requirement 리퀘이션(CAR) 클래스는 디자이너가 GameplayEffect에 대한 단순한 GameplayTag 검사에 비해 GameplayEffect의 적용 여부를 고급 제어할 수 있도록 해줍니다. 블루프린트에서는 CanApplyGameplayEffect()를 오버라이드하여 구현할 수 있고, C++ 에서는 CanApplyGameplayEffect_Implementation() 를 오버라이드하여 구현할 수 있습니다.  
-  
+Custom Application Requirement 리퀘이션(CAR) 클래스는 디자이너가 GameplayEffect에 대한 단순한 GameplayTag 검사에 비해 GameplayEffect의 적용 여부를 고급 제어할 수 있도록 해줍니다. 블루프린트에서는 CanApplyGameplayEffect()를 오버라이드하여 구현할 수 있고, C++ 에서는 CanApplyGameplayEffect_Implementation() 를 오버라이드하여 구현할 수 있습니다.
+
 CAR 사용 시기의 예시입니다:
 
 - Target에 특정 양의 속성이 있어야 합니다.
@@ -1184,14 +1184,13 @@ CAR은 또한 이 GameplayEffect의 인스턴스가 이미 타겟에 있는지 �
 
 ### 4.5.14 Cost Gameplay Effect
 
-GameplayAbility에는 어빌리티의 비용으로 사용하도록 특별히 설계된 선택적 GameplayEffect가 있습니다. 비용은 GameplayAbility를 활성화하기 위해 ASC가 보유해야 하는 어트리뷰트의 양입니다. GA가 비용 GE를 감당할 수 없으면 활성화할 수 없습니다. 이 비용 GE는 어트리뷰트에서 차감하는 하나 이상의 모디파이어가 있는 인스턴트 GameplayEffect여야 합니다. 기본적으로 비용 GE는 예측하도록 되어 있으며, 이 기능을 유지하려면 ExecutionCalculations를 사용하지 않는 것이 좋습니다. 복잡한 비용 계산에는 MMC를 사용할 수 있으며 권장됩니다.  
-  
-처음 시작할 때는 비용이 있는 고유한 비용 GE가 GA당 하나씩 있을 가능성이 높습니다. 좀 더 고급 기법은 여러 GA에 하나의 Cost GE를 재사용하고 Cost GE에서 생성된 GameplayEffectSpec을 GA별 데이터로 수정하는 것입니다(비용 값은 GA에 정의됨). 이 방법은 인스턴스화된 어빌리티에서만 작동합니다.  
-  
-Cost GE를 재사용하는 두 가지 기법입니다:  
-  
-MMC를 사용합니다. 가장 쉬운 방법입니다. GameplayEffectSpec에서 얻을 수 있는 GameplayAbility 인스턴스에서 비용 값을 읽는 MMC를 생성합니다.
+GameplayAbility에는 어빌리티의 비용으로 사용하도록 특별히 설계된 선택적 GameplayEffect가 있습니다. 비용은 GameplayAbility를 활성화하기 위해 ASC가 보유해야 하는 어트리뷰트의 양입니다. GA가 비용 GE를 감당할 수 없으면 활성화할 수 없습니다. 이 비용 GE는 어트리뷰트에서 차감하는 하나 이상의 모디파이어가 있는 인스턴트 GameplayEffect여야 합니다. 기본적으로 비용 GE는 예측하도록 되어 있으며, 이 기능을 유지하려면 ExecutionCalculations를 사용하지 않는 것이 좋습니다. 복잡한 비용 계산에는 MMC를 사용할 수 있으며 권장됩니다.
 
+처음 시작할 때는 비용이 있는 고유한 비용 GE가 GA당 하나씩 있을 가능성이 높습니다. 좀 더 고급 기법은 여러 GA에 하나의 Cost GE를 재사용하고 Cost GE에서 생성된 GameplayEffectSpec을 GA별 데이터로 수정하는 것입니다(비용 값은 GA에 정의됨). 이 방법은 인스턴스화된 어빌리티에서만 작동합니다.
+
+Cost GE를 재사용하는 두 가지 기법입니다:
+
+MMC를 사용합니다. 가장 쉬운 방법입니다. GameplayEffectSpec에서 얻을 수 있는 GameplayAbility 인스턴스에서 비용 값을 읽는 MMC를 생성합니다.
 
 ```
 float UPGMMC_HeroAbilityCost::CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec) const
@@ -1209,7 +1208,6 @@ float UPGMMC_HeroAbilityCost::CalculateBaseMagnitude_Implementation(const FGamep
 
 이 예제에서 비용 값은 제가 추가한 GameplayAbility 자식 클래스의 FScalableFloat입니다.
 
-
 ```
 UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Cost")
 FScalableFloat Cost;
@@ -1221,14 +1219,13 @@ UGameplayAbility::GetCostGameplayEffect()를 재정의합니다. 이 함수를 �
 
 ### 4.5.15 Gameplay Effect 쿨타임 
 
-GameplayAbility에는 어빌리티의 재사용 대기시간으로 사용하도록 특별히 설계된 선택적 GameplayEffect가 있습니다. 재사용 대기시간은 어빌리티가 활성화된 후 다시 활성화될 수 있는 시간을 결정합니다. GA가 아직 재사용 대기시간 중이면 활성화할 수 없습니다. 이 쿨타임 GE는 모디파이어가 없는 지속시간  GameplayEffect여야 하며, GameplayEffect의 부여된 태그("쿨타임 태그")에 GameplayAbility 또는 어빌리티 슬롯별(게임에 쿨타임을 공유하는 슬롯에 교환 가능한 어빌리티가 할당된 경우) 고유한 GameplayTag가 있어야 합니다. GA는 실제로 쿨타임 GE가 아닌 쿨타임 태그의 존재 여부를 확인합니다. 기본적으로 쿨타임 GE는 예측하도록 되어 있으며, 그 기능을 유지하려면 ExecutionCalculations 를 사용하지 않는 것이 좋습니다. 복잡한 재사용 대기시간 계산에는 MMC를 사용해도 무방하며 권장합니다.  
-  
+GameplayAbility에는 어빌리티의 재사용 대기시간으로 사용하도록 특별히 설계된 선택적 GameplayEffect가 있습니다. 재사용 대기시간은 어빌리티가 활성화된 후 다시 활성화될 수 있는 시간을 결정합니다. GA가 아직 재사용 대기시간 중이면 활성화할 수 없습니다. 이 쿨타임 GE는 모디파이어가 없는 지속시간  GameplayEffect여야 하며, GameplayEffect의 부여된 태그("쿨타임 태그")에 GameplayAbility 또는 어빌리티 슬롯별(게임에 쿨타임을 공유하는 슬롯에 교환 가능한 어빌리티가 할당된 경우) 고유한 GameplayTag가 있어야 합니다. GA는 실제로 쿨타임 GE가 아닌 쿨타임 태그의 존재 여부를 확인합니다. 기본적으로 쿨타임 GE는 예측하도록 되어 있으며, 그 기능을 유지하려면 ExecutionCalculations 를 사용하지 않는 것이 좋습니다. 복잡한 재사용 대기시간 계산에는 MMC를 사용해도 무방하며 권장합니다.
+
 처음 시작할 때는 재사용 대기시간이 있는 고유한 재사용 대기시간 GE가 GA당 하나씩 있을 가능성이 높습니다. 좀 더 고급 기법은 여러 GA 에 하나의 쿨타임 GE 를 재사용하고, 쿨타임 GE 에서 생성된 GameplayEffectSpec 을 GA 전용 데이터(쿨타임 지속시간과 쿨타임 태그는 GA 에 정의되어 있음)로 수정하는 것입니다. 이 방법은 인스턴스 어빌리티에만 적용됩니다.
 
 재사용 대기시간 GE를 재사용하는 두 가지 기술:
 
 1. SetByCaller를 사용합니다. 가장 쉬운 방법입니다. 공유 재사용 대기시간 GE의 지속시간을 GameplayTag 로 SetByCaller 로 설정합니다. GameplayAbility 서브클래스에 지속시간에 대한 float / FScalableFloat, 고유 쿨타임 태그에 대한 FGameplayTagContainer, 쿨타임 태그와 쿨타임 GE의 태그를 합친 반환 포인터로 사용할 임시 FGameplayTagContainer를 정의합니다.
-
 
 ```
 UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Cooldown")
@@ -1244,7 +1241,6 @@ FGameplayTagContainer TempCooldownTags;
 ```
 
 그런 다음 UGameplayAbility::GetCooldownTags()를 재정의하여 쿨타임 태그와 기존 쿨타임 GE 태그의 합을 반환합니다.
-
 
 ```
 const FGameplayTagContainer* UPGGameplayAbility::GetCooldownTags() const
@@ -1262,7 +1258,6 @@ const FGameplayTagContainer* UPGGameplayAbility::GetCooldownTags() const
 ```
 
 마지막으로, UGameplayAbility::ApplyCooldown()을 오버라이드하여 쿨타임 태그를 주입하고 쿨타임 GameplayEffectSpec에 SetByCaller를 추가합니다.
-
 
 ```
 void UPGGameplayAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
@@ -1284,7 +1279,6 @@ void UPGGameplayAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, 
 
 2. MMC를 사용합니다. 이 설정은 쿨타임 GE와 ApplyCooldown에서 SetByCaller를 지속 시간으로 설정하는 것을 제외하고는 위와 동일합니다. 대신 지속 시간을 커스텀 계산 클래스로 설정하고 새로 만들 MMC를 가리킵니다.
 
-
 ```
 UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Cooldown")
 FScalableFloat CooldownDuration;
@@ -1297,7 +1291,6 @@ FGameplayTagContainer CooldownTags;
 UPROPERTY(Transient)
 FGameplayTagContainer TempCooldownTags;
 ```
-
 
 ```
 const FGameplayTagContainer* UPGGameplayAbility::GetCooldownTags() const
@@ -1316,7 +1309,6 @@ const FGameplayTagContainer* UPGGameplayAbility::GetCooldownTags() const
 
 마지막으로, UGameplayAbility::ApplyCooldown() 을 오버라이드하여 쿨타임 태그를 쿨타임 GameplayEffectSpec에 주입합니다.
 
-
 ```
 void UPGGameplayAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
 {
@@ -1329,7 +1321,6 @@ void UPGGameplayAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, 
     }
 }
 ```
-
 
 ```
 float UPGMMC_HeroAbilityCooldown::CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec) const
@@ -1348,7 +1339,6 @@ float UPGMMC_HeroAbilityCooldown::CalculateBaseMagnitude_Implementation(const FG
 ![](https://blog.kakaocdn.net/dn/cIVRIM/btsnGjWy1Yy/wXEHvLPCfwYONhp50LLRG0/img.png)
 
 #### 4.5.15.1 재사용 대기시간 GameplayEffect의 남은 시간 얻기
-
 
 ```
 bool APGPlayerState::GetCooldownRemainingForTag(FGameplayTagContainer CooldownTags, float& TimeRemaining, float& CooldownDuration)
@@ -1388,26 +1378,24 @@ bool APGPlayerState::GetCooldownRemainingForTag(FGameplayTagContainer CooldownTa
 
 #### 4.5.15.2 재사용 대기시간 시작 및 종료 청취
 
-쿨타임이 시작되는 시점을 수신하려면, AbilitySystemComponent->OnActiveGameplayEffectAddedDelegateToSelf에 바인딩하여 쿨타임 GE가 적용될 때 응답하거나, AbilitySystemComponent->RegisterGameplayTagEvent(쿨타임 태그, EGameplay 태그 이벤트 유형::새 또는 제거)에 바인딩하여 쿨타임 태그가 추가될 때 응답할 수 있습니다. 쿨타임 GE가 언제 추가되었는지 확인하는 것이 좋은데, 쿨타임 GE를 적용한 GameplayEffectSpec에도 접근할 수 있기 때문입니다. 이를 통해 쿨타임 GE가 로컬에서 예측한 것인지 서버에서 수정한 것인지를 확인할 수 있습니다.  
-  
-재사용 대기시간이 언제 끝나는지 수신하려면, AbilitySystemComponent->OnAnyGameplayEffectRemovedDelegate() 에 바인딩하여 쿨타임 GE가 제거되는 시점에 응답하거나, AbilitySystemComponent->RegisterGameplayTagEvent(쿨타임 태그, EGameplay 태그 이벤트 유형::NewOrRemoved)에 바인딩하여 쿨타임 태그가 제거되는 시점에 응답하면 됩니다. 서버의 수정된 쿨타임 GE가 들어오면 로컬에서 예측한 쿨타임이 제거되어 쿨타임이 진행 중임에도 불구하고 OnAnyGameplayEffectRemovedDelegate()가 발동되므로 쿨타임 태그가 제거되는 시점을 잘 살펴볼 것을 권장합니다. 예측된 쿨타임 GE를 제거하고 서버의 수정된 쿨타임 GE를 적용하는 동안 쿨타임 태그는 변경되지 않습니다.  
-  
+쿨타임이 시작되는 시점을 수신하려면, AbilitySystemComponent->OnActiveGameplayEffectAddedDelegateToSelf에 바인딩하여 쿨타임 GE가 적용될 때 응답하거나, AbilitySystemComponent->RegisterGameplayTagEvent(쿨타임 태그, EGameplay 태그 이벤트 유형::새 또는 제거)에 바인딩하여 쿨타임 태그가 추가될 때 응답할 수 있습니다. 쿨타임 GE가 언제 추가되었는지 확인하는 것이 좋은데, 쿨타임 GE를 적용한 GameplayEffectSpec에도 접근할 수 있기 때문입니다. 이를 통해 쿨타임 GE가 로컬에서 예측한 것인지 서버에서 수정한 것인지를 확인할 수 있습니다.
+
+재사용 대기시간이 언제 끝나는지 수신하려면, AbilitySystemComponent->OnAnyGameplayEffectRemovedDelegate() 에 바인딩하여 쿨타임 GE가 제거되는 시점에 응답하거나, AbilitySystemComponent->RegisterGameplayTagEvent(쿨타임 태그, EGameplay 태그 이벤트 유형::NewOrRemoved)에 바인딩하여 쿨타임 태그가 제거되는 시점에 응답하면 됩니다. 서버의 수정된 쿨타임 GE가 들어오면 로컬에서 예측한 쿨타임이 제거되어 쿨타임이 진행 중임에도 불구하고 OnAnyGameplayEffectRemovedDelegate()가 발동되므로 쿨타임 태그가 제거되는 시점을 잘 살펴볼 것을 권장합니다. 예측된 쿨타임 GE를 제거하고 서버의 수정된 쿨타임 GE를 적용하는 동안 쿨타임 태그는 변경되지 않습니다.
 
 > **💡NOTE**: 클라이언트에서 GameplayEffect가 추가 또는 제거되기를 기다리려면 리플리케이트된 GameplayEffect를 수신할 수 있어야 합니다. 이는 ASC 의 리플리케이션 모드에 따라 달라집니다.
 
-  
 샘플 프로젝트에는 쿨타임 시작과 끝을 수신하는 커스텀 블루프린트 노드가 포함되어 있습니다. HUD UMG 위젯은 이를 사용하여 메테오의 재사용 대기시간에 남은 시간을 업데이트합니다. 이 AsyncTask 는 UMG 위젯의 Destruct 이벤트에서 수동으로 EndTask()를 호출할 때까지 영원히 살아있습니다. AsyncTaskCooldownChanged.h/cpp를 참고하세요.
 
 ![](https://blog.kakaocdn.net/dn/76nz7/btsnD7C7ebz/XKdB90DGiwsGtOmIJspZFk/img.png)
 
 #### 4.5.15.3 쿨타임 예측
 
-현재 재사용 대기시간은 실제로 예측할 수 없습니다. 로컬에서 예측한 쿨타임 GE가 적용될 때 UI 쿨타임 타이머를 시작할 수 있지만, GameplayAbility의 실제 쿨타임은 서버의 쿨타임 잔여 시간에 연동됩니다. 플레이어의 지연 시간에 따라 로컬에서 예측한 쿨타임이 만료되더라도 서버에서는 여전히 쿨타임 중일 수 있으며, 이로 인해 서버의 쿨타임이 만료될 때까지 GameplayAbility가 즉시 다시 활성화되지 않을 수 있습니다.  
-  
-샘플 프로젝트는 로컬에서 예측한 재사용 대기시간이 시작되면 메테오 어빌리티의 UI 아이콘을 회색으로 표시한 다음 서버의 수정된 재사용 대기시간 GE가 들어오면 재사용 대기시간 타이머를 시작하는 방식으로 이 문제를 처리합니다.  
-  
-이로 인해 지연 시간이 긴 플레이어는 지연 시간이 짧은 플레이어보다 재사용 대기시간이 짧은 능력의 발사 확률이 낮아져 불리한 게임 플레이를 할 수 있습니다. 포트나이트는 무기에 재사용 대기시간 GameplayEffect를 사용하지 않는 커스텀 북키핑을 적용하여 이러한 문제를 방지합니다.  
-  
+현재 재사용 대기시간은 실제로 예측할 수 없습니다. 로컬에서 예측한 쿨타임 GE가 적용될 때 UI 쿨타임 타이머를 시작할 수 있지만, GameplayAbility의 실제 쿨타임은 서버의 쿨타임 잔여 시간에 연동됩니다. 플레이어의 지연 시간에 따라 로컬에서 예측한 쿨타임이 만료되더라도 서버에서는 여전히 쿨타임 중일 수 있으며, 이로 인해 서버의 쿨타임이 만료될 때까지 GameplayAbility가 즉시 다시 활성화되지 않을 수 있습니다.
+
+샘플 프로젝트는 로컬에서 예측한 재사용 대기시간이 시작되면 메테오 어빌리티의 UI 아이콘을 회색으로 표시한 다음 서버의 수정된 재사용 대기시간 GE가 들어오면 재사용 대기시간 타이머를 시작하는 방식으로 이 문제를 처리합니다.
+
+이로 인해 지연 시간이 긴 플레이어는 지연 시간이 짧은 플레이어보다 재사용 대기시간이 짧은 능력의 발사 확률이 낮아져 불리한 게임 플레이를 할 수 있습니다. 포트나이트는 무기에 재사용 대기시간 GameplayEffect를 사용하지 않는 커스텀 북키핑을 적용하여 이러한 문제를 방지합니다.
+
 진정한 예측 재사용 대기시간(플레이어는 로컬 재사용 대기시간이 만료되었지만 서버는 아직 재사용 대기시간 중일 때 GameplayAbility를 활성화할 수 있음)을 허용하는 것은 에픽 게임즈가 향후 GAS의 반복작업에서 언젠가 구현하고자 하는 기능입니다.
 
 ### 4.5.16 활성화된 GameplayEffect 지속 시간 변경
@@ -1415,7 +1403,6 @@ bool APGPlayerState::GetCooldownRemainingForTag(FGameplayTagContainer CooldownTa
 쿨타임 GE 또는 지속시간 GameplayEffect의 남은 시간을 변경하려면, GameplayEffectSpec의 Duration을 변경하고, StartServerWorldTime을 업데이트하고, CachedStartServerWorldTime을 업데이트하고, StartWorldTime을 업데이트한 다음 CheckDuration()으로 지속시간 검사를 다시 실행해야 합니다. 서버에서 이 작업을 수행하고 FActiveGameplayEffect를 더티로 표시하면 클라이언트에 변경사항이 리플리케이트됩니다.
 
 > **💡NOTE**: 여기에는 const_cast 가 필요하며 에픽 게임즈가 의도한 지속시간 변경 방식이 아닐 수도 있지만, 지금까지는 잘 작동하는 것 같습니다.
-
 
 ```
 bool UPAAbilitySystemComponent::SetGameplayEffectDurationHandle(FActiveGameplayEffectHandle Handle, float NewDuration)
@@ -1462,9 +1449,8 @@ bool UPAAbilitySystemComponent::SetGameplayEffectDurationHandle(FActiveGameplayE
 
 런타임에 생성된 인스턴트 GameplayEffect는 로컬 예측 GameplayAbility 내에서 호출할 수도 있습니다. 하지만 동적 생성에 부작용이 있을 수 있는지는 아직 알려지지 않았습니다.
 
-예제  
-샘플 프로젝트는 캐릭터가 Attribute에 있는 킬링 타격을 받으면 골드와 경험치를 킬러에게 돌려주는 게임플레이 이펙트를 생성합니다.
-
+예제
+샘플 프로젝트는 캐릭터가 Attribute에 있는 킬링 타격을 받으면 골드와 경험치를 킬러에게 돌려주는 게임플레이 이펙트(Gameplay Effect)를 생성합니다.
 
 ```
 // 현상금 지급을 위한 동적 인스턴트 GameplayEffect 만들기
@@ -1488,7 +1474,6 @@ Source->ApplyGameplayEffectToSelf(GEBounty, 1.0f, Source->MakeEffectContext());
 ```
 
 두 번째 예제는 로컬 예측 GameplayAbility 내에서 생성된 런타임 GameplayEffect를 보여줍니다. 사용은 여러분의 책임하에 하세요(코드 내 주석 참조)!
-
 
 ```
 UGameplayAbilityRuntimeGE::UGameplayAbilityRuntimeGE()
@@ -1533,8 +1518,8 @@ void UGameplayAbilityRuntimeGE::ActivateAbility(const FGameplayAbilitySpecHandle
 
 ### 4.5.18 Gameplay Effect Container
 
-에픽 게임즈의 액션 RPG 샘플 프로젝트는 FGameplayEffectContainer라는 구조체를 구현합니다. 바닐라 GAS에는 없지만 GameplayEffect와 타겟 데이터를 담을 때 매우 편리합니다.GameplayEffect로부터 GameplayEffectSpec을 생성하고 그 GameplayEffectContext에서 기본값을 설정하는 등의 작업을 자동화합니다. GameplayAbility에서 GameplayEffectContainer를 생성하고 스폰된 투사체에 전달하는 것은 매우 쉽고 간단합니다. 바닐라 GAS에서 GameplayEffectContainer없이 어떻게 작동하는지 보여드리기 위해 포함된 샘플 프로젝트에서 GameplayEffectContainer를 구현하지 않았지만, 이 기능을 살펴보고 프로젝트에 추가하는 것을 고려해 보시길 적극 권장합니다  
-  
+에픽 게임즈의 액션 RPG 샘플 프로젝트는 FGameplayEffectContainer라는 구조체를 구현합니다. 바닐라 GAS에는 없지만 GameplayEffect와 타겟 데이터를 담을 때 매우 편리합니다.GameplayEffect로부터 GameplayEffectSpec을 생성하고 그 GameplayEffectContext에서 기본값을 설정하는 등의 작업을 자동화합니다. GameplayAbility에서 GameplayEffectContainer를 생성하고 스폰된 투사체에 전달하는 것은 매우 쉽고 간단합니다. 바닐라 GAS에서 GameplayEffectContainer없이 어떻게 작동하는지 보여드리기 위해 포함된 샘플 프로젝트에서 GameplayEffectContainer를 구현하지 않았지만, 이 기능을 살펴보고 프로젝트에 추가하는 것을 고려해 보시길 적극 권장합니다
+
 GameplayEffectContainer 내부의 GESpec에 액세스하여 SetByCaller 추가와 같은 작업을 수행하려면 FGameplayEffectContainer를 분해하고 GESpec 배열의 인덱스로 GESpec 레퍼런스에 액세스합니다. 이를 위해서는 액세스하려는 GESpec의 인덱스를 미리 알고 있어야 합니다.
 
 ![](https://blog.kakaocdn.net/dn/bsDJMP/btsnD6EcVah/qpmLMsSgVR5pyQZUedgJY1/img.png)
@@ -1547,7 +1532,6 @@ GameplayEffectContainer에는 효율적인 타겟팅을 위한 선택적 수단�
 
 [GameplayAbility](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/UGameplayAbility/index.html)(GA)는 엑터가 게임에서 할 수 있는 모든 액션 또는 스킬입니다. 예를 들어 전력 질주나 총을 쏘는 등 한 번에 두 개 이상의 GameplayAbility를 활성화할 수 있습니다. Blueprint 또는 C++로 만들 수 있습니다.
 
-  
 GameplayAbility의 예시입니다:
 
 - 점프
@@ -1564,12 +1548,12 @@ GameplayAbility로 구현해서는 안 되는 것들:
 - 기본적인 움직임 입력
 - UI와의 상호작용 - GameplayAbility를 사용하여 상점 아이템 구매
 
-**이는 규칙이 아니라 권장 사항일 뿐입니다.** 설계와 구현은 다를 수 있습니다. GameplayAbility에는 Attribute 변경량을 수정하거나 GameplayAbility의 기능을 변경할 수 있는 레벨이 기본 기능으로 제공됩니다.  
-  
-GameplayAbility는 Net Execution Policy에 따라 소유 클라이언트 또는 서버에서 실행되지만 시뮬레이션된 프록시에서는 실행되지 않습니다. Net Execution Policy은 GameplayAbility가 로컬에서 예측될지 여부를 결정합니다. 여기에는 선택적 비용 및 쿨타임 GameplayEffect에 대한 기본 동작이 포함됩니다. GameplayAbility는 이벤트 대기, 속성 변경 대기, 플레이어가 타겟을 선택할 때까지 기다리거나 루트 모션 소스로 캐릭터를 이동하는 등 시간이 지남에 따라 발생하는 동작에 AbilityTask를 사용합니다. 시뮬레이션된 클라이언트는 GameplayAbility를 실행하지 않습니다. 대신 서버가 어빌리티를 실행하면 시뮬레이션된 프록시에서 시각적으로 재생해야 하는 것(애니메이션 몽타주 등)은 전부 리플리케이트되거나 사운드나 파티클 같은 외형적인 것들은 AbilityTask 또는 GameplayCue를 통해 RPC 처리됩니다.  
-  
-모든 GameplayAbility는 게임플레이 로직으로 ActivateAbility() 함수를 오버라이드합니다. GameplayAbility가 완료되거나 취소될 때 실행되는 EndAbility()에 추가 로직을 추가할 수 있습니다.  
-  
+**이는 규칙이 아니라 권장 사항일 뿐입니다.** 설계와 구현은 다를 수 있습니다. GameplayAbility에는 Attribute 변경량을 수정하거나 GameplayAbility의 기능을 변경할 수 있는 레벨이 기본 기능으로 제공됩니다.
+
+GameplayAbility는 Net Execution Policy에 따라 소유 클라이언트 또는 서버에서 실행되지만 시뮬레이션된 프록시에서는 실행되지 않습니다. Net Execution Policy은 GameplayAbility가 로컬에서 예측될지 여부를 결정합니다. 여기에는 선택적 비용 및 쿨타임 GameplayEffect에 대한 기본 동작이 포함됩니다. GameplayAbility는 이벤트 대기, 속성 변경 대기, 플레이어가 타겟을 선택할 때까지 기다리거나 루트 모션(Root Motion) 소스로 캐릭터를 이동하는 등 시간이 지남에 따라 발생하는 동작에 AbilityTask를 사용합니다. 시뮬레이션된 클라이언트는 GameplayAbility를 실행하지 않습니다. 대신 서버가 어빌리티를 실행하면 시뮬레이션된 프록시에서 시각적으로 재생해야 하는 것(애니메이션 몽타주 등)은 전부 리플리케이트되거나 사운드나 파티클 같은 외형적인 것들은 AbilityTask 또는 GameplayCue를 통해 RPC 처리됩니다.
+
+모든 GameplayAbility는 게임플레이 로직으로 ActivateAbility() 함수를 오버라이드합니다. GameplayAbility가 완료되거나 취소될 때 실행되는 EndAbility()에 추가 로직을 추가할 수 있습니다.
+
 간단한 GameplayAbility의 순서도입니다:
 
 ![](https://blog.kakaocdn.net/dn/Vtn30/btsnF7bGqdT/8UVdQZY81wtXkQxnPeJKZk/img.png)
@@ -1605,12 +1589,12 @@ UAbilitySystemComponent::ServerSetInputPressed()
 
 #### 4.6.2 ASC에 입력 바인딩
 
-ASC를 사용하면 입력 액션을 직접 바인딩하고 해당 입력을 부여할 때 해당 입력을 GameplayAbilities에 할당할 수 있습니다. GameplayAbility에 할당된 입력 액션은 GameplayTag 요구 사항이 충족되면 해당 GameplayAbility를 눌렀을 때 자동으로 활성화됩니다. 할당된 입력 액션은 입력에 반응하는 기본 제공 AbilityTask를 사용하는 데 필요합니다.  
-  
-GameplayAbility를 활성화하기 위해 할당된 입력 동작 외에도 ASC는 일반 확인 및 취소 입력도 허용합니다. 이러한 특수 입력은 AbilityTask가 타겟 액터와 같은 것을 확인하거나 취소하는 데 사용됩니다.  
-  
-입력을 ASC에 바인딩하려면 먼저 입력 액션 이름을 바이트 단위로 변환하는 열거형을 만들어야 합니다. 이 열거형 이름은 프로젝트 설정에서 입력 액션에 사용된 이름과 정확히 일치해야 합니다. 표시 이름은 중요하지 않습니다.  
-  
+ASC를 사용하면 입력 액션을 직접 바인딩하고 해당 입력을 부여할 때 해당 입력을 GameplayAbilities에 할당할 수 있습니다. GameplayAbility에 할당된 입력 액션은 GameplayTag 요구 사항이 충족되면 해당 GameplayAbility를 눌렀을 때 자동으로 활성화됩니다. 할당된 입력 액션은 입력에 반응하는 기본 제공 AbilityTask를 사용하는 데 필요합니다.
+
+GameplayAbility를 활성화하기 위해 할당된 입력 동작 외에도 ASC는 일반 확인 및 취소 입력도 허용합니다. 이러한 특수 입력은 AbilityTask가 타겟 액터(Target Actor)와 같은 것을 확인하거나 취소하는 데 사용됩니다.
+
+입력을 ASC에 바인딩하려면 먼저 입력 액션 이름을 바이트 단위로 변환하는 열거형을 만들어야 합니다. 이 열거형 이름은 프로젝트 설정에서 입력 액션에 사용된 이름과 정확히 일치해야 합니다. 표시 이름은 중요하지 않습니다.
+
 샘플 프로젝트에서:
 
 cpp
@@ -1724,14 +1708,14 @@ void UGSAbilitySystemComponent::AbilityLocalInputPressed(int32 InputID)
 
 #### 4.6.3 어빌리티 부여
 
-ASC에 GameplayAbility를 부여하면 해당 GameplayAbility가 활성화 가능한 어빌리티 목록에 추가되어 GameplayTag 요구 사항을 충족하는 경우 마음대로 활성화할 수 있습니다. 서버에서 GameplayAbility를 부여하면 소유 클라이언트에 GameplayAbilitySpec을 자동으로 리플리케이트합니다. 다른 클라이언트/시뮬레이션된 프록시는 GameplayAbilitySpec을 받지 않습니다.  
-  
+ASC에 GameplayAbility를 부여하면 해당 GameplayAbility가 활성화 가능한 어빌리티 목록에 추가되어 GameplayTag 요구 사항을 충족하는 경우 마음대로 활성화할 수 있습니다. 서버에서 GameplayAbility를 부여하면 소유 클라이언트에 GameplayAbilitySpec을 자동으로 리플리케이트합니다. 다른 클라이언트/시뮬레이션된 프록시는 GameplayAbilitySpec을 받지 않습니다.
+
 샘플 프로젝트는 게임 시작 시 읽어들여 부여하는 Character 클래스에 `TArray<TSubclassOf<UGDGameplayAbility>>`를 저장합니다
 
 ```C++
 void AGDCharacterBase::AddCharacterAbilities()
 {
-    // Grant abilities, but only on the server	
+    // Grant abilities, but only on the server
     if (Role != ROLE_Authority || !AbilitySystemComponent.IsValid() || AbilitySystemComponent->bCharacterAbilitiesGiven)
     {
         return;
@@ -1798,11 +1782,11 @@ FGameplayAbilitySpecHandle GiveAbilityAndActivateOnce(const FGameplayAbilitySpec
 
 #### 4.6.4.1 패시브 어빌리티
 
-자동으로 활성화되고 지속적으로 실행되는 패시브 게임플레이 어빌리티를 구현하려면, 게임플레이 어빌리티가 부여되고 아바타 액터가 설정될 때 자동으로 호출되는 UGameplayAbility::OnAvatarSet()을 오버라이드하고 TryActivateAbility()를 호출하면 됩니다.  
-  
-GameplayAbility 가 부여될 때 활성화할지 여부를 지정하는 bool을 커스텀 UGameplayAbility 클래스에 추가하는 것이 좋습니다. 샘플 프로젝트에서는 패시브 방어구 스태킹 어빌리티에 대해 이렇게 합니다.  
-  
-패시브 게임플레이 어빌리티는 일반적으로 [Net Execution Policy](https://github.com/tranek/GASDocumentation#concepts-ga-net)이 서버 전용입니다.
+자동으로 활성화되고 지속적으로 실행되는 패시브 게임플레이 어빌리티를 구현하려면, 게임플레이 어빌리티가 부여되고 아바타 액터가 설정될 때 자동으로 호출되는 UGameplayAbility::OnAvatarSet()을 오버라이드하고 TryActivateAbility()를 호출하면 됩니다.
+
+GameplayAbility 가 부여될 때 활성화할지 여부를 지정하는 bool을 커스텀 UGameplayAbility 클래스에 추가하는 것이 좋습니다. 샘플 프로젝트에서는 패시브 방어구 스태킹 어빌리티에 대해 이렇게 합니다.
+
+패시브 게임플레이 어빌리티(Gameplay Ability)는 일반적으로 [Net Execution Policy](https://github.com/tranek/GASDocumentation#concepts-ga-net)이 서버 전용입니다.
 
 ```
 void UGDGameplayAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
@@ -1860,7 +1844,7 @@ GameplayAbility를 내부에서 취소하려면 CancelAbility()를 호출합니�
 
 ```C++
 /** 지정된 Ability CDO를 취소합니다. */
-void CancelAbility(UGameplayAbility* Ability);	
+void CancelAbility(UGameplayAbility* Ability);
 
 /** 전달된 Spec Handle로 표시된 Ability를 취소합니다. Handle이 재활성화된 Ability 목록에 없으면 아무 일도 일어나지 않습니다. */
 void CancelAbilityHandle(const FGameplayAbilitySpecHandle& AbilityHandle);
@@ -1884,7 +1868,6 @@ virtual void DestroyActiveState();
 UAbilitySystemComponent::GetActivatableAbilities()는 순회할 수 있는 `TArray<FGameplayAbilitySpec>`를 반환합니다.
 
 ASC는 또한 GameplayTagContainer를 매개변수로 받아 GameplayAbilitySpecs 목록을 직접 순회하는 대신 검색을 도와주는 다른 헬퍼 함수를 제공합니다. bOnlyAbilitiesThatSatisfyTagRequirements 파라미터는 GameplayTag 요구사항을 충족하고 지금 당장 활성화될 수 있는 GameplayAbilitySpec만 반환합니다. 예를 들어, 무기를 가진 기본 공격 능력과 맨손 기본 공격 Ability가 있을 경우, 무기가 장착되어 있는지에 따라 해당 GameplayTag 요구 사항을 설정하고 올바른 능력이 활성화됩니다. 이 함수에 대한 에픽 게임즈의 주석에서 더 많은 정보를 확인할 수 있습니다.
-
 
 ```C++
 UAbilitySystemComponent::GetActivatableGameplayAbilitySpecsByAllMatchingTags(const FGameplayTagContainer& GameplayTagContainer, TArray < struct FGameplayAbilitySpec* >& MatchingGameplayAbilities, bool bOnlyAbilitiesThatSatisfyTagRequirements = true)
@@ -1973,7 +1956,7 @@ Ability를 레벨 업하는 두 가지 일반적인 방법이 있습니다:
 
 ### 4.6.14 GameplayAbilitySet
 
-GameplayAbilitySet는 GameplayAbility를 부여하는 로직이 있는 캐릭터의 시작GameplayAbility의 입력 바인딩과 목록을 보관하기 위한 편의성 데이터 에셋 클래스입니다. 서브클래스에는 추가 로직이나 프로퍼티를 포함할 수도 있습니다. 파라곤에는 영웅마다 주어진 모든 GameplayAbility를 포함하는 GameplayAbilitySet이 있었습니다.  
+GameplayAbilitySet는 GameplayAbility를 부여하는 로직이 있는 캐릭터의 시작GameplayAbility의 입력 바인딩과 목록을 보관하기 위한 편의성 데이터 에셋 클래스입니다. 서브클래스에는 추가 로직이나 프로퍼티를 포함할 수도 있습니다. 파라곤에는 영웅마다 주어진 모든 GameplayAbility를 포함하는 GameplayAbilitySet이 있었습니다.
 이 클래스는 적어도 지금까지 살펴본 바에 따르면 불필요한 클래스입니다. 샘플 프로젝트는 GDCharacterBase와 그 서브클래스 내부에서 GameplayAbilitySet의 모든 기능을 처리합니다.
 
 GameplayAbilitySet는 UDataAsset 클래스의 편리한 서브클래스로, 캐릭터의 입력 바인딩과 시작 시 부여되는 GameplayAbility 목록을 저장하고, 이를 부여하는 로직을 포함합니다. 서브클래스는 추가 로직이나 프로퍼티를 포함할 수도 있습니다. Paragon에서는 영웅별 GameplayAbilitySet을 만들어 해당 영웅에게 부여되는 모든 GameplayAbility를 포함시켰습니다. 저는 현재까지 본 바로는 이 클래스가 필수적이라고 생각되지는 않습니다. 샘플 프로젝트에서는 GameplayAbilitySet의 모든 기능을 GDCharacterBase와 그 서브클래스 내부에서 처리하고 있습니다.
@@ -1986,14 +1969,14 @@ GameplayAbilitySet는 UDataAsset 클래스의 편리한 서브클래스로, 캐�
 2. ServerSetReplicatedTargetData() (선택 사항)
 3. ServerEndAbility()
 
-Gameplay Ability가 이 모든 작업을 한 프레임 내에서 원자적 그룹으로 수행하는 경우, 이 워크플로를 최적화하여 모든 두세 개의 RPC를 하나로 Batch(결합)할 수 있습니다. GAS에서는 이 RPC 최적화를 Ability Batching이라고 부릅니다.  
-대표적인 예로 히트스캔(instant hit) 총을 들 수 있습니다. 히트스캔 총은 활성화, 라인 트레이스, 타겟 데이터(TargetData)를 서버에 전송, Ability 종료를 한 프레임 내의 원자적 그룹으로 처리합니다. GASShooter 샘플 프로젝트는 히트스캔 총에 이 기술을 활용하는 방법을 보여줍니다.
+Gameplay Ability가 이 모든 작업을 한 프레임 내에서 원자적 그룹으로 수행하는 경우, 이 워크플로를 최적화하여 모든 두세 개의 RPC를 하나로 Batch(결합)할 수 있습니다. GAS에서는 이 RPC 최적화를 Ability Batching이라고 부릅니다.
+대표적인 예로 히트스캔(instant hit) 총을 들 수 있습니다. 히트스캔 총은 활성화, 라인 트레이스(Trace), 타겟 데이터(TargetData)를 서버에 전송, Ability 종료를 한 프레임 내의 원자적 그룹으로 처리합니다. GASShooter 샘플 프로젝트는 히트스캔 총에 이 기술을 활용하는 방법을 보여줍니다.
 
 반자동 총기는 CallServerTryActivateAbility(), ServerSetReplicatedTargetData() (총알 명중 데이터), ServerEndAbility()를 하나의 RPC로 배치하여 세 개의 RPC를 하나로 줄이는 최상의 시나리오입니다.
 
 자동/연발 총기는 첫 번째 총알의 CallServerTryActivateAbility()와 ServerSetReplicatedTargetData()를 하나의 RPC로 배칭합니다. 이후의 각 총알은 ServerSetReplicatedTargetData()가 별도의 RPC로 전송됩니다. 마지막으로, 총이 사격을 멈출 경우 ServerEndAbility()가 별도의 RPC로 전송됩니다. 이는 첫 번째 총알 발사 시에만 두 개의 RPC를 배칭해 하나로 줄이고 이후에는 더 이상 최적화할 수 없는 최악의 시나리오입니다. 이 시나리오는 Gameplay Event를 통해 Ability를 활성화하고 TargetData를 EventPayload에 포함하여 클라이언트에서 서버로 전송하는 방식으로도 구현할 수 있습니다. 그러나 이 방식의 단점은 TargetData를 Ability 외부에서 생성해야 한다는 점이며, 반면 Batching 접근법은 Ability 내부에서 TargetData를 생성합니다.
 
-Ability Batching은 기본적으로 ASC(Ability System Component)에서 비활성화되어 있습니다.  
+Ability Batching은 기본적으로 ASC(Ability System Component)에서 비활성화되어 있습니다.
 이를 활성화하려면, ShouldDoServerAbilityRPCBatch()를 재정의하여 true를 반환하도록 설정합니다.
 
 ```C++
@@ -2005,7 +1988,6 @@ virtual bool ShouldDoServerAbilityRPCBatch() const override { return true; }
 FScopedServerAbilityRPCBatcher는 배칭이 가능한 각 함수에 있는 특수 코드를 사용하여 RPC 호출을 가로채고, 해당 메시지를 Barch 구조체에 대신 패킹합니다. 그리고 FScopedServerAbilityRPCBatcher가 범위를 벗어나면, 자동으로 해당 Batch 구조체를 서버에 RPC로 전송합니다. 이 작업은 UAbilitySystemComponent::EndServerAbilityRPCBatch()에서 이루어집니다. 서버는 이 Batch RPC를 UAbilitySystemComponent::ServerAbilityRPCBatch_Internal(FServerAbilityRPCBatch& BatchInfo) 함수에서 수신합니다. BatchInfo 매개변수에는 Ability 종료해야 하는지 여부에 대한 flag, 활성화 시 입력 여부에 대한 flag, TargetData가 포함되어 있는 경우 TargetData가 포함됩니다. 해당 함수는 배칭이 올바르게 작동하는지 확인하기 위해 중단점을 설정하기 적합한 곳입니다. 또는, cvar AbilitySystem.ServerRPCBatching.Log 1을 사용하여 특수 Ability Batching 로그를 활성화할 수도 있습니다.
 
 이 메커니즘은 C++에서만 가능하며, FGameplayAbilitySpecHandle을 통해서만 Ability를 활성화할 수 있습니다.
-
 
 ```C++
 bool UGSAbilitySystemComponent::BatchRPCTryActivateAbility(FGameplayAbilitySpecHandle InAbilityHandle, bool EndAbilityImmediately)
@@ -2091,7 +2073,6 @@ AbilityTask는 생성자에서 bTickingTask = true;를 설정하고 virtual void
 ### 4.7.3 AbilityTask 사용
 
 C++(GDGA_FireGun.cpp)에서 AbilityTask를 생성하고 활성화하려면 다음과 같이 합니다:
-
 
 ```C++
 UGDAT_PlayMontageAndWaitForEvent* Task = UGDAT_PlayMontageAndWaitForEvent::PlayMontageAndWaitForEvent(this, NAME_None, MontageToPlay, FGameplayTagContainer(), 1.0f, NAME_None, false, 1.0f);
@@ -2243,11 +2224,10 @@ GameplayCue는 FGameplayCueParameters 구조체를 받아 해당 GameplayCue에 
 
 FGameplayCueParameters 구조체의 SourceObject 변수는 GameplayCue를 수동으로 트리거할 때 임의의 데이터를 GameplayCue로 전달하는 데 유용한 장소일 수 있습니다.
 
-> **💡Note**: Instigator와 같은 일부 변수는 이미 EffectContext에 존재할 수도 있습니다. EffectContext는 또한 GameplayCue를 월드에 어디에 스폰할지에 대한 FHitResult를 포함할 수 있습니다.   
+> **💡Note**: Instigator와 같은 일부 변수는 이미 EffectContext에 존재할 수도 있습니다. EffectContext는 또한 GameplayCue를 월드에 어디에 스폰할지에 대한 FHitResult를 포함할 수 있습니다. 
 > EffectContext 를 서브클래싱하는 것은 GameplayEffect에 의해 트리거되는 GameplayCue에 더 많은 데이터를 전달하는 좋은 방법일 수 있습니다.
 
 자세한 내용은 FGameplayCueParameters 구조체를 채우는 UAbilitySystemGlobals의 3가지 함수들을 참조해주세요. 해당 함수들은 가상 함수이므로, 이를 오버라이드하여 더 많은 정보를 자동으로 채울 수 있습니다.
-
 
 ```C++
 /** GameplayCue 파라미터 초기화 */
@@ -2260,7 +2240,6 @@ virtual void InitGameplayCueParameters(FGameplayCueParameters& CueParameters, co
 
 기본적으로 GameplayCueManager는 게임 디렉토리 전체를 스캔하여 GameplayCueNotify를 찾고, 게임 실행 시 이를  메모리에 로드합니다. 이 경로를 변경하려면 DefaultGame.ini에서 설정할 수 있습니다.
 
-
 ```C++
 [/Script/GameplayAbilities.AbilitySystemGlobals]
 GameplayCueNotifyPaths="/Game/GASDocumentation/Characters"
@@ -2268,7 +2247,7 @@ GameplayCueNotifyPaths="/Game/GASDocumentation/Characters"
 
 GameplayCueManager가 모든 GameplayCueNotify를 스캔하고 찾도록 할 수 있지만, 게임 시작 시 모든 것을 비동기적으로 로드하지 않도록 설정할 수 있습니다. 이렇게 하면 GameplayCueNotify와 그와 관련된 모든 사운드와 파티클이 레벨에서 사용되었는지와 관계없이 메모리에 로드되지 않습니다. Paragon과 같은 대형 게임에서는 이로 인해 수백 메가바이트의 불필요한 자산이 메모리에 로드되어 게임 시작 시 Hitching(버벅거림)이나 Freezing(게임 멈춤)을 초래할 수 있습니다.
 
-게임 시작 시 모든 GameplayCue를 비동기적으로 로드하는 대신, GameplayCue가 게임 내에서 트리거될 때만 비동기적으로 로드하도록 설정할 수 있습니다. 이 방법은 불필요한 메모리 사용을 줄이고 게임이 시작될 때 GameplayCue를 비동기적으로 로드할 때 발생할 수 있는 게임의 하드 프리징을 방지하는 데 도움이 됩니다. 그러나 특정 GameplayCue가 게임 중 처음 트리거될 때 약간의 지연이 발생할 수 있습니다. 이 지연은 SSD에서는 발생하지 않으며, HDD에서는 테스트되지 않았습니다. UE Editor를 사용할 경우, GameplayCue가 처음 로드될 때 파티클 시스템을 컴파일해야 할 수 있으므로 약간의 Hitching이나 Freezing이 발생할 수 있습니다. 그러나 빌드에서는 이미 파티클 시스템이 컴파일되었으므로 문제가 되지 않습니다.
+게임 시작 시 모든 GameplayCue를 비동기적으로 로드하는 대신, GameplayCue가 게임 내에서 트리거될 때만 비동기적으로 로드하도록 설정할 수 있습니다. 이 방법은 불필요한 메모리 사용을 줄이고 게임이 시작될 때 GameplayCue를 비동기적으로 로드할 때 발생할 수 있는 게임의 하드 프리징을 방지하는 데 도움이 됩니다. 그러나 특정 GameplayCue가 게임 중 처음 트리거될 때 약간의 지연이 발생할 수 있습니다. 이 지연은 SSD에서는 발생하지 않으며, HDD에서는 테스트되지 않았습니다. UE Editor를 사용할 경우, GameplayCue가 처음 로드될 때 파티클 시스템을 컴파일해야 할 수 있으므로 약간의 Hitching이나 Freezing이 발생할 수 있습니다. 그러나 빌드(Build)에서는 이미 파티클 시스템이 컴파일되었으므로 문제가 되지 않습니다.
 
 먼저 UGameplayCueManager를 서브클래싱하고, AbilitySystemGlobals 클래스가 우리의 UGameplayCueManager 서브클래스를 사용하도록 DefaultGame.ini에서 설정해야 합니다.
 
@@ -2332,10 +2311,8 @@ GameplayCue 시작 시 발생하는 GameplayCue의 모든 이펙트에 OnActiv
 
 GameplayCue는 일반적으로 비신뢰성을 가지므로, 직접적으로 게임 플레이에 영향을 미치는 요소에는 적합하지 않습니다.
 
-  
 **실행된 GameplayCue**: 비신뢰성 멀티캐스트(Unreliable Multicast)를 통해 적용되며 항상 신뢰성이 보장되지 않습니다.
 
-  
 GameplayEffect에서 적용된 GameplayCue입니다:
 
 - Autonomous Proxy는 OnActive, WhileActive, OnRemove 이벤트를 신뢰성 있게 수신합니다.  FActiveGameplayEffectsContainer::NetDeltaSerialize()는 OnActive와 WhileActive를 호출하기 위해 UAbilitySystemComponent::HandleDeferredGameplayCues()를 실행합니다. FActiveGameplayEffectsContainer::RemoveActiveGameplayEffectGrantedTagsAndModifiers()는 OnRemoved를 호출합니다.
@@ -2352,8 +2329,8 @@ GameplayCue에서 신뢰성이 필요한 경우, 해당 GameplayCue를 GameplayE
 
 [AbilitySystemGlobals](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/UAbilitySystemGlobals/index.html) 클래스는 GAS에 대한 전역 정보를 담고 있습니다. 대부분의 변수는 DefaultGame.ini에서 설정할 수 있습니다. 일반적으로 이 클래스와 상호작용할 필요는 없지만, 그 존재를 알고 있어야 합니다. [GameplayCueManager](https://github.com/tranek/GASDocumentation#concepts-gc-manager) 또는 [GameplayEffectContext](https://github.com/tranek/GASDocumentation#concepts-ge-context)와 같은 것을 서브클래싱해야 하는 경우, AbilitySystemGlobals를 통해 서브클래싱해야 합니다.
 
-AbilitySystemGlobals 클래스는 GAS에 대한 전역 정보를 보유합니다. 대부분의 변수는 DefaultGame.ini에서 설정할 수 있습니다. 일반적으로 이 클래스를 직접 다룰 필요는 없지만, 그 존재에 대해 알고 있어야 합니다. 예를 들어 GameplayCueManager나 GameplayEffectContext 같은 것을 서브클래싱하려면 AbilitySystemGlobals를 통해 이를 처리해야 합니다.  
-  
+AbilitySystemGlobals 클래스는 GAS에 대한 전역 정보를 보유합니다. 대부분의 변수는 DefaultGame.ini에서 설정할 수 있습니다. 일반적으로 이 클래스를 직접 다룰 필요는 없지만, 그 존재에 대해 알고 있어야 합니다. 예를 들어 GameplayCueManager나 GameplayEffectContext 같은 것을 서브클래싱하려면 AbilitySystemGlobals를 통해 이를 처리해야 합니다.
+
 AbilitySystemGlobals를 서브클래싱하려면 DefaultGame.ini에서 클래스 이름을 설정하세요:
 
 ```C++
@@ -2401,9 +2378,9 @@ GameplayEffect 제거를 예측할 수 없기 때문에 GameplayAbility의 Coold
 
 피해 예측에 대해 저는 개인적으로 추천하지 않습니다. 이는 많은 사람들이 GAS를 처음 시작할 때 가장 먼저 시도하는 부분입니다. 특히 죽음 예측은 추천하지 않습니다. 피해를 예측할 수 있지만, 이를 잘못 예측하는 것은 어려운 문제입니다. 예를 들어, 적의 피해를 예측하는 데 실패하면, 플레이어는 적의 체력이 갑자기 회복된 것을 볼 수 있습니다. 죽음 예측을 시도하면 특히 불편하고 혼란스러울 수 있습니다. 예를 들어, 캐릭터가 죽었다고 예측하여 Ragdoll 상태가 시작되었지만, 서버가 이를 수정하면 Ragdoll이 멈추고 계속해서 플레이어를 공격할 수 있습니다.
 
-> **💡Note**: 속성을 변경하는 인스턴트 GameplayEffect(예: Cost GE)는 본인에 대해 원활하게 예측할 수 있으며, 다른 캐릭터에 대한 인스턴트 속성 변경을 예측하면 해당 캐릭터의 속성에 짧은 이상 현상 또는 '깜박임'이 표시됩니다. 예측된 인스턴트 GameplayEffect는 실제로 무한 GameplayEffect와 같이 취급되므로 예측이 잘못되었을 경우 롤백할 수 있습니다. 서버의 GameplayEffect가 적용될 때, 동일한 GameplayEffect가 두 개 존재하여 모디파이어가 두 번 적용되거나 잠시 동안 전혀 적용되지 않을 수 있습니다. 결국에는 저절로 수정되지만 때때로 플레이어가 이 문제를 알아차릴 수 있습니다.  
->   
-> Instant GameplayEffect(예: Cost GE)는 자신에게 Attribute를 예측하는 데 원활하게 예측할 수 있습니다. 그러나 다른 캐릭터에 대한 Instant Attribute 변경을 예측하면, 그들의 Attribute에 잠시 간격이 생기거나 깜빡임(Blip)이 나타날 수 있습니다. 예측된 Instant GameplayEffect는 Infinite GameplayEffect처럼 처리되어 잘못 예측되었을 경우 롤백할 수 있습니다. 서버의 GameplayEffect가 적용되면 두 개의 동일한 GameplayEffect가 존재하게 되어 잠시 동안 Modifier가 두 번 적용되거나 적용되지 않을 수 있습니다. 결국 수정되지만, 이 깜빡임은 플레이어에게 눈에 띄는 경우가 있을 수 있습니다.  
+> **💡Note**: 속성을 변경하는 인스턴트 GameplayEffect(예: Cost GE)는 본인에 대해 원활하게 예측할 수 있으며, 다른 캐릭터에 대한 인스턴트 속성 변경을 예측하면 해당 캐릭터의 속성에 짧은 이상 현상 또는 '깜박임'이 표시됩니다. 예측된 인스턴트 GameplayEffect는 실제로 무한 GameplayEffect와 같이 취급되므로 예측이 잘못되었을 경우 롤백할 수 있습니다. 서버의 GameplayEffect가 적용될 때, 동일한 GameplayEffect가 두 개 존재하여 모디파이어가 두 번 적용되거나 잠시 동안 전혀 적용되지 않을 수 있습니다. 결국에는 저절로 수정되지만 때때로 플레이어가 이 문제를 알아차릴 수 있습니다.
+>
+> Instant GameplayEffect(예: Cost GE)는 자신에게 Attribute를 예측하는 데 원활하게 예측할 수 있습니다. 그러나 다른 캐릭터에 대한 Instant Attribute 변경을 예측하면, 그들의 Attribute에 잠시 간격이 생기거나 깜빡임(Blip)이 나타날 수 있습니다. 예측된 Instant GameplayEffect는 Infinite GameplayEffect처럼 처리되어 잘못 예측되었을 경우 롤백할 수 있습니다. 서버의 GameplayEffect가 적용되면 두 개의 동일한 GameplayEffect가 존재하게 되어 잠시 동안 Modifier가 두 번 적용되거나 적용되지 않을 수 있습니다. 결국 수정되지만, 이 깜빡임은 플레이어에게 눈에 띄는 경우가 있을 수 있습니다.
 
 GAS의 예측 구현이 해결하려는 문제들:
 
@@ -2541,9 +2518,9 @@ struct TStructOpsTypeTraits<FGameplayAbilityTargetData_CustomData> : public TStr
 UFUNCTION(BlueprintPure)
 FGameplayAbilityTargetDataHandle MakeTargetDataFromCustomName(const FName CustomName)
 {
-    // 우리의 Target Data 타입을 생성합니다.  
-    // 핸들은 소멸될 때 데이터를 자동으로 정리하고 삭제합니다.  
-    // 만약 이 데이터를 핸들에 추가하지 않는다면 메모리 관리와 메모리 누수 문제가 발생할 수 있으니,  
+    // 우리의 Target Data 타입을 생성합니다.
+    // 핸들은 소멸될 때 데이터를 자동으로 정리하고 삭제합니다.
+    // 만약 이 데이터를 핸들에 추가하지 않는다면 메모리 관리와 메모리 누수 문제가 발생할 수 있으니,
     // 안전하게 프레임 내 어느 시점에라도 항상 핸들에 추가하는 것이 좋습니다!
     FGameplayAbilityTargetData_CustomData* MyCustomData = new FGameplayAbilityTargetData_CustomData();
     // 구조체의 정보를 설정하여 입력된 이름과 우리가 원하는 다른 변경 사항을 적용합니다.
@@ -2560,7 +2537,7 @@ FGameplayAbilityTargetDataHandle MakeTargetDataFromCustomName(const FName Custom
 
 값을 가져오기 위해서는 타입 안전성 검사가 필요합니다. 왜냐하면 핸들의 Target Data에서 값을 가져오는 유일한 방법은 제네릭 C/C++ 캐스팅을 사용하는 것이며, 이는 타입 안전하지 않아서 객체 슬라이싱 및 충돌을 일으킬 수 있기 때문입니다. 타입 검사를 하는 방법에는 여러 가지가 있지만, 일반적인 두 가지 방법은 다음과 같습니다:
 
-- GameplayTag: 특정 코드 아키텍처의 기능이 발생할 때마다 기본 부모 타입으로 캐스팅하여 게임플레이 태그를 얻고, 이를 비교하여 상속된 클래스를 캐스팅할 수 있는 서브클래스 계층을 사용할 수 있습니다.
+- GameplayTag: 특정 코드 아키텍처의 기능이 발생할 때마다 기본 부모 타입으로 캐스팅하여 게임플레이 태그(Gameplay Tag)를 얻고, 이를 비교하여 상속된 클래스를 캐스팅할 수 있는 서브클래스 계층을 사용할 수 있습니다.
 - 스크립트 구조체 & Static 구조체:대신 직접 클래스 비교를 할 수 있으며(이는 많은 IF 문을 사용하거나 템플릿 함수를 만들 수 있습니다), 아래는 이를 수행하는 예시입니다. 기본적으로 FGameplayAbilityTargetData에서 스크립트 구조체를 가져올 수 있으며(이것이 USTRUCT이고 모든 상속된 클래스가 GetScriptStruct에서 구조체 타입을 지정해야 하는 장점입니다), 원하는 타입인지 비교할 수 있습니다. 
 
 아래는 타입 검사를 위해 이러한 함수를 사용하는 예시입니다:
@@ -2569,10 +2546,10 @@ FGameplayAbilityTargetDataHandle MakeTargetDataFromCustomName(const FName Custom
 UFUNCTION(BlueprintPure)
 FName GetCoolNameFromTargetData(const FGameplayAbilityTargetDataHandle& Handle, const int Index)
 {
-    // NOTE, there is two versions of this '::Get(int32 Index)' function; 
-    // 1) const version that returns 'const FGameplayAbilityTargetData*', good for reading target data values 
+    // NOTE, there is two versions of this '::Get(int32 Index)' function;
+    // 1) const version that returns 'const FGameplayAbilityTargetData*', good for reading target data values
     // 2) non-const version that returns 'FGameplayAbilityTargetData*', good for modifying target data values
-    FGameplayAbilityTargetData* Data = Handle.Get(Index); // This will valid check the index for you 
+    FGameplayAbilityTargetData* Data = Handle.Get(Index); // This will valid check the index for you
 
     // Valid check we have something to use, null data means nothing to cast for
     if (Data == nullptr)
@@ -2593,11 +2570,11 @@ FName GetCoolNameFromTargetData(const FGameplayAbilityTargetDataHandle& Handle, 
 
 ### 4.11.2 Target Actor
 
-GameplayAbility는 [TargetActor](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor/index.html)를 WaitTargetData AbilityTask와 함께 스폰하여 월드의 타겟 정보를 시각화 및 캡처합니다. TargetActor는 선택적으로 [GameplayAbilityWorldReticle](https://github.com/tranek/GASDocumentation#concepts-targeting-reticles)를 사용하여 현재 타겟을 표시할 수 있습니다. 확인되면 타깃 정보는 [TargetData](https://github.com/tranek/GASDocumentation#concepts-targeting-data)로 반환되어 GameplayEffect에 전달할 수 있습니다.  
-  
-TargetActor는 AActor를 기반으로 하므로 스태틱 메시나 데칼 등 타깃팅하는 위치와 방법을 나타내는 모든 종류의 보이는 컴포넌트를 가질 수 있습니다. 스태틱 메시는 캐릭터가 만들 오브젝트의 배치를 시각화하는 데 사용할 수 있습니다. 데칼은 지면에 효과 영역을 표시하는 데 사용할 수 있습니다. 샘플 프로젝트에서는 지면에 데칼이 있는 [AGameplayAbilityTargetActor_GroundTrace](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor_Grou-/index.html)를 사용하여 메테오 어빌리티의 피해 영역을 나타냅니다. 또한 아무것도 표시하지 않아도 됩니다. 예를 들어 GASShooter에서 사용되는 것처럼 목표물에 즉시 선을 추적하는 히트스캔 총에 아무 것도 표시하지 않는 것이 좋습니다.  
-  
-기본 트레이스 또는 콜리전 오버랩을 사용하여 타깃 정보를 캡처하고 그 결과를 TargetActor 구현에 따라 FHitResults 또는 AActor 배열로 타깃 데이터로 변환합니다. WaitTargetData AbilityTask는 TEnumAsByte<EGameplayTargetingConfirmation::Type> ConfirmationType 파라미터를 통해 타깃이 확인되는 시기를 결정합니다. TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant 를 사용하지 않는 경우, 타깃 액터는 일반적으로 Tick() 에서 트레이스/오버랩을 수행한 다음 구현에 따라 그 위치를 FHitResult 에 업데이트합니다. Tick() 에서 트레이스/오버랩을 수행하지만, 리플리케이트되지 않고 일반적으로 한 번에 하나 이상의 (더 많은) 타깃 액터를 실행하지 않기 때문에 일반적으로 나쁘지 않습니다. 다만 Tick() 를 사용하며, 일부 복잡한 타깃 액터는 GASShooter 의 로켓 발사기의 보조 어빌리티처럼 많은 작업을 수행할 수 있다는 점만 유의하세요. Tick()의 트레이싱은 클라이언트에 매우 반응이 좋지만, 퍼포먼스 타격이 너무 크면 타깃 액터의 틱 속도를 낮추는 것을 고려할 수 있습니다. TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant 의 경우, 타깃 액터는 즉시 스폰되어 타깃 데이터를 생성하고 소멸합니다. Tick() 은 호출되지 않습니다.
+GameplayAbility는 [TargetActor](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor/index.html)를 WaitTargetData AbilityTask와 함께 스폰하여 월드의 타겟 정보를 시각화 및 캡처합니다. TargetActor는 선택적으로 [GameplayAbilityWorldReticle](https://github.com/tranek/GASDocumentation#concepts-targeting-reticles)를 사용하여 현재 타겟을 표시할 수 있습니다. 확인되면 타깃 정보는 [TargetData](https://github.com/tranek/GASDocumentation#concepts-targeting-data)로 반환되어 GameplayEffect에 전달할 수 있습니다.
+
+TargetActor는 AActor를 기반으로 하므로 스태틱 메시나 데칼 등 타깃팅하는 위치와 방법을 나타내는 모든 종류의 보이는 컴포넌트를 가질 수 있습니다. 스태틱 메시는 캐릭터가 만들 오브젝트의 배치를 시각화하는 데 사용할 수 있습니다. 데칼은 지면에 효과 영역을 표시하는 데 사용할 수 있습니다. 샘플 프로젝트에서는 지면에 데칼이 있는 [AGameplayAbilityTargetActor_GroundTrace](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor_Grou-/index.html)를 사용하여 메테오 어빌리티의 피해 영역을 나타냅니다. 또한 아무것도 표시하지 않아도 됩니다. 예를 들어 GASShooter에서 사용되는 것처럼 목표물에 즉시 선을 추적하는 히트스캔 총에 아무 것도 표시하지 않는 것이 좋습니다.
+
+기본 트레이스 또는 콜리전 오버랩(Overlap)을 사용하여 타깃 정보를 캡처하고 그 결과를 TargetActor 구현에 따라 FHitResults 또는 AActor 배열로 타깃 데이터로 변환합니다. WaitTargetData AbilityTask는 TEnumAsByte<EGameplayTargetingConfirmation::Type> ConfirmationType 파라미터를 통해 타깃이 확인되는 시기를 결정합니다. TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant 를 사용하지 않는 경우, 타깃 액터는 일반적으로 Tick() 에서 트레이스/오버랩을 수행한 다음 구현에 따라 그 위치를 FHitResult 에 업데이트합니다. Tick() 에서 트레이스/오버랩을 수행하지만, 리플리케이트되지 않고 일반적으로 한 번에 하나 이상의 (더 많은) 타깃 액터를 실행하지 않기 때문에 일반적으로 나쁘지 않습니다. 다만 Tick() 를 사용하며, 일부 복잡한 타깃 액터는 GASShooter 의 로켓 발사기의 보조 어빌리티처럼 많은 작업을 수행할 수 있다는 점만 유의하세요. Tick()의 트레이싱은 클라이언트에 매우 반응이 좋지만, 퍼포먼스 타격이 너무 크면 타깃 액터의 틱 속도를 낮추는 것을 고려할 수 있습니다. TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant 의 경우, 타깃 액터는 즉시 스폰되어 타깃 데이터를 생성하고 소멸합니다. Tick() 은 호출되지 않습니다.
 
 |   |   |
 |---|---|
@@ -2605,14 +2582,14 @@ TargetActor는 AActor를 기반으로 하므로 스태틱 메시나 데칼 등 �
 |Instant|타겟팅은 '실행' 시점을 결정하는 특별한 로직이나 사용자 입력 없이 즉시 이루어집니다.|
 |UserConfirmed|타깃팅은 사용자가 또는 UAbilitySystemComponent::TargetConfirm()을 호출하여 타깃팅을 확인하면 발생합니다. 타깃 액터는 바인딩된 취소 입력에 응답하거나 UAbilitySystemComponent::TargetCancel()을 호출하여 타깃팅을 취소할 수도 있습니다.|
 |Custom|GameplayTargeting Ability는 UGameplayAbility::ConfirmTaskByInstanceName() 을 호출하여 타깃팅 데이터가 언제 준비되었는지 결정하는 역할을 합니다. 타깃 액터는 또한 UGameplayAbility::CancelTaskByInstanceName() 에 응답하여 타깃팅을 취소합니다.|
-|CustomMulti|GameplayTargeting Ability는 UGameplayAbility::ConfirmTaskByInstanceName() 을 호출하여 타깃팅 데이터가 언제 준비되었는지 결정하는 역할을 합니다. 타깃 액터는 또한 UGameplayAbility::CancelTaskByInstanceName() 에 응답하여 타깃팅을 취소합니다. 데이터 생성 시 어빌리티 태스크를 종료해서는 안 됩니다.|
+|CustomMulti|GameplayTargeting Ability는 UGameplayAbility::ConfirmTaskByInstanceName() 을 호출하여 타깃팅 데이터가 언제 준비되었는지 결정하는 역할을 합니다. 타깃 액터는 또한 UGameplayAbility::CancelTaskByInstanceName() 에 응답하여 타깃팅을 취소합니다. 데이터 생성 시 어빌리티 태스크(Ability Task)를 종료해서는 안 됩니다.|
 
-모든 타깃 액터가 모든 EGameplayTargetingConfirmation::Type 을 지원하지는 않습니다. 예를 들어, AGameplayAabilityTargetActor_GroundTrace는 즉시 확인을 지원하지 않습니다.  
-  
-WaitTargetData AbilityTask는 AGameplayAbilityTargetActor 클래스를 파라미터로 받아 AbilityTask가 활성화될 때마다 인스턴스를 스폰하고, AbilityTask가 종료되면 타깃 액터를 소멸시킵니다. WaitTargetDataUsingActor AbilityTask는 이미 스폰된 타깃 액터를 받지만, AbilityTask가 종료되면 여전히 소멸시킵니다. 이 두 AbilityTask는 모두 스폰되거나 사용할 때마다 새로 스폰된 타겟 액터가 필요하다는 점에서 비효율적입니다. 프로토타이핑에는 좋지만, 프로덕션에서는 자동 소총의 경우처럼 타깃 데이터를 지속적으로 생성하는 경우가 있다면 최적화를 고려해 볼 수 있습니다. GASShooter에는 커스텀 서브클래스인 [AGameplayAbilityTargetActor](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/GSGATA_Trace.h)와 새로운 [WaitTargetDataWithReusableActor](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/AbilityTasks/GSAT_WaitTargetDataUsingActor.h)가 있습니다. AbilityTask를 처음부터 새로 작성하여 타겟 액터를 파괴하지 않고 재사용할 수 있습니다.  
-  
-Target Actor는 기본적으로 리플리케이트되지 않지만, 게임에서 로컬 플레이어가 타겟팅하는 위치를 다른 플레이어에게 보여주기 위해 필요하다면 리플리케이트되도록 만들 수 있습니다. 여기에는 WaitTargetData AbilityTask 의 RPC 를 통해 서버와 통신하는 기본 기능이 포함되어 있습니다. 타겟 액터의 ShouldProduceTargetDataOnServer 프로퍼티가 false로 설정되어 있으면, 클라이언트는 UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()의 CallServerSetReplicatedTargetData() 를 통해 확인 시 타겟 데이터를 서버에 RPC 합니다. ShouldProduceTargetDataOnServer 가 참이면 클라이언트는 일반 확인 이벤트인 EAbilityGenericReplicatedEvent::GenericConfirm, RPC 를 UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()에서 서버로 전송하고 서버는 RPC 를 수신하면 추적 또는 오버랩 검사를 수행하여 서버에서 데이터를 생성합니다. 클라이언트가 타깃팅을 취소하면 일반 취소 이벤트인 EAbilityGenericReplicatedEvent::GenericCancel, RPC를 UAbilityTask_WaitTargetData::OnTargetDataCancelledCallback에서 서버로 전송합니다. 보시다시피 타겟 액터와 WaitTargetData AbilityTask 모두에 많은 델리게이트가 있습니다. 타깃 액터는 입력에 반응하여 델리게이트 준비, 확인 또는 취소를 위한 타깃 데이터를 생성 및 브로드캐스트합니다. WaitTargetData는 타겟 액터의 타깃 데이터 준비, 확인, 취소 델리게이트를 수신하고 해당 정보를 다시 GameplayAbility와 서버에 전달합니다. 서버에 타깃데이터를 전송하는 경우, 서버에서 유효성 검사를 수행하여 타깃데이터가 타당한지 확인하여 부정행위를 방지할 수 있습니다. 타깃데이터를 서버에서 직접 생성하면 이 문제를 완전히 피할 수 있지만, 소유 클라이언트가 잘못된 예측을 할 가능성이 있습니다.  
-  
+모든 타깃 액터가 모든 EGameplayTargetingConfirmation::Type 을 지원하지는 않습니다. 예를 들어, AGameplayAabilityTargetActor_GroundTrace는 즉시 확인을 지원하지 않습니다.
+
+WaitTargetData AbilityTask는 AGameplayAbilityTargetActor 클래스를 파라미터로 받아 AbilityTask가 활성화될 때마다 인스턴스를 스폰하고, AbilityTask가 종료되면 타깃 액터를 소멸시킵니다. WaitTargetDataUsingActor AbilityTask는 이미 스폰된 타깃 액터를 받지만, AbilityTask가 종료되면 여전히 소멸시킵니다. 이 두 AbilityTask는 모두 스폰되거나 사용할 때마다 새로 스폰된 타겟 액터가 필요하다는 점에서 비효율적입니다. 프로토타이핑에는 좋지만, 프로덕션에서는 자동 소총의 경우처럼 타깃 데이터를 지속적으로 생성하는 경우가 있다면 최적화를 고려해 볼 수 있습니다. GASShooter에는 커스텀 서브클래스인 [AGameplayAbilityTargetActor](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/GSGATA_Trace.h)와 새로운 [WaitTargetDataWithReusableActor](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/AbilityTasks/GSAT_WaitTargetDataUsingActor.h)가 있습니다. AbilityTask를 처음부터 새로 작성하여 타겟 액터를 파괴하지 않고 재사용할 수 있습니다.
+
+Target Actor는 기본적으로 리플리케이트되지 않지만, 게임에서 로컬 플레이어가 타겟팅하는 위치를 다른 플레이어에게 보여주기 위해 필요하다면 리플리케이트되도록 만들 수 있습니다. 여기에는 WaitTargetData AbilityTask 의 RPC 를 통해 서버와 통신하는 기본 기능이 포함되어 있습니다. 타겟 액터의 ShouldProduceTargetDataOnServer 프로퍼티가 false로 설정되어 있으면, 클라이언트는 UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()의 CallServerSetReplicatedTargetData() 를 통해 확인 시 타겟 데이터를 서버에 RPC 합니다. ShouldProduceTargetDataOnServer 가 참이면 클라이언트는 일반 확인 이벤트인 EAbilityGenericReplicatedEvent::GenericConfirm, RPC 를 UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()에서 서버로 전송하고 서버는 RPC 를 수신하면 추적 또는 오버랩 검사를 수행하여 서버에서 데이터를 생성합니다. 클라이언트가 타깃팅을 취소하면 일반 취소 이벤트인 EAbilityGenericReplicatedEvent::GenericCancel, RPC를 UAbilityTask_WaitTargetData::OnTargetDataCancelledCallback에서 서버로 전송합니다. 보시다시피 타겟 액터와 WaitTargetData AbilityTask 모두에 많은 델리게이트가 있습니다. 타깃 액터는 입력에 반응하여 델리게이트 준비, 확인 또는 취소를 위한 타깃 데이터를 생성 및 브로드캐스트합니다. WaitTargetData는 타겟 액터의 타깃 데이터 준비, 확인, 취소 델리게이트를 수신하고 해당 정보를 다시 GameplayAbility와 서버에 전달합니다. 서버에 타깃데이터를 전송하는 경우, 서버에서 유효성 검사를 수행하여 타깃데이터가 타당한지 확인하여 부정행위를 방지할 수 있습니다. 타깃데이터를 서버에서 직접 생성하면 이 문제를 완전히 피할 수 있지만, 소유 클라이언트가 잘못된 예측을 할 가능성이 있습니다.
+
 사용하는 AGameplayAbilityTargetActor의 특정 서브클래스에 따라, WaitTargetData AbilityTask 노드에 노출되는 ExposeOnSpawn 파라미터가 달라집니다. 몇 가지 일반적인 파라미터는 다음과 같습니다:
 
 |   |   |
@@ -2657,14 +2634,13 @@ FGameplayTargetDataFilterHandle UGDTargetDataFilterBlueprintLibrary::MakeGDNameF
 
 ### 4.11.4 Gameplay Ability World Reticle
 
-[AGameplayAbilityWorldReticle](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityWorldReticle/index.html)(레티클)은 즉시 확인되지 않은 [TargetActor](https://github.com/tranek/GASDocumentation#concepts-targeting-actors)로 타겟팅할 때 타겟팅하는 대상을 시각화합니다. 타깃 액터는 모든 레티클의 생성 및 소멸 수명을 담당합니다. 레티클은 AActor이므로 모든 종류의 비주얼 컴포넌트를 사용하여 표현할 수 있습니다. GASShooter에서 볼 수 있는 일반적인 구현은 위젯 컴포넌트를 사용하여 화면 공간에 (항상 플레이어의 카메라를 향하도록) UMG 위젯을 표시하는 것입니다. 레티클은 어느 AActor 에 있는지 모르지만, 커스텀 타깃 액터에서 그 함수성을 서브클래싱할 수 있습니다. 타깃 액터는 일반적으로 매 Tick() 때마다 레티클의 위치를 타깃의 위치로 업데이트합니다.  
-  
+[AGameplayAbilityWorldReticle](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityWorldReticle/index.html)(레티클)은 즉시 확인되지 않은 [TargetActor](https://github.com/tranek/GASDocumentation#concepts-targeting-actors)로 타겟팅할 때 타겟팅하는 대상을 시각화합니다. 타깃 액터는 모든 레티클의 생성 및 소멸 수명을 담당합니다. 레티클은 AActor이므로 모든 종류의 비주얼 컴포넌트를 사용하여 표현할 수 있습니다. GASShooter에서 볼 수 있는 일반적인 구현은 위젯 컴포넌트를 사용하여 화면 공간에 (항상 플레이어의 카메라를 향하도록) UMG 위젯을 표시하는 것입니다. 레티클은 어느 AActor 에 있는지 모르지만, 커스텀 타깃 액터에서 그 함수성을 서브클래싱할 수 있습니다. 타깃 액터는 일반적으로 매 Tick() 때마다 레티클의 위치를 타깃의 위치로 업데이트합니다.
+
 GASShooter는 레티클을 사용하여 로켓 발사기의 보조 능력인 호밍 로켓의 고정된 타깃을 표시합니다. 적의 빨간색 표시기는 레티클입니다. 비슷한 흰색 이미지는 로켓 발사기의 십자선입니다.
 
 ![](https://blog.kakaocdn.net/dn/dEzO0H/btsn7Ktp5po/Q31dFqkkSiIch2BhnZ7EzK/img.png)
 
 레티클에는 디자이너를 위한 (블루프린트에서 개발하도록 되어 있는) 블루프린트 구현가능 이벤트가 몇 개 포함되어 있습니다:
-
 
 ```C++
 /** Called whenever bIsTargetValid changes value. */
@@ -2685,41 +2661,40 @@ UFUNCTION(BlueprintImplementableEvent, Category = Reticle)
 void SetReticleMaterialParamVector(FName ParamName, FVector value);
 ```
 
-  
-레티클은 타깃 액터에서 제공하는 [FWorldReticleParameter](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FWorldReticleParameters/index.html)를 선택적으로 사용하여 구성할 수 있습니다. 기본 구조체는 FVector AOEScale 변수 하나만 제공합니다. 기술적으로 이 구조체를 서브클래싱할 수는 있지만, TargetActor는 기본 구조체만 받습니다. 기본 타겟 액터로 서브클래싱할 수 없도록 하는 것은 다소 근시안적인 것 같습니다. 하지만 커스텀 타겟 액터를 직접 만드는 경우, 커스텀 레티클 파라미터 구조체를 제공한 다음 스폰할 때 AGameplayAbilityWorldReticles의 서브클래스에 수동으로 전달할 수 있습니다.  
-  
-레티클은 기본적으로 리플리케이트되지 않지만, 로컬 플레이어가 타겟팅하는 다른 플레이어를 표시하는 것이 게임에 적합하다면 리플리케이트되도록 할 수 있습니다.  
-  
+레티클은 타깃 액터에서 제공하는 [FWorldReticleParameter](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FWorldReticleParameters/index.html)를 선택적으로 사용하여 구성할 수 있습니다. 기본 구조체는 FVector AOEScale 변수 하나만 제공합니다. 기술적으로 이 구조체를 서브클래싱할 수는 있지만, TargetActor는 기본 구조체만 받습니다. 기본 타겟 액터로 서브클래싱할 수 없도록 하는 것은 다소 근시안적인 것 같습니다. 하지만 커스텀 타겟 액터를 직접 만드는 경우, 커스텀 레티클 파라미터 구조체를 제공한 다음 스폰할 때 AGameplayAbilityWorldReticles의 서브클래스에 수동으로 전달할 수 있습니다.
+
+레티클은 기본적으로 리플리케이트되지 않지만, 로컬 플레이어가 타겟팅하는 다른 플레이어를 표시하는 것이 게임에 적합하다면 리플리케이트되도록 할 수 있습니다.
+
 레티클은 현재 유효한 타겟에 기본 타깃액터가 있는 경우에만 표시됩니다. 예를 들어 타겟을 추적하는 데 AGameplayAbilityTargetActor_SingleLineTrace를 사용하는 경우, 레티클은 적이 추적 경로에 바로 있을 때만 나타납니다. 한눈을 팔면 적은 더 이상 유효한 타깃이 아니며 레티클이 사라집니다. 레티클이 마지막 유효한 타겟에 계속 표시되도록 하려면, 타겟 액터를 커스터마이징하여 마지막 유효한 타깃을 기억하고 레티클을 계속 표시하도록 하면 됩니다. 이를 퍼시스턴트 타겟이라고 부르는 이유는 타겟 액터가 확인 또는 취소를 받거나, 타겟 액터가 추적/중첩에서 새로운 유효한 타깃을 찾거나, 타겟이 더 이상 유효하지 않게(소멸) 될 때까지 지속되기 때문입니다. GASShooter는 로켓 발사기의 보조 능력인 호밍 로켓 조준에 퍼시스턴트 타겟을 사용합니다.
 
 ### 4.11.5 GameplayEffect Containers Targeting
 
 GameplayEffectContainer는 TargetData를 생성하는 효율적인 방법을 옵션으로 제공합니다. 이 타겟팅은 EffectContainer가 클라이언트와 서버에서 적용될 때 즉시 발생합니다. 이는 TargetActor보다 효율적이며, 타겟팅 객체의 CDO에서 실행되므로(액터를 생성하거나 파괴하지 않음) 성능이 뛰어납니다. 그러나 플레이어 입력이 없고, 확인 없이 즉시 발생하며, 취소할 수 없고, 클라이언트에서 서버로 데이터를 전송할 수 없습니다(두 곳에서 데이터가 생성). 이 방식은 인스턴트 트레이스와 충돌 오버랩에 잘 작동합니다. 에픽 게임즈의 Action RPG 샘플 프로젝트는 두 가지 예시 타겟팅 방법을 GameplayEffectContainer와 함께 제공합니다. 하나는 Ability 소유자를 타겟으로 하고, 다른 하나는 이벤트에서 TargetData를 가져오는 방식입니다. 또한, Blueprint에서 플레이어로부터 일정 오프셋(자식 Blueprint 클래스에서 설정)을 두고 인스턴트 구체 트레이스를 수행하는 예시도 구현되어 있습니다. URPGTargetType을 C++ 또는 Blueprint에서 서브클래스하여 자신만의 타겟팅 유형을 만들 수 있습니다.
 
-# 5. 일반적으로 구현되는 Ability와 Effect
+## 5. 일반적으로 구현되는 Ability와 Effect
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## 5.1 스턴
 
 일반적으로 스턴을 사용하면 캐릭터의 활성화된 모든 GameplayAbility를 취소하고, 새로운 GameplayAbility가 활성화되지 않도록 하며, 스턴이 지속되는 동안 움직이지 못하도록 합니다. 샘플 프로젝트의 메테오 GameplayAbility는 적중된 대상에 스턴을 적용합니다. 대상의 활성화된 게임플레이 어빌리티를 취소하려면, 스턴 GameplayTag가 추가될 때 AbilitySystemComponent->CancelAbilities()를 호출합니다.
 
-  
 스턴한 상태에서 새로운 GameplayAbility가 활성화되는 것을 방지하기 위해, GameplayAbility는 활성화 차단 태그인 GameplayTagContainer에 스턴 GameplayTag를 지정합니다. 기절 상태에서 움직이지 않도록 하기 위해 소유자가 기절 GameplayTag를 가지고 있을 때 0을 반환하도록 CharacterMovementComponent의 GetMaxSpeed()를 오버라이드합니다.
 
 ## 5.2  스프린트(질주)
 
-샘플 프로젝트는 왼쪽 Shift 키를 누른 상태에서 더 빠르게 달리는 스프린트 방법의 예시를 제공합니다. 더 빠른 움직임은 네트워크를 통해 서버에 플래그를 전송하여 CharacterMovementComponent가 예측적으로 처리합니다. 자세한 내용은 GDCharacterMovementComponent.h/cpp를 참조하세요.  
+샘플 프로젝트는 왼쪽 Shift 키를 누른 상태에서 더 빠르게 달리는 스프린트 방법의 예시를 제공합니다. 더 빠른 움직임은 네트워크를 통해 서버에 플래그를 전송하여 CharacterMovementComponent가 예측적으로 처리합니다. 자세한 내용은 GDCharacterMovementComponent.h/cpp를 참조하세요.
 GA는 좌클릭 입력에 대한 응답을 처리하고, CMC에 스프린트를 시작 및 중지하고, 좌클릭을 누르고 있는 동안 스태미나를 예측하여 충전하도록 지시합니다. 자세한 내용은 GA_Sprint_BP를 참조하세요.
 
 ## 5.3 조준경 조준
 
-샘플 프로젝트는 스프린트와 똑같은 방식으로 처리하지만 이동 속도를 증가시키는 대신 감소시킵니다.  
-이동 속도 예측 감소에 대한 자세한 내용은 GDCharacterMovementComponent.h/cpp를 참조하세요.  
+샘플 프로젝트는 스프린트와 똑같은 방식으로 처리하지만 이동 속도를 증가시키는 대신 감소시킵니다.
+이동 속도 예측 감소에 대한 자세한 내용은 GDCharacterMovementComponent.h/cpp를 참조하세요.
 입력 처리에 대한 자세한 내용은 GA_AimDownSight_BP를 참조하세요. 조준경 조준에는 스태미나 비용이 들지 않습니다.
 
 ## 5.4 생명력 흡수
 
 생명력 흡수는 데미지 ExecutionCalculation 안에서 처리합니다. GameplayEffect에는 Effect.CanLifesteal 같은 GameplayTag가 붙습니다. 실행 계산은 GameplayEffectSpec에 해당 Effect.CanLifesteal GameplayTag가 있는지 확인합니다. GameplayTag가 존재하면, 실행 계산은 모디파이어로 부여할 생명력을 가진 [동적 인스턴트 게임플레이 이펙트를 생성](https://github.com/tranek/GASDocumentation#concepts-ge-dynamic)하여 소스의 ASC에 다시 적용합니다.
-
 
 ```C++
 if (SpecAssetTags.HasTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.CanLifesteal"))))
@@ -2754,8 +2729,8 @@ if (SpecAssetTags.HasTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.C
 
 ## 5.6 크리티컬 히트
 
-치명타 처리는 데미지 ExecutionCalculation 안에서 처리합니다. GameplayEffect에는 Effect.CanCrit와 같은 GameplayTag 가 붙습니다. ExecutionCalculation 은 GameplayEffectSpec 에 해당 Effect.CanCrit GameplayTag가 있는지 확인합니다. GameplayTag 가 존재하면, ExecutionCalculation 은 치명타 확률(소스에서 캡처한 속성)에 해당하는 난수를 생성하고, 성공하면 치명타 대미지(소스에서 캡처한 속성)를 더합니다. 대미지를 예측하지 않기 때문에 ExecutionCalculation은 서버에서만 실행되므로 클라이언트와 서버의 난수 생성기를 동기화하는 것에 대해 걱정할 필요가 없습니다. MMC를 사용하여 대미지 계산을 예측적으로 수행하려면 GameplayEffectSpec->GameplayEffectContext->GameplayAbilityInstance에서 랜덤 시드에 대한 참조를 가져와야 합니다.  
-  
+치명타 처리는 데미지 ExecutionCalculation 안에서 처리합니다. GameplayEffect에는 Effect.CanCrit와 같은 GameplayTag 가 붙습니다. ExecutionCalculation 은 GameplayEffectSpec 에 해당 Effect.CanCrit GameplayTag가 있는지 확인합니다. GameplayTag 가 존재하면, ExecutionCalculation 은 치명타 확률(소스에서 캡처한 속성)에 해당하는 난수를 생성하고, 성공하면 치명타 대미지(소스에서 캡처한 속성)를 더합니다. 대미지를 예측하지 않기 때문에 ExecutionCalculation은 서버에서만 실행되므로 클라이언트와 서버의 난수 생성기를 동기화하는 것에 대해 걱정할 필요가 없습니다. MMC를 사용하여 대미지 계산을 예측적으로 수행하려면 GameplayEffectSpec->GameplayEffectContext->GameplayAbilityInstance에서 랜덤 시드에 대한 참조를 가져와야 합니다.
+
 GASShooter가 헤드샷을 어떻게 처리하는지 살펴보세요. 무작위 숫자에 의존하지 않고 대신 FHitResult 본 이름을 확인한다는 점을 제외하면 같은 개념입니다.
 
 ## 5.7 중첩되지 않는 게임플레이 효과이지만 실제로는 가장 큰 크기만 대상에 미치는 이펙트
@@ -2770,7 +2745,7 @@ GASShooter가 헤드샷을 어떻게 처리하는지 살펴보세요. 무�
 
 [GASShooter](https://github.com/tranek/GASShooter)는 플레이어가 'E'를 길게 눌러 플레이어 부활, 무기 상자 열기, 미닫이문 여닫기 등 상호작용이 가능한 오브젝트와 상호작용할 수 있는 원버튼 상호작용 시스템을 구현했습니다.
 
-# 6. GAS 디버깅
+## 6. GAS 디버깅
 
 GAS 관련 문제를 디버깅할 때 종종 다음과 같은 사항을 알고 싶어합니다:
 
@@ -2798,8 +2773,8 @@ UE_ENABLE_OPTIMIZATION
 
 ## 6.1 showdebug abilitysystem
 
-게임 내 콘솔에서 showdebug abilitysystem을 입력합니다. 이 기능은 세 개의 "페이지"로 나뉩니다. 세 페이지 모두 현재 가지고 있는 게임플레이 태그를 표시합니다. 콘솔에 AbilitySystem.Debug.NextCategory를 입력하면 페이지 사이를 순환할 수 있습니다.  
-  
+게임 내 콘솔에서 showdebug abilitysystem을 입력합니다. 이 기능은 세 개의 "페이지"로 나뉩니다. 세 페이지 모두 현재 가지고 있는 게임플레이 태그를 표시합니다. 콘솔에 AbilitySystem.Debug.NextCategory를 입력하면 페이지 사이를 순환할 수 있습니다.
+
 첫 페이지에는 모든 어트리뷰트의 현재 값이 표시됩니다:
 
 ![](https://blog.kakaocdn.net/dn/wRUjM/btszYK3BMOu/b2gpGO5VTQ5bEFZe7otudK/img.png)
@@ -2808,7 +2783,7 @@ UE_ENABLE_OPTIMIZATION
 
 ![](https://blog.kakaocdn.net/dn/P4IXU/btsz1iZJzii/ltqQ3dMpQoLMB7XOeGoY6K/img.png)
 
-세 번째 페이지에는 내게 부여된 모든 게임플레이 어빌리티, 현재 실행 중인지 여부, 활성화가 차단되었는지 여부, 현재 실행 중인 어빌리티 태스크의 상태가 표시됩니다.
+세 번째 페이지에는 내게 부여된 모든 게임플레이 어빌리티, 현재 실행 중인지 여부, 활성화가 차단되었는지 여부, 현재 실행 중인 어빌리티 태스크(Task)의 상태가 표시됩니다.
 
 ![](https://blog.kakaocdn.net/dn/bDERLL/btsz1TZBc0R/hQ5kM34Tad4GTKDklYCSl1/img.png)
 
@@ -2829,16 +2804,16 @@ bUseDebugTargetFromHud=true
 
 ## 6.2 Gameplay Debugger
 
-GAS는 게임플레이 디버거에 기능을 추가합니다. 아포스트로피(') 키로 게임플레이 디버거에 액세스합니다. 숫자패드의 3을 눌러 어빌리티 카테고리를 활성화합니다. 사용 중인 플러그인에 따라 카테고리가 다를 수 있습니다. 키보드에 노트북과 같은 숫자패드가 없는 경우 프로젝트 설정에서 키 바인딩을 변경할 수 있습니다.  
-  
+GAS는 게임플레이 디버거에 기능을 추가합니다. 아포스트로피(') 키로 게임플레이 디버거에 액세스합니다. 숫자패드의 3을 눌러 어빌리티 카테고리를 활성화합니다. 사용 중인 플러그인에 따라 카테고리가 다를 수 있습니다. 키보드에 노트북과 같은 숫자패드가 없는 경우 프로젝트 설정에서 키 바인딩을 변경할 수 있습니다.
+
 **다른** 캐릭터의 게임플레이 태그, 게임플레이 이펙트, 게임플레이 어빌리티를 확인하고 싶을 때는 게임플레이 디버거를 사용하세요. 안타깝게도 타깃의 어트리뷰트 CurrentValue는 표시되지 않습니다. 화면 중앙에 있는 모든 캐릭터를 대상으로 합니다. 에디터의 월드 아웃라이너에서 타을 선택하거나 다른 캐릭터를 보고 아포스트로피 키(')를 다시 눌러 타깃을 변경할 수 있습니다. 현재 검사 중인 캐릭터는 그 위에 가장 큰 빨간색 원이 표시됩니다.
 
 ![](https://blog.kakaocdn.net/dn/lyJIB/btszZmVL6N1/QUZiRDSfDNGVpdV0Lk6F80/img.png)
 
 ## 6.3 GAS Logging
 
-GAS 소스 코드에는 다양한 상세도 수준에서 생성되는 많은 로깅 문이 포함되어 있습니다. 이러한 문은 대부분 ABILITY_LOG() 문으로 표시됩니다. 기본 상세 수준은 표시입니다. 그 이상이면 기본적으로 콘솔에 표시되지 않습니다.  
-  
+GAS 소스 코드에는 다양한 상세도 수준에서 생성되는 많은 로깅 문이 포함되어 있습니다. 이러한 문은 대부분 ABILITY_LOG() 문으로 표시됩니다. 기본 상세 수준은 표시입니다. 그 이상이면 기본적으로 콘솔에 표시되지 않습니다.
+
 로그 카테고리의 상세도 수준을 변경하려면 콘솔에 입력합니다:
 
 cpp
@@ -2896,7 +2871,9 @@ log list
 
 자세한 내용은 [로깅 관련 위키](https://unrealcommunity.wiki/logging-lgpidy6i)를 참조하세요.
 
-# 7. 최적화
+## 7. 최적화
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## 7.1 Ability 일괄 처리
 
@@ -2912,7 +2889,7 @@ log list
 
 ## [7.4 Attribute Proxy Replication](https://github.com/tranek/GASDocumentation#74-attribute-proxy-replication)
 
-포트나이트 배틀로얄(FNBR)처럼 플레이어가 많은 대규모 게임의 경우, 항상 관련성이 있는 플레이어 스테이트에 다수의 어트리뷰트를 리플리케이트하는 ASC가 많이 존재할 것입니다. 이 병목 현상을 최적화하기 위해 포트나이트는 PlayerState::ReplicateSubobjects()에서 시뮬레이션된 플레이어 제어 프록시에서 ASC와 그 어트리뷰트 세트의 리플리케이션을 모두 비활성화합니다. 자율 프록시와 AI 제어 폰은 여전히 리플리케이션 모드에 따라 완전히 리플리케이트됩니다. 항상 관련성이 있는 플레이어 스테이트의 ASC에 어트리뷰트를 리플리케이트하는 대신, FNBR은 플레이어의 폰에 리플리케이트된 프록시 구조를 사용합니다. 서버의 ASC에서 어트리뷰트가 변경되면 프록시 구조체에서도 변경됩니다. 클라이언트는 프록시 구조체에서 리플리케이트된 어트리뷰트를 받아 로컬 ASC에 변경 사항을 다시 푸시합니다. 이를 통해 어트리뷰트 리플리케이션이 폰의 관련성과 NetUpdateFrequency를 사용할 수 있습니다. 또한 이 프록시 구조체는 비트마스크에 화이트리스트에 있는 작은 게임플레이 태그 세트를 리플리케이트합니다. 이 최적화를 통해 네트워크 상의 데이터 양을 줄이고 폰 관련성을 활용할 수 있습니다. AI 제어 폰은 이미 관련성을 사용하는 폰에 ASC가 있으므로 이 최적화가 필요하지 않습니다.
+포트나이트 배틀로얄(FNBR)처럼 플레이어가 많은 대규모 게임의 경우, 항상 관련성(Relevancy)이 있는 플레이어 스테이트에 다수의 어트리뷰트를 리플리케이트하는 ASC가 많이 존재할 것입니다. 이 병목 현상을 최적화하기 위해 포트나이트는 PlayerState::ReplicateSubobjects()에서 시뮬레이션된 플레이어 제어 프록시에서 ASC와 그 어트리뷰트 세트의 리플리케이션을 모두 비활성화합니다. 자율 프록시와 AI 제어 폰은 여전히 리플리케이션 모드에 따라 완전히 리플리케이트됩니다. 항상 관련성이 있는 플레이어 스테이트의 ASC에 어트리뷰트를 리플리케이트하는 대신, FNBR은 플레이어의 폰에 리플리케이트된 프록시 구조를 사용합니다. 서버의 ASC에서 어트리뷰트가 변경되면 프록시 구조체에서도 변경됩니다. 클라이언트는 프록시 구조체에서 리플리케이트된 어트리뷰트를 받아 로컬 ASC에 변경 사항을 다시 푸시합니다. 이를 통해 어트리뷰트 리플리케이션이 폰의 관련성과 NetUpdateFrequency를 사용할 수 있습니다. 또한 이 프록시 구조체는 비트마스크에 화이트리스트에 있는 작은 게임플레이 태그 세트를 리플리케이트합니다. 이 최적화를 통해 네트워크 상의 데이터 양을 줄이고 폰 관련성을 활용할 수 있습니다. AI 제어 폰은 이미 관련성을 사용하는 폰에 ASC가 있으므로 이 최적화가 필요하지 않습니다.
 
 > 그 이후로 적용된 다른 서버 측 최적화(리플리케이션 그래프 등)에서도 여전히 필요한지 잘 모르겠고, 유지 관리가 가장 쉬운 패턴도 아닙니다.
 
@@ -2922,7 +2899,9 @@ log list
 
 포트나이트 배틀로얄(FNBR)에는 나무, 건물 등 피해를 입힐 수 있는 액터가 많이 있으며, 각 액터마다 ASC가 있습니다. 이로 인해 메모리 비용이 늘어날 수 있습니다. FNBR은 필요할 때(플레이어가 처음 피해를 입었을 때) ASC를 느리게 로드하여 이를 최적화합니다. 이렇게 하면 일부 액터는 경기 중에 피해를 입지 않을 수 있으므로 전체 메모리 사용량을 줄일 수 있습니다.
 
-# 8. Quality of Life Suggestions
+## 8. Quality of Life Suggestions
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## 8.1 Gameplay Effect Containers
 
@@ -2930,8 +2909,8 @@ GameplayEffectContainer는 게임플레이 이펙트 스펙, 타깃 데이터, �
 
 ## 8.2 ASC 델리게이트에 바인딩할 블루프린트 비동기 태스크
 
-디자이너 친화적인 반복처리 시간을 늘리려면, 특히 UI용 UMG 위젯을 디자인할 때, (C++로) 블루프린트 비동기 태스크를 생성하여 UMG 블루프린트 그래프에서 직접 ASC의 공통 변경 델리게이트에 바인딩하면 됩니다. 한 가지 주의할 점은 (위젯이 소멸될 때처럼) 수동으로 소멸시켜야 한다는 것입니다. 그렇지 않으면 메모리에 영원히 남게 됩니다. 샘플 프로젝트에는 세 개의 블루프린트 비동기 태스크가 포함되어 있습니다.  
-  
+디자이너 친화적인 반복처리 시간을 늘리려면, 특히 UI용 UMG 위젯을 디자인할 때, (C++로) 블루프린트 비동기 태스크를 생성하여 UMG 블루프린트 그래프에서 직접 ASC의 공통 변경 델리게이트에 바인딩하면 됩니다. 한 가지 주의할 점은 (위젯이 소멸될 때처럼) 수동으로 소멸시켜야 한다는 것입니다. 그렇지 않으면 메모리에 영원히 남게 됩니다. 샘플 프로젝트에는 세 개의 블루프린트 비동기 태스크가 포함되어 있습니다.
+
 어트리뷰트 변경을 수신합니다:
 
 ![](https://blog.kakaocdn.net/dn/1ASAz/btsz2iERMkR/ABfkFnCEmAGNcVgRQ9UJ3k/img.png)
@@ -2944,7 +2923,9 @@ GE 스택 변경 사항에 리슨:
 
 ![](https://blog.kakaocdn.net/dn/c3VmvB/btsz1KIruaz/oyQHwyqbq3A0zekqaDITu0/img.png)
 
-# 9. 문제 해결
+## 9. 문제 해결
+
+이 섹션은 이어지는 세부 항목을 통해 관련 개념과 확인 지점을 정리한다.
 
 ## 9.1 LogAbilitySystem: Warning: Can't activate LocalOnly or LocalPredicted ability %s when not local!
 
@@ -2961,7 +2942,6 @@ GE 스택 변경 사항에 리슨:
 ## 9.4 블루프린트 액터 복제는 AttributeSet을 nullptr로 설정.
 
 언리얼 엔진에 기존 블루프린트 액터 클래스에서 복제된 블루프린트 액터 클래스에 대해 클래스의 AttributeSet 포인터를 nullptr 로 설정하는 버그가 있습니다. 이에 대한 몇 가지 해결 방법이 있습니다. 제 클래스에서 맞춤형 AttributeSet 포인터를 만들지 않고 (.h 에 포인터를 만들지 않고, 생성자에서 CreateDefaultSubobject 를 호출하지 않고) 대신 (샘플 프로젝트에는 표시되지 않은) PostInitializeComponents()에서 ASC 에 AttributeSet 을 직접 추가하는 데 성공한 적이 있습니다. 리플리케이트된 AttributeSet은 여전히 ASC의 SpawnedAttributes 배열에 존재합니다. 다음과 같이 보일 것입니다:
-
 
 ```C++
 void AGDPlayerState::PostInitializeComponents()
@@ -3016,21 +2996,19 @@ if (AbilitySystemComponent)
 
 다음과 같은 컴파일러 오류가 발생하면:
 
-
 ```C++
 error LNK2019: unresolved external symbol "__declspec(dllimport) void __cdecl UEPushModelPrivate::MarkPropertyDirty(int,int)" (__imp_?MarkPropertyDirty@UEPushModelPrivate@@YAXHH@Z) referenced in function "public: void __cdecl FFastArraySerializer::IncrementArrayReplicationKey(void)" (?IncrementArrayReplicationKey@FFastArraySerializer@@QEAAXXZ)
 ```
 
-FFastArraySerializer에서 MarkItemDirty()를 호출하려고 할 때 발생하는 문제입니다.   
+FFastArraySerializer에서 MarkItemDirty()를 호출하려고 할 때 발생하는 문제입니다. 
 쿨타임 지속 시간을 업데이트할 때와 같이 ActiveGameplayEffect를 업데이트할 때 이 문제가 발생했습니다.
-
 
 ```C++
 ActiveGameplayEffects.MarkItemDirty(*AGE);
 ```
 
-무슨 일이 일어나고 있냐면 WITH_PUSH_MODEL이 두 곳 이상에서 정의되고 있다는 것입니다. PushModelMacros.h는 0으로 정의하고 있지만 여러 곳에서 1로 정의하고 있습니다. PushModel.h는 이를 1로 보고 있지만 PushModel.cpp는 이를 0으로 보고 있습니다.  
-  
+무슨 일이 일어나고 있냐면 WITH_PUSH_MODEL이 두 곳 이상에서 정의되고 있다는 것입니다. PushModelMacros.h는 0으로 정의하고 있지만 여러 곳에서 1로 정의하고 있습니다. PushModel.h는 이를 1로 보고 있지만 PushModel.cpp는 이를 0으로 보고 있습니다.
+
 해결책은 Build.cs의 프로젝트의 PublicDependencyModuleNames에 NetCore를 추가하는 것입니다.
 
 ## 9.6 열거형 이름이 경로 이름으로 표시됨
@@ -3041,8 +3019,8 @@ ActiveGameplayEffects.MarkItemDirty(*AGE);
 warning C4996: 'FGameplayAbilityInputBinds::FGameplayAbilityInputBinds': Enum names are now represented by path names. Please use a version of FGameplayAbilityInputBinds constructor that accepts FTopLevelAssetPath. Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.
 ```
 
-UE 5.1에서 BindAbilityActivationToInputComponent() 생성자에 FString 을 사용하는 것이 더이상 사용되지 않습니다. 대신 FTopLevelAssetPath를 전달해야 합니다.  
-  
+UE 5.1에서 BindAbilityActivationToInputComponent() 생성자에 FString 을 사용하는 것이 더이상 사용되지 않습니다. 대신 FTopLevelAssetPath를 전달해야 합니다.
+
 이전, 폐기된 방식입니다:
 
 ```C++
@@ -3060,7 +3038,7 @@ AbilitySystemComponent->BindAbilityActivationToInputComponent(InputComponent, FG
 
 자세한 정보는 Engine\Source\Runtime\CoreUObject\Public\UObject\TopLevelAssetPath.h 를 참고하세요.
 
-# 10. 일반적인 GAS 약어
+## 10. 일반적인 GAS 약어
 
 |                                                                                                        |                     |
 | ------------------------------------------------------------------------------------------------------ | ------------------- |
@@ -3076,3 +3054,28 @@ AbilitySystemComponent->BindAbilityActivationToInputComponent(InputComponent, FG
 | GameplayEffectExecutionCalculation                                                                     | ExecCalc, Execution |
 | GameplayTag                                                                                            | Tag, GT             |
 | ModifierMagnitudeCalculation                                                                           | ModMagCalc, MMC     |
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| GA 안에서 모든 타이밍과 상태를 직접 처리한다. | 대기, montage, target data, delay는 Ability Task로 분리한다. |
+| 태그는 단순 분류용 문자열이다. | activation 조건, 차단, 상태 표현, cue 연결까지 포함한 제어 신호로 본다. |
+| 클라이언트에서 보이면 서버 상태도 맞다. | 예측 결과와 서버 확정 결과를 구분하고 prediction key와 권한을 확인한다. |
+
+## 디버깅 체크리스트
+
+- [ ] ASC가 올바른 owner/avatar로 초기화되었다.
+- [ ] ability spec이 서버에서 부여되었고 입력 binding 또는 event tag가 연결되었다.
+- [ ] required/blocked tag, cost, cooldown 조건이 activation을 막지 않는다.
+- [ ] `CommitAbility()`와 `EndAbility()` 호출 경로가 누락되지 않았다.
+- [ ] prediction key, replication mode, Gameplay Cue 실행 주체를 확인했다.
+
+## 관련 문서
+
+- [[게임플레이 어빌리티 스펙(Spec)]]
+- [[게임플레이 어빌리티 시스템(GAS)]]
+- [[게임플레이 어빌리티 타겟 액터(TA)]]
+- [[게임플레이 어빌리티(GA)]]
+- [[게임플레이 어빌리티(GA)의 인스턴싱 옵션]]
+- [[게임플레이 이펙트(GE)]]

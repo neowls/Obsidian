@@ -1,17 +1,69 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/ue-systems
+  - type/learning
+---
+
+# StateTree, MassEntity, SmartObjects
+
+> [!summary] 요약
+> StateTree, MassEntity, SmartObjects은 큰 월드, 런타임 시스템, 데이터 계층, procedural generation, 대규모 AI 객체가 함께 동작하는 월드 관리 주제다.
+> 스트리밍, 생성, 활성화, 대량 객체 처리 결과가 예상과 다를 때 확인한다.
+> 핵심은 editor-time 데이터와 runtime 활성 상태, persistent 객체와 streaming 객체를 구분하는 것이다.
+
+## 핵심 결론
+
+- World Partition, Data Layer, PCG, Mass/SmartObjects는 로드 상태와 활성 상태를 분리해서 봐야 한다.
+- 큰 월드 시스템은 actor reference, streaming cell, runtime generation source가 엇갈리면 문제가 생긴다.
+- 문제가 생기면 cell/layer 상태, generation source, subsystem 등록, persistent collection을 순서대로 확인한다.
+
+## 참고 자료
+
 [StateTree in Unreal Engine | Unreal Engine 5.7 Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/en-us/unreal-engine/state-tree-in-unreal-engine?application_version=5.7) | [Mass Entity in Unreal Engine | Unreal Engine 5.7 Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/pt-br/unreal-engine/mass-entity-in-unreal-engine?application_version=5.7) | [Smart Objects Overview | Unreal Engine 5.7 Documentation](https://dev.epicgames.com/documentation/en-us/unreal-engine/smart-objects-in-unreal-engine---overview?application_version=5.7)
 
-# 개요
+## 개요
 `StateTree`, `MassEntity`, `SmartObjects`는 UE5 계열에서 AI/대규모 시뮬레이션/상호작용을 더 데이터 지향적으로 다루기 위한 확장 시스템이다.
 기존 `Behavior Tree + Blackboard`만으로 모든 AI를 처리하기보다, 상태 전이, 군중 처리, 월드 상호작용 예약을 각각 분리해서 볼 수 있다.
 
-# 세 시스템의 역할
+## 왜 필요한가
+
+월드 관리 문제는 객체가 "없다"기보다 아직 로드되지 않았거나 활성화되지 않은 상태일 때가 많다. StateTree, MassEntity, SmartObjects을 볼 때는 데이터가 존재하는 위치와 런타임에 활성화되는 시점을 구분해야 한다.
+
+## 작동 모델
+
+World Partition은 월드를 cell 단위로 나누고 streaming source를 기준으로 로드한다. Data Layer와 PCG, SmartObjects, MassEntity 같은 시스템은 로드된 world 상태 위에서 별도의 활성화, generation, registration 절차를 수행한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| World Partition / Cell | 월드 스트리밍 단위 | grid, loading range, spatially loaded |
+| Data Layer | actor 묶음의 활성/로드 상태 | asset, instance, runtime state |
+| PCG Component / Graph | 절차적 생성 실행 | generation source, partitioned mode |
+| SmartObject / Mass | 대량 상호작용/엔티티 관리 | registration, persistent collection |
+| Subsystem | 월드 단위 시스템 상태 | init, tick, runtime data |
+
+## 실행 흐름
+
+1. 에디터에서 actor, graph, layer, smart object 데이터가 저장된다.
+2. cook 또는 world open 시 descriptor와 registry가 런타임 데이터를 준비한다.
+3. streaming source와 runtime state가 어떤 cell/layer를 로드하거나 활성화할지 결정한다.
+4. PCG, SmartObject, Mass 같은 시스템이 로드된 객체를 등록하거나 생성한다.
+5. streaming 변화와 상태 전환에 맞춰 참조, navigation, AI, save data를 갱신한다.
+
+## 세 시스템의 역할
 | 시스템 | 핵심 역할 | 기존 시스템과의 관계 |
 | --- | --- | --- |
 | StateTree | hierarchical state machine + selector + transition | Behavior Tree보다 상태 전이 표현이 직접적 |
 | MassEntity | fragment/processor 기반 대량 entity 처리 | actor 중심보다 데이터 지향적 |
 | SmartObjects | 월드 상호작용 지점의 검색/예약/사용 | AI가 사용할 world affordance 제공 |
 
-# StateTree
+## StateTree
 StateTree는 상태, 조건, evaluator, task, transition으로 동작을 구성한다.
 AI뿐 아니라 일반 gameplay state에도 쓸 수 있지만, task가 월드 오브젝트와 연결될 때 lifetime과 ownership을 명확히 해야 한다.
 
@@ -23,7 +75,7 @@ AI뿐 아니라 일반 gameplay state에도 쓸 수 있지만, task가 월드 �
 | `UStateTreeSchema` | 어떤 context/task/evaluator를 허용할지 제한 |
 | `FStateTreeExecutionContext` | runtime execution context |
 
-# MassEntity
+## MassEntity
 MassEntity는 많은 개체를 actor 하나씩 tick하지 않고 fragment와 processor로 처리하는 시스템이다.
 NPC 군중, crowd, traffic, swarm처럼 수가 많고 동질적인 업데이트가 필요한 곳에 맞다.
 
@@ -36,7 +88,7 @@ NPC 군중, crowd, traffic, swarm처럼 수가 많고 동질적인 업데이트�
 | `FMassEntityManager` | entity 생성, fragment 구성, query 실행 기반 |
 | `UMassEntitySubsystem` | world subsystem 진입점 |
 
-# SmartObjects
+## SmartObjects
 SmartObject는 월드 안의 상호작용 지점을 검색하고 예약하는 시스템이다.
 SmartObject 자체는 행동 실행 로직을 담기보다, 어떤 agent가 어떤 slot을 사용할 수 있는지와 필요한 data를 제공한다.
 
@@ -48,7 +100,7 @@ SmartObject 자체는 행동 실행 로직을 담기보다, 어떤 agent가 어�
 | Persistent Collection | streaming 상태와 별개로 유지할 smart object 묶음 |
 | Claim Handle | slot 예약 결과 |
 
-# 함께 쓰는 흐름 예시
+## 함께 쓰는 흐름 예시
 1. Mass agent가 주변 SmartObject를 query한다.
 2. SmartObjectSubsystem이 조건과 tag에 맞는 free slot을 반환한다.
 3. agent가 slot을 claim한다.
@@ -58,7 +110,7 @@ SmartObject 자체는 행동 실행 로직을 담기보다, 어떤 agent가 어�
 > [!caution]
 > SmartObject slot은 반드시 release되어야 한다. StateTree task 중단, agent death, streaming unload 같은 예외 경로에서 release가 빠지면 slot이 점유된 상태로 남을 수 있다.
 
-# 엔진 소스 참고 포인트
+## 엔진 소스 참고 포인트
 - `Engine\Plugins\Runtime\StateTree\Source\StateTreeModule\Public\StateTree.h`: `UStateTree` asset.
 - `Engine\Plugins\Runtime\GameplayStateTree\Source\GameplayStateTreeModule\Public\Components\StateTreeComponent.h`: runtime component.
 - `Engine\Source\Runtime\MassEntity\Public\MassEntityManager.h`: entity manager.
@@ -73,7 +125,7 @@ SmartObject 자체는 행동 실행 로직을 담기보다, 어떤 agent가 어�
 
 - StateTree, MassEntity, SmartObjects가 각각 어떤 문제를 해결하는지 구분한다.
 - 대규모 NPC, 상호작용 지점, AI 상태 전환을 한 시스템처럼 설계하는 방법을 익힌다.
-- 엔진 소스 구조를 기준으로 상태 평가, 엔티티 처리, 스마트 오브젝트 claim/use 흐름을 이해한다.
+- 엔진 소스 구조를 기준으로 상태 평가, 엔티티 처리, 스마트 오브젝트(Smart Object) claim/use 흐름을 이해한다.
 
 ### 세 시스템의 역할
 
@@ -128,7 +180,7 @@ struct FMoveToSmartObjectTask : public FStateTreeTaskCommonBase
 };
 ```
 
-핵심은 Task 내부에서 장기 소유권을 잡는 리소스를 사용했다면 `ExitState`에서 반드시 정리하는 것이다. SmartObject slot을 claim한 상태에서 StateTree가 다른 상태로 넘어갔는데 release하지 않으면 다른 AI가 그 슬롯을 영원히 못 쓰는 문제가 생긴다.
+핵심은 Task 내부에서 장기 소유권(Ownership)을 잡는 리소스를 사용했다면 `ExitState`에서 반드시 정리하는 것이다. SmartObject slot을 claim한 상태에서 StateTree가 다른 상태로 넘어갔는데 release하지 않으면 다른 AI가 그 슬롯을 영원히 못 쓰는 문제가 생긴다.
 
 ### SmartObject 사용 흐름
 
@@ -232,3 +284,23 @@ void UMoveToTargetProcessor::Execute(FMassEntityManager& EntityManager, FMassExe
 3. 개별 행동의 상태 전환이 필요하면 StateTree Asset을 만들고 evaluator, condition, task, transition을 나눈다.
 4. SmartObject를 claim한 Task는 성공, 실패, 중단 경로에서 모두 release하도록 작성한다.
 5. Mass entity와 Actor 표현을 섞는 경우 승격/강등 시점과 데이터 동기화 방향을 문서화한다.
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 에디터에 배치된 actor는 런타임에 항상 존재한다. | streaming cell과 Data Layer runtime state를 확인한다. |
+| 로드 상태와 활성 상태는 같다. | loaded, activated, generated, registered 상태를 분리한다. |
+| 대규모 시스템은 actor 참조로 직접 연결해도 된다. | descriptor, subsystem, registry 기반 연결을 우선 검토한다. |
+
+## 디버깅 체크리스트
+
+- [ ] streaming source, loading range, runtime cell 상태를 확인했다.
+- [ ] Data Layer asset/instance와 runtime state가 의도대로 전환된다.
+- [ ] PCG generation source와 partitioned mode 설정을 확인했다.
+- [ ] SmartObject/Mass/AI 등록이 streaming 변화 후 다시 갱신된다.
+- [ ] packaged build에서 editor-only reference나 uncooked data에 의존하지 않는다.
+
+## 관련 문서
+
+- 관련 문서가 아직 정리되지 않았다.

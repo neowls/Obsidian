@@ -1,6 +1,32 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/networking
+  - type/learning
+---
+
+# Iris와 Replication Graph(Iris Replication Graph)
+
+> [!summary] 요약
+> Iris와 Replication Graph는 많은 actor와 복제(Replication) 데이터를 다룰 때 replication filtering, serialization, relevancy 계산을 확장하는 Unreal 네트워킹 시스템이다.
+> 대규모 월드, 많은 actor, 복잡한 relevancy 조건 때문에 기본 복제 비용이 커질 때 검토한다.
+> 핵심은 무엇을 누구에게 보낼지 결정하는 필터링 계층과 실제 데이터를 직렬화하는 복제 계층을 분리해서 보는 것이다.
+
+## 핵심 결론
+
+- Replication Graph는 actor를 connection별로 어떤 노드/공간/조건을 통해 보낼지 최적화한다.
+- Iris는 최신 replication framework로 state descriptor, replication state, filtering/condition 구조를 통해 복제를 관리한다.
+- 복제 누락이나 비용 문제가 있으면 relevancy 노드, dormancy, frequency, connection filter, Iris enable 상태를 확인한다.
+
+## 참고 자료
+
 [Iris Replication System in Unreal Engine | Unreal Engine 5.7 Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/en-us/unreal-engine/iris-replication-system-in-unreal-engine?application_version=5.7) | [Replication Graph overview and proper replication methods](https://www.unrealengine.com/en-US/tech-blog/replication-graph-overview-and-proper-replication-methods)
 
-# 개요
+## 개요
 `Iris`와 `Replication Graph`는 둘 다 복제 부하를 줄이기 위한 네트워킹 확장 축이다.
 다만 해결하는 층이 다르다. `Replication Graph`는 어떤 액터를 어떤 connection에 고려할지 정하는 relevancy/scheduling 구조이고, `Iris`는 replicated object의 상태를 분리된 replication system이 관리하도록 바꾸는 복제 백엔드에 가깝다.
 
@@ -9,7 +35,33 @@
 > [!info]
 > UE 5.7 설치본 기준 Iris 소스는 계획 문서에 적혀 있던 `Runtime\IrisCore`가 아니라 `Engine\Source\Runtime\Net\Iris`와 `Engine\Source\Runtime\Engine\Private\Net\Iris`에 있다.
 
-# 핵심 구분
+## 왜 필요한가
+
+네트워크 버그는 기능 코드가 틀려서보다 실행 위치와 복제 조건을 잘못 가정해서 생기는 경우가 많다. Iris와 Replication Graph(Iris Replication Graph)을 볼 때는 "서버의 사실", "클라이언트의 요청", "복제로 전달되는 상태"를 분리해야 한다.
+
+## 작동 모델
+
+서버가 게임 상태의 기준을 갖고, 클라이언트는 입력을 요청하거나 복제된 결과를 받는다. actor channel, relevancy, dormancy, update frequency는 어떤 객체가 언제 어떤 클라이언트에 전달되는지를 결정한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `AActor` | 복제 대상의 기본 단위 | `bReplicates`, relevancy, dormancy |
+| `UNetDriver` / `UNetConnection` | 연결과 패킷 흐름 관리 | client connection, channel 상태 |
+| Owner / `PlayerController` | Client RPC 호출 가능 여부 결정 | owning connection 존재 여부 |
+| Replicated Property | 오래 남는 상태 동기화 | RepNotify, 조건, 초기값 |
+| RPC | 순간 요청 또는 이벤트 전달 | 호출 위치, reliable 여부, 대상 |
+
+## 실행 흐름
+
+1. 서버가 actor를 생성하거나 상태를 변경한다.
+2. NetDriver가 relevancy와 priority를 기준으로 actor channel을 갱신한다.
+3. 변경된 property가 조건에 맞는 클라이언트로 복제된다.
+4. RPC는 호출 주체와 owner connection 조건을 통과할 때만 원격 실행된다.
+5. 클라이언트는 OnRep, prediction correction, visual update 순서로 결과를 반영한다.
+
+## 핵심 구분
 | 항목 | Classic Replication | Replication Graph | Iris |
 | --- | --- | --- | --- |
 | 주된 관심사 | actor channel, property layout, RPC | connection별 actor list 구성 | replicated object 상태, fragment, handle, filtering/prioritization |
@@ -17,8 +69,8 @@
 | 대표 진입점 | `UNetDriver`, `UActorChannel`, `FObjectReplicator` | `UReplicationGraph`, `UReplicationGraphNode` | `UReplicationSystem`, `UObjectReplicationBridge`, `FNetRefHandle` |
 | 적용 감각 | 기본값 | 대규모 actor relevancy 최적화 | 새로운 복제 시스템 opt-in |
 
-# Replication Graph
-`Replication Graph`는 전통적인 복제의 relevancy 계산을 프로젝트 규칙에 맞게 재구성하는 플러그인이다.
+## Replication Graph
+`Replication Graph`는 전통적인 복제의 relevancy 계산을 프로젝트 규칙에 맞게 재구성하는 플러그인(Plugin)이다.
 핵심 아이디어는 모든 actor를 모든 connection에 매번 검사하지 않고, persistent graph node가 actor list를 유지하면서 connection별 replication list를 만든다는 점이다.
 
 ## 주요 노드
@@ -38,7 +90,7 @@
 - actor 종류별로 frequency bucket을 나누면 매 프레임 고려량을 줄일 수 있다.
 - 작은 프로젝트에서는 기본 복제가 더 단순하다. Replication Graph는 대규모 connection/actor 수에서 의미가 크다.
 
-# Iris
+## Iris
 Iris는 replicated state를 게임 객체와 직접 묶어 처리하던 전통 경로를 더 분리한다.
 객체는 `NetRefHandle`로 식별되고, 실제 복제 가능한 상태는 `ReplicationFragment`와 `ReplicationStateDescriptor` 같은 구조로 표현된다.
 
@@ -59,14 +111,14 @@ Iris는 replicated state를 게임 객체와 직접 묶어 처리하던 전통 �
 UE 5.7 소스에는 `IrisFastArraySerializer.cpp`, `FastArrayReplicationFragment.cpp`, `FastArraySerializerImplementation.h`가 존재한다.
 즉 Fast Array는 classic replication만의 기술이 아니라 Iris 경로에서도 별도 fragment/serializer로 다뤄진다.
 
-# 디버깅 체크리스트
+## 디버깅 체크리스트
 - Iris를 켰는지부터 확인한다. 문법이 호환되어도 프로젝트가 자동으로 Iris 경로를 타는 것은 아니다.
 - property가 등록되지 않은 문제인지, Iris fragment가 구성되지 않은 문제인지 구분한다.
 - object가 `NetRefHandle`을 받았는지 확인한다.
 - connection filter에서 빠지는지, prioritizer에서 밀리는지 분리해서 본다.
 - Fast Array 문제가 있으면 classic 경로와 Iris 경로를 따로 재현한다.
 
-# 엔진 소스 참고 포인트
+## 엔진 소스 참고 포인트
 - `Engine\Source\Runtime\Net\Iris\Public\Iris\ReplicationSystem\ReplicationSystem.h`: `UReplicationSystem` 정의.
 - `Engine\Source\Runtime\Net\Iris\Public\Iris\ReplicationSystem\ObjectReplicationBridge.h`: `UObjectReplicationBridge`와 object bridge 구조.
 - `Engine\Source\Runtime\Net\Iris\Public\Iris\ReplicationSystem\NetRefHandle.h`: Iris object 식별 핸들.
@@ -214,3 +266,19 @@ Iris를 이해할 때는 기존 ActorChannel 중심 모델과 비교하면 쉽�
 Replication Graph의 원리는 복제 대상 액터를 매 프레임 무차별 검사하지 않고, 미리 구성한 노드에 분류해 연결별 후보 목록을 빠르게 만드는 것이다. Grid 노드는 위치 기반 액터를 셀로 나누고, Always Relevant 노드는 모든 연결에 필요한 액터를 보관하며, Connection Graph Node는 특정 플레이어에게만 필요한 액터를 다룬다.
 
 Iris의 원리는 객체를 NetRef로 식별하고, 복제 상태를 descriptor와 fragment 단위로 기술한 뒤, 필터와 우선순위 판단을 거쳐 필요한 연결에 전송하는 것이다. Replication Graph가 "어떤 액터 후보를 볼 것인가"에 가깝다면, Iris는 "그 객체 상태를 어떻게 추적하고 직렬화할 것인가"에 가깝다.
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| `HasAuthority()`가 true면 항상 서버 전용 코드다. | authority, net mode, local control, owner를 각각 확인한다. |
+| Client RPC는 아무 actor에서나 호출할 수 있다. | owning connection이 있는 actor인지 먼저 확인한다. |
+| 모든 이벤트를 RPC로 보내면 된다. | 남아야 하는 값은 replicated property와 RepNotify로 처리한다. |
+
+## 관련 문서
+
+- [[언리얼 네트워킹]]
+- [[CharacterMovement와 예측(CharacterMovement Prediction)]]
+- [[Fast Array, Component, Subobject(FastArray Component Subobject)]]
+- [[Replication]]
+- [[RPC]]

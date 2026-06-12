@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/navigation
+  - type/learning
+---
+
+# 커스텀 네비게이션 영역(Navigation Area)과 Query Filter(Custom Navigation Areas Query Filters)
+
+> [!summary] 요약
+> 커스텀 네비게이션 영역과 Query Filter(Custom Navigation Areas Query Filters)는 NavMesh 생성, pathfinding, path following, area/filter, link, avoidance가 연결되는 이동 시스템 주제다.
+> AI가 목적지까지 이동하지 못하거나 특정 영역을 잘못 선택할 때 확인한다.
+> 핵심은 nav data 생성 상태와 path following 실행 상태를 분리해서 보는 것이다.
+
+## 핵심 결론
+
+- NavMesh가 있는 것과 원하는 path가 선택되는 것은 다른 문제다.
+- area cost, query filter, link, crowd/avoidance는 경로 선택과 실제 이동을 서로 다른 지점에서 바꾼다.
+- 문제가 생기면 bounds, agent 설정, tile 상태, path following result, movement component 상태를 순서대로 확인한다.
+
+## 참고 자료
+
 [Custom Navigation Areas and Query Filters in Unreal Engine](https://dev.epicgames.com/documentation/es-mx/unreal-engine/custom-navigation-areas-and-query-filters-in-unreal-engine?application_version=5.6) | [UNavArea](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/NavigationSystem/NavAreas/UNavArea) | [UNavigationQueryFilter::GetQueryFilter](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/NavigationSystem/NavFilters/UNavigationQueryFilter/GetQueryFilter/3) | [UNavArea_Default](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/NavigationSystem/NavAreas/UNavArea_Default)
 
 ## 개요
@@ -11,7 +37,7 @@
 | 차단 영역 | `UNavArea_Null` | 사실상 누구도 통과할 수 없는 area |
 | area override 데이터 | `FNavigationFilterArea` | 특정 area의 cost override 또는 exclude 설정 |
 | 필터 플래그 | `FNavigationFilterFlags` | include/exclude 비트 플래그 |
-| 쿼리 필터 | `UNavigationQueryFilter` | area override와 flag 조건을 조합해 path query 정책 생성 |
+| 쿼리 필터(Query Filter) | `UNavigationQueryFilter` | area override와 flag 조건을 조합해 path query 정책 생성 |
 | 런타임 필터 | `FNavigationQueryFilter` | 실제 pathfinding에 쓰이는 네이티브 필터 |
 
 즉 `NavArea`는 "이 구역의 기본 성질"을 정의하고, `Query Filter`는 "이번 pathfinding에서 그 구역을 어떻게 취급할지"를 결정합니다.
@@ -19,7 +45,34 @@
 > [!info]
 > `[[네비게이션과 PathFollowing(Navigation)]]` 이 경로를 계산하고 추종하는 실행 계층이라면, 이 문서는 그 pathfinding이 어떤 구역을 더 선호하거나 피하는지를 정의하는 정책 계층입니다.
 
+## 왜 필요한가
+
+이동 문제는 "목적지를 모른다", "경로를 못 찾는다", "경로는 있으나 따라가지 못한다"가 섞여 보인다. 커스텀 네비게이션 영역과 Query Filter(Custom Navigation Areas Query Filters)를 볼 때는 nav data, query, following, movement를 단계별로 끊어서 확인해야 한다.
+
+## 작동 모델
+
+RecastNavMesh는 월드 지오메트리를 tile 기반 nav data로 만들고, query filter는 어떤 영역을 얼마나 선호할지 정한다. PathFollowingComponent는 생성된 path를 segment 단위로 따라가며, Smart Link와 avoidance는 실제 이동 중 예외 처리를 담당한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `RecastNavMesh` | tile 기반 navigation data | bounds, agent radius/height, rebuild 상태 |
+| `UNavigationSystemV1` | path query와 nav data 선택 | supported agent, main nav data |
+| `UNavigationQueryFilter` | area cost와 통과 가능 여부 | include/exclude flag, cost |
+| `UPathFollowingComponent` | path segment 실행 | move result, current segment |
+| NavLink / Crowd / RVO | 단차 이동과 회피 | link 활성화, avoidance 설정 |
+
+## 실행 흐름
+
+1. NavMesh bounds와 agent 설정을 기준으로 tile이 생성된다.
+2. Move request가 들어오면 NavigationSystem이 적절한 nav data를 고른다.
+3. query filter와 area cost를 적용해 path를 계산한다.
+4. PathFollowingComponent가 path segment를 따라 movement component에 입력을 보낸다.
+5. link, obstacle, crowd/avoidance, dynamic obstacle 변화가 경로 갱신 또는 실패를 만든다.
+
 ## 핵심 구성
+
 ### `UNavArea`
 `UNavArea`는 navigation polygon에 붙는 area 정의 클래스입니다.
 중요 필드는 다음과 같습니다.
@@ -89,6 +142,7 @@
 > pathfinding에서 중요한 것은 "area 클래스가 존재한다"는 사실이 아니라, 그 area가 현재 query filter에서 어떤 비용과 제외 규칙으로 해석되는가입니다.
 
 ## `UNavArea`의 의미
+
 ### `DefaultCost`
 가장 기본적인 통과 비용 multiplier입니다.
 같은 길이라도 특정 area의 `DefaultCost`가 높으면 경로 탐색은 그 구간을 덜 선호합니다.
@@ -171,6 +225,7 @@ area는 단순 cost만 가지는 것이 아니라 flags도 가집니다.
 - 따라서 query filter는 단순 데이터 에셋이 아니라 runtime cache와 연결된 객체임
 
 ## 실무 관점에서 꼭 알아둘 점
+
 ### 1. Area와 Filter를 혼동하면 안 된다
 `UNavArea`는 월드 쪽 기본 성질이고, `UNavigationQueryFilter`는 이번 query의 정책입니다.
 같은 area라도 필터에 따라 싼 길이 될 수도, 비싼 길이 될 수도, 아예 제외될 수도 있습니다.
@@ -208,3 +263,26 @@ querier마다 다른 판단을 하고 싶으면 meta filter 또는 `bInstantiate
 - `Engine\Source\Runtime\NavigationSystem\Private\NavigationSystem.cpp`
 - `Engine\Source\Runtime\AIModule\Classes\AITypes.h`
 - `Engine\Source\Runtime\AIModule\Private\AIController.cpp`
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 초록 NavMesh가 보이면 이동은 반드시 성공한다. | agent 설정, query filter, path following result를 함께 본다. |
+| area cost는 이동 속도를 바꾼다. | area cost는 경로 선택 비용이며 실제 속도는 movement 쪽에서 처리한다. |
+| RVO와 CrowdFollowing은 같은 계층이다. | path following, crowd simulation, movement avoidance의 적용 위치를 구분한다. |
+
+## 디버깅 체크리스트
+
+- [ ] NavMesh bounds, supported agent, runtime generation 설정을 확인했다.
+- [ ] `Show Navigation`과 navmesh tile 상태가 목표 지점을 포함한다.
+- [ ] query filter의 area cost와 exclude flag가 의도와 맞다.
+- [ ] `MoveTo` 결과와 PathFollowingComponent 상태를 로그로 확인했다.
+- [ ] movement component, acceptance radius, link/crowd/avoidance 설정을 함께 점검했다.
+
+## 관련 문서
+
+- [[네비게이션과 PathFollowing(Navigation)]]
+- [[CrowdFollowing과 RVO 회피(CrowdFollowing RVO Avoidance)]]
+- [[NavLink와 Smart Link(NavLink Smart Link)]]
+- [[RecastNavMesh와 Navigation Data(Custom Recast Navigation Data)]]

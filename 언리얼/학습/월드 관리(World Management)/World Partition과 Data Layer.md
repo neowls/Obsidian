@@ -1,29 +1,81 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/world-management
+  - type/learning
+---
+
+# World Partition과 Data Layer
+
+> [!summary] 요약
+> World Partition과 Data Layer은 큰 월드, 런타임 시스템, 데이터 계층, procedural generation, 대규모 AI 객체가 함께 동작하는 월드 관리 주제다.
+> 스트리밍, 생성, 활성화, 대량 객체 처리 결과가 예상과 다를 때 확인한다.
+> 핵심은 editor-time 데이터와 runtime 활성 상태, persistent 객체와 streaming 객체를 구분하는 것이다.
+
+## 핵심 결론
+
+- World Partition, Data Layer, PCG, Mass/SmartObjects는 로드 상태와 활성 상태를 분리해서 봐야 한다.
+- 큰 월드 시스템은 actor reference, streaming cell, runtime generation source가 엇갈리면 문제가 생긴다.
+- 문제가 생기면 cell/layer 상태, generation source, subsystem 등록, persistent collection을 순서대로 확인한다.
+
+## 참고 자료
+
 [World Partition in Unreal Engine | Unreal Engine 5.7 Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/en-us/unreal-engine/world-partition-in-unreal-engine?application_version=5.7)
 
-# 개요
+## 개요
 `World Partition`은 큰 월드를 하나의 persistent level처럼 다루면서 내부적으로 cell 단위 streaming을 수행하는 시스템이다.
 `Data Layer`는 actor 묶음을 조건에 따라 보이거나 로드되게 만드는 계층이다.
 둘은 자주 같이 쓰이지만 역할이 다르다.
 
-# 핵심 구분
+## 왜 필요한가
+
+월드 관리 문제는 객체가 "없다"기보다 아직 로드되지 않았거나 활성화되지 않은 상태일 때가 많다. World Partition과 Data Layer을 볼 때는 데이터가 존재하는 위치와 런타임에 활성화되는 시점을 구분해야 한다.
+
+## 작동 모델
+
+World Partition은 월드를 cell 단위로 나누고 streaming source를 기준으로 로드한다. Data Layer와 PCG, SmartObjects, MassEntity 같은 시스템은 로드된 world 상태 위에서 별도의 활성화, generation, registration 절차를 수행한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| World Partition / Cell | 월드 스트리밍 단위 | grid, loading range, spatially loaded |
+| Data Layer | actor 묶음의 활성/로드 상태 | asset, instance, runtime state |
+| PCG Component / Graph | 절차적 생성 실행 | generation source, partitioned mode |
+| SmartObject / Mass | 대량 상호작용/엔티티 관리 | registration, persistent collection |
+| Subsystem | 월드 단위 시스템 상태 | init, tick, runtime data |
+
+## 실행 흐름
+
+1. 에디터에서 actor, graph, layer, smart object 데이터가 저장된다.
+2. cook 또는 world open 시 descriptor와 registry가 런타임 데이터를 준비한다.
+3. streaming source와 runtime state가 어떤 cell/layer를 로드하거나 활성화할지 결정한다.
+4. PCG, SmartObject, Mass 같은 시스템이 로드된 객체를 등록하거나 생성한다.
+5. streaming 변화와 상태 전환에 맞춰 참조, navigation, AI, save data를 갱신한다.
+
+## 핵심 구분
 | 개념 | 역할 |
 | --- | --- |
 | `World Partition` | 월드를 grid/cell로 나누고 streaming source 기준으로 로드/언로드 |
 | `Runtime Cell` | 런타임에 로드되는 최소 streaming 단위 |
 | `Streaming Source` | 플레이어, 카메라, 지정 위치처럼 cell 로딩 기준이 되는 정보 |
-| `Data Layer Asset` | 데이터 레이어의 에셋 정의 |
+| `Data Layer Asset` | 데이터 레이어(Data Layer)의 에셋 정의 |
 | `Data Layer Instance` | 특정 world 안에서 실제로 쓰이는 레이어 인스턴스 |
 | `World Data Layers` | world가 보유한 data layer instance 목록 |
 | `HLOD` | unloaded cell의 원거리 대체 표현 |
 
-# World Partition 흐름
+## World Partition 흐름
 1. 월드의 actor가 actor descriptor로 기록된다.
 2. streaming generation 단계에서 actor가 runtime cell로 배치된다.
 3. 플레이 중 streaming source가 활성 cell을 결정한다.
 4. 필요한 cell의 level streaming object가 생성/로드된다.
 5. HLOD는 멀리 있는 unloaded cell을 대체 표시한다.
 
-# Data Layer 흐름
+## Data Layer 흐름
 Data Layer는 단순 visibility group이 아니다.
 runtime에서는 loaded/activated 상태가 actor streaming과 연결된다.
 특히 Level Instance, external actor, WorldDataLayers 목록이 섞이면 actor descriptor가 예상과 다르게 갱신될 수 있다.
@@ -31,7 +83,7 @@ runtime에서는 loaded/activated 상태가 actor streaming과 연결된다.
 > [!caution]
 > actor detail panel에서 data layer asset만 직접 넣는 방식은 Level Instance나 sub-level 맥락에서 문제가 생길 수 있다. 해당 level의 `WorldDataLayers`에 레이어가 들어 있는지 같이 확인해야 한다.
 
-# 디버깅 체크리스트
+## 디버깅 체크리스트
 - actor가 spatially loaded인지 확인한다.
 - target actor가 어떤 runtime cell에 들어갔는지 확인한다.
 - Data Layer가 world 또는 level instance의 `WorldDataLayers`에 존재하는지 확인한다.
@@ -39,7 +91,7 @@ runtime에서는 loaded/activated 상태가 actor streaming과 연결된다.
 - runtime data layer 변경 후 navigation, PCG, replay 같은 다른 시스템이 갱신되는지 확인한다.
 - cook/build에서는 editor에서만 보이는 actor reference에 의존하지 않는다.
 
-# 관련 시스템
+## 관련 시스템
 | 시스템 | 연결점 |
 | --- | --- |
 | Navigation | runtime data layer 로드 후 navmesh dirty/update 여부 |
@@ -48,7 +100,7 @@ runtime에서는 loaded/activated 상태가 actor streaming과 연결된다.
 | SmartObjects | persistent collection과 streaming lifetime |
 | HLOD | unloaded cell의 원거리 표현 |
 
-# 엔진 소스 참고 포인트
+## 엔진 소스 참고 포인트
 - `Engine\Source\Runtime\Engine\Public\WorldPartition\WorldPartition.h`: `UWorldPartition` 본체.
 - `Engine\Source\Runtime\Engine\Public\WorldPartition\WorldPartitionSubsystem.h`: 월드 단위 tick/streaming subsystem.
 - `Engine\Source\Runtime\Engine\Public\WorldPartition\WorldPartitionRuntimeCell.h`: runtime cell 기본 구조.
@@ -67,7 +119,7 @@ runtime에서는 loaded/activated 상태가 actor streaming과 연결된다.
 
 ### World Partition의 핵심 개념
 
-World Partition은 큰 월드를 격자 셀로 나누고, 플레이어와 스트리밍 소스 위치를 기준으로 필요한 셀만 로드한다. 과거에는 디자이너가 Persistent Level과 Streaming Level을 직접 나눠야 했다면, World Partition은 액터의 위치와 설정을 바탕으로 런타임 셀을 만든다.
+World Partition은 큰 월드를 격자 셀로 나누고, 플레이어와 스트리밍 소스(Streaming Source) 위치를 기준으로 필요한 셀만 로드한다. 과거에는 디자이너가 Persistent Level과 Streaming Level을 직접 나눠야 했다면, World Partition은 액터의 위치와 설정을 바탕으로 런타임 셀(Runtime Cell)을 만든다.
 
 중요한 점은 World Partition이 액터를 그냥 숨겼다 보였다 하는 기능이 아니라는 것이다. 로드되지 않은 셀의 액터는 월드에 존재하지 않거나 최소한 런타임 액터로 활성화되어 있지 않다. 그래서 참조, BeginPlay 타이밍, AI 스폰, 저장 시스템에서 이 사실을 고려해야 한다.
 
@@ -161,3 +213,15 @@ if (DataLayerSubsystem)
 - 엔진 소스: `Engine\Source\Runtime\Engine\Private\WorldPartition\WorldPartition.cpp`.
 - 엔진 소스: `Engine\Source\Runtime\Engine\Private\WorldPartition\WorldPartitionRuntimeHashSet.cpp`.
 - 엔진 소스: `Engine\Source\Runtime\Engine\Private\WorldPartition\DataLayer`.
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 에디터에 배치된 actor는 런타임에 항상 존재한다. | streaming cell과 Data Layer runtime state를 확인한다. |
+| 로드 상태와 활성 상태는 같다. | loaded, activated, generated, registered 상태를 분리한다. |
+| 대규모 시스템은 actor 참조로 직접 연결해도 된다. | descriptor, subsystem, registry 기반 연결을 우선 검토한다. |
+
+## 관련 문서
+
+- 관련 문서가 아직 정리되지 않았다.

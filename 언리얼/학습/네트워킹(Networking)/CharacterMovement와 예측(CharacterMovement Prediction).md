@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/networking
+  - type/learning
+---
+
+# CharacterMovement와 예측(CharacterMovement Prediction)
+
+> [!summary] 요약
+> CharacterMovement 예측은 클라이언트가 입력 결과를 먼저 보여주고 서버 결과로 보정하는 Unreal 캐릭터 이동 동기화 모델이다.
+> 플레이어 이동이 지연되거나 튕기거나 서버와 클라이언트 위치가 어긋날 때 확인한다.
+> 핵심은 입력 전송, 서버 검증, 클라이언트 재시뮬레이션, 보정이 CharacterMovementComponent 안에서 반복된다는 점이다.
+
+## 핵심 결론
+
+- Autonomous Proxy는 입력을 모아 서버로 보내고, 서버는 authoritative movement 결과를 확정한다.
+- SavedMove와 prediction data가 커스텀 이동 상태를 제대로 담지 못하면 보정이나 desync가 발생한다.
+- 이동 문제가 있으면 movement mode, compressed flags, saved move combine, network smoothing, correction 로그를 확인한다.
+
+## 참고 자료
+
 [Setting Up Character Movement](https://dev.epicgames.com/documentation/en-us/unreal-engine/setting-up-character-movement?application_version=5.6) | [Replicate Actor Properties in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/replicate-actor-properties-in-unreal-engine) | [Remote Procedure Calls in Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/remote-procedure-calls-in-unreal-engine)
 
 ## 개요
@@ -10,7 +36,33 @@
 | SimulatedProxy | `OnRep_ReplicatedMovement()`, `OnRep_ReplicatedBasedMovement()`, `SmoothCorrection()` | 서버 상태를 받아 시각적으로 부드럽게 보간 |
 
 > [!info]
-> 핵심은 `ACharacter`가 단순히 transform 한 벌만 복제받는 actor가 아니라, 입력 예측과 재시뮬레이션이 이미 내장된 특수 네트워크 actor라는 점입니다.
+> 핵심은 `ACharacter`가 단순히 transform 한 벌만 복제(Replication)받는 actor가 아니라, 입력 예측과 재시뮬레이션이 이미 내장된 특수 네트워크 actor라는 점입니다.
+
+## 왜 필요한가
+
+네트워크 버그는 기능 코드가 틀려서보다 실행 위치와 복제 조건을 잘못 가정해서 생기는 경우가 많다. CharacterMovement와 예측(CharacterMovement Prediction)을 볼 때는 "서버의 사실", "클라이언트의 요청", "복제로 전달되는 상태"를 분리해야 한다.
+
+## 작동 모델
+
+서버가 게임 상태의 기준을 갖고, 클라이언트는 입력을 요청하거나 복제된 결과를 받는다. actor channel, relevancy, dormancy, update frequency는 어떤 객체가 언제 어떤 클라이언트에 전달되는지를 결정한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `AActor` | 복제 대상의 기본 단위 | `bReplicates`, relevancy, dormancy |
+| `UNetDriver` / `UNetConnection` | 연결과 패킷 흐름 관리 | client connection, channel 상태 |
+| Owner / `PlayerController` | Client RPC 호출 가능 여부 결정 | owning connection 존재 여부 |
+| Replicated Property | 오래 남는 상태 동기화 | RepNotify, 조건, 초기값 |
+| RPC | 순간 요청 또는 이벤트 전달 | 호출 위치, reliable 여부, 대상 |
+
+## 실행 흐름
+
+1. 서버가 actor를 생성하거나 상태를 변경한다.
+2. NetDriver가 relevancy와 priority를 기준으로 actor channel을 갱신한다.
+3. 변경된 property가 조건에 맞는 클라이언트로 복제된다.
+4. RPC는 호출 주체와 owner connection 조건을 통과할 때만 원격 실행된다.
+5. 클라이언트는 OnRep, prediction correction, visual update 순서로 결과를 반영한다.
 
 ## 1. 왜 일반 actor movement replication과 다른가
 일반 actor는 대체로 서버가 `ReplicatedMovement`를 보내고 클라이언트가 이를 적용하는 구조입니다. 반면 `ACharacter`는 role별 경로가 다릅니다.
@@ -61,6 +113,7 @@
 > 중요한 점은 클라이언트가 서버 응답을 기다렸다가 움직이는 것이 아니라, 먼저 움직이고 나중에 서버와 맞추는 구조라는 점입니다.
 
 ## 4. Prediction Data와 SavedMove
+
 ### `FNetworkPredictionData_Client_Character`
 클라이언트 prediction data는 대략 아래 역할을 가집니다.
 
@@ -183,3 +236,27 @@
 - `Engine\Source\Runtime\Engine\Classes\GameFramework\Character.h`
 - `Engine\Source\Runtime\Engine\Private\Character.cpp`
 - `Engine\Source\Runtime\Engine\Private\Components\CharacterMovementComponent.cpp`
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| `HasAuthority()`가 true면 항상 서버 전용 코드다. | authority, net mode, local control, owner를 각각 확인한다. |
+| Client RPC는 아무 actor에서나 호출할 수 있다. | owning connection이 있는 actor인지 먼저 확인한다. |
+| 모든 이벤트를 RPC로 보내면 된다. | 남아야 하는 값은 replicated property와 RepNotify로 처리한다. |
+
+## 디버깅 체크리스트
+
+- [ ] 대상 actor의 `bReplicates`, relevancy, dormancy 설정을 확인했다.
+- [ ] RPC 호출 actor에 owning connection이 있다.
+- [ ] 서버/클라이언트 양쪽에서 net mode와 role 로그를 찍었다.
+- [ ] RepNotify가 초기 복제, 변경 복제, late join 상황에서 기대대로 호출된다.
+- [ ] Net update frequency, dormancy 해제, relevancy 거리 때문에 누락되지 않는다.
+
+## 관련 문서
+
+- [[언리얼 네트워킹]]
+- [[Fast Array, Component, Subobject(FastArray Component Subobject)]]
+- [[Iris와 Replication Graph(Iris Replication Graph)]]
+- [[Replication]]
+- [[RPC]]

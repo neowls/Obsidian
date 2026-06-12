@@ -1,17 +1,69 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/engine-architecture
+  - type/learning
+---
+
+# Subsystem, Module, Plugin
+
+> [!summary] 요약
+> Subsystem, Module, Plugin은 Unreal Engine의 초기화, 모듈(Module), 서브시스템(Subsystem), 객체 생명주기처럼 기반 구조를 이해하기 위한 주제다.
+> 기능이 어느 시점에 생성되고 어떤 계층이 책임지는지 판단할 때 사용한다.
+> 핵심은 editor/runtime, engine/world/game instance, module/subsystem의 lifetime 차이를 구분하는 것이다.
+
+## 핵심 결론
+
+- 엔진 기반 구조는 "어디에 둘 것인가"보다 "언제 만들어지고 언제 사라지는가"가 먼저다.
+- Module, Plugin, Subsystem, UObject는 책임과 lifetime 범위가 다르다.
+- 문제가 생기면 초기화 순서, world context, subsystem 종류, module loading phase를 확인한다.
+
+## 참고 자료
+
 [Subsystems | Unreal Engine 5.7 Documentation | Epic Developer Community](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/Subsystems/USubsystem) | [Unreal Engine Modules](https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-modules?application_version=5.6) | [Working with Plugins in Unreal Engine](https://dev.epicgames.com/documentation/en-us/unreal-engine/working-with-plugins-in-unreal-engine?application_version=5.7)
 
-# 개요
+## 개요
 `Subsystem`, `Module`, `Plugin`은 기능을 어디에 놓을지 결정하는 엔진 구조의 기본 단위다.
 프로젝트가 커질수록 단순 actor/component 추가보다 이 세 계층을 구분하는 능력이 중요해진다.
 
-# 핵심 구분
+## 왜 필요한가
+
+기반 구조를 잘못 고르면 코드가 우연히 동작하다가 PIE, packaged build, map travel에서 깨진다. Subsystem, Module, Plugin을 볼 때는 기능의 소유자와 lifetime을 먼저 결정해야 한다.
+
+## 작동 모델
+
+엔진은 module과 plugin을 로딩해 기능을 등록하고, GameInstance, World, LocalPlayer 같은 계층별 subsystem을 생성한다. UObject lifetime은 outer와 GC에 의해 관리되고, editor와 runtime은 초기화 순서와 사용 가능한 world context가 다르다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| Module / Plugin | 코드 로딩과 기능 배포 단위 | loading phase, dependency |
+| Subsystem | 계층별 서비스(Service) 객체 | engine/gameinstance/world/localplayer |
+| UObject / Outer | 객체 lifetime과 소유 관계 | outer, GC reference |
+| World Context | PIE/editor/runtime world 식별 | current world, net mode |
+| Lifecycle hook | 초기화와 종료 지점 | init, start, deinitialize |
+
+## 실행 흐름
+
+1. 엔진이 module loading phase에 따라 plugin/module을 로드한다.
+2. 프로젝트와 world가 열리면서 GameInstance, World, Actor 계층이 준비된다.
+3. 각 계층의 subsystem과 UObject가 outer/lifetime 규칙에 따라 생성된다.
+4. 기능 코드는 자신이 의존하는 world, asset, subsystem이 준비된 뒤 실행되어야 한다.
+5. map travel, PIE 종료, module unload 시점에 참조와 delegate를 정리한다.
+
+## 핵심 구분
 | 개념 | 책임 | 대표 파일 |
 | --- | --- | --- |
 | `Subsystem` | 특정 lifetime에 맞는 전역성 객체 | `Subsystem.h`, `EngineSubsystem.h`, `WorldSubsystem.h` |
 | `Module` | C++ 컴파일/로드 단위 | `[ModuleName].Build.cs`, `IMPLEMENT_MODULE` |
 | `Plugin` | 기능 묶음과 배포 단위 | `.uplugin`, `Source`, `Content`, `Config` |
 
-# Subsystem
+## Subsystem
 Subsystem은 직접 singleton을 만들지 않고도 엔진 lifetime에 붙는 서비스를 만드는 방식이다.
 어떤 outer에 붙는지에 따라 생성/소멸 시점이 달라진다.
 
@@ -22,13 +74,13 @@ Subsystem은 직접 singleton을 만들지 않고도 엔진 lifetime에 붙는 �
 | `UWorldSubsystem` | world | 월드별 매니저, 런타임 시스템 |
 | `ULocalPlayerSubsystem` | local player | 입력, UI, 플레이어별 상태 |
 | `UEditorSubsystem` | editor | 에디터 툴, 에셋 작업 |
-| `UDynamicSubsystem` | 모듈 로드/언로드와 연동 | 플러그인 기반 확장 |
+| `UDynamicSubsystem` | 모듈 로드/언로드와 연동 | 플러그인(Plugin) 기반 확장 |
 
 > [!caution]
 > `ShouldCreateSubsystem()`을 override하면 특정 환경에서 subsystem이 없을 수 있다. 가져오는 쪽은 항상 null 가능성을 고려해야 한다.
 
-# Module
-Module은 Unreal Build Tool이 인식하는 C++ 빌드 단위다.
+## Module
+Module은 Unreal Build Tool이 인식하는 C++ 빌드(Build) 단위다.
 `Build.cs`는 include 경로, dependency, PCH, precompile 정책을 결정한다.
 
 ## Public / Private dependency 감각
@@ -42,7 +94,7 @@ Module은 Unreal Build Tool이 인식하는 C++ 빌드 단위다.
 > [!tip]
 > dependency는 작게 잡는 것이 좋다. public header에 타입을 노출하지 않는다면 private dependency로 두는 편이 빌드 경계를 깨끗하게 유지한다.
 
-# Plugin
+## Plugin
 Plugin은 module, content, config, editor 기능을 하나로 묶는 단위다.
 엔진 플러그인과 프로젝트 플러그인을 구분하고, runtime/editor module을 분리하는 것이 중요하다.
 
@@ -54,14 +106,14 @@ Plugin은 module, content, config, editor 기능을 하나로 묶는 단위다.
 | `Config` | plugin 설정 기본값 |
 | dependency | 다른 plugin 또는 module 의존성 |
 
-# 설계 기준
+## 설계 기준
 - 특정 월드마다 하나씩 있어야 하면 `UWorldSubsystem`을 우선 검토한다.
 - 프로젝트 실행 전체에서 하나면 `UGameInstanceSubsystem`을 검토한다.
 - 에디터 도구면 runtime module에 넣지 말고 editor module로 분리한다.
 - 여러 프로젝트에서 재사용할 기능이면 plugin으로 분리한다.
 - 기능이 public API를 노출하지 않으면 private module dependency로 시작한다.
 
-# 엔진 소스 참고 포인트
+## 엔진 소스 참고 포인트
 - `Engine\Source\Runtime\Engine\Public\Subsystems\Subsystem.h`: `USubsystem`, `ShouldCreateSubsystem()` 기본 구조.
 - `Engine\Source\Runtime\Engine\Public\Subsystems\SubsystemCollection.h`: subsystem 생성/보관 컬렉션.
 - `Engine\Source\Runtime\Engine\Public\Subsystems\WorldSubsystem.h`: world lifetime subsystem.
@@ -238,3 +290,23 @@ Module의 `.Build.cs`는 단순히 라이브러리를 나열하는 파일이 아
 - 엔진 소스: `Engine\Source\Runtime\Engine\Private\Subsystems\SubsystemCollection.cpp`.
 - 엔진 소스: `Engine\Source\Runtime\Core\Private\Modules\ModuleManager.cpp`.
 - 엔진 헤더: `Engine\Source\Runtime\Core\Public\Modules\ModuleManager.h`.
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 어디서든 `GetWorld()`가 항상 유효하다. | 객체 종류와 초기화 시점별 world context를 확인한다. |
+| Subsystem은 모두 같은 lifetime이다. | Engine, GameInstance, World, LocalPlayer subsystem을 구분한다. |
+| Editor에서 되면 packaged build에서도 초기화 순서가 같다. | module loading phase와 cook/runtime 차이를 확인한다. |
+
+## 디버깅 체크리스트
+
+- [ ] 실행 시점에 필요한 module이 로드되어 있다.
+- [ ] world context가 PIE, editor preview, packaged runtime 중 어디인지 확인했다.
+- [ ] subsystem 종류와 생성/해제 시점이 기능 lifetime과 맞다.
+- [ ] UObject outer와 GC reference가 의도대로 유지된다.
+- [ ] map travel, PIE 종료, shutdown에서 delegate와 참조를 정리한다.
+
+## 관련 문서
+
+- 관련 문서가 아직 정리되지 않았다.

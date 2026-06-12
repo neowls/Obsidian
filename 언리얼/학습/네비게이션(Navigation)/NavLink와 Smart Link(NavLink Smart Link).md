@@ -1,3 +1,29 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/navigation
+  - type/learning
+---
+
+# NavLink와 Smart Link(NavLink Smart Link)
+
+> [!summary] 요약
+> NavLink와 Smart Link(NavLink Smart Link)는 NavMesh 생성, pathfinding, path following, area/filter, link, avoidance가 연결되는 이동 시스템 주제다.
+> AI가 목적지까지 이동하지 못하거나 특정 영역을 잘못 선택할 때 확인한다.
+> 핵심은 nav data 생성 상태와 path following 실행 상태를 분리해서 보는 것이다.
+
+## 핵심 결론
+
+- NavMesh가 있는 것과 원하는 path가 선택되는 것은 다른 문제다.
+- area cost, query filter, link, crowd/avoidance는 경로 선택과 실제 이동을 서로 다른 지점에서 바꾼다.
+- 문제가 생기면 bounds, agent 설정, tile 상태, path following result, movement component 상태를 순서대로 확인한다.
+
+## 참고 자료
+
 [Navigation System in Unreal Engine](https://dev.epicgames.com/documentation/en-us/unreal-engine/navigation-system-in-unreal-engine) | [ANavLinkProxy](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/Navigation/ANavLinkProxy) | [UNavLinkCustomComponent::OnLinkMoveStarted](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/NavigationSystem/UNavLinkCustomComponent/OnLinkMoveStarted) | [UPathFollowingComponent](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/Navigation/UPathFollowingComponent)
 
 ## 개요
@@ -16,6 +42,32 @@
 > `[[네비게이션과 PathFollowing(Navigation)]]` 이 일반 path segment를 추종하는 기본 런타임이라면, 이 문서는 그 경로 중간에 사다리, 점프, 문 통과 같은 특수 구간이 끼었을 때 path following이 어떻게 전환되는지를 다룹니다.
 > `[[CrowdFollowing과 RVO 회피(CrowdFollowing RVO Avoidance)]]` 문서와도 직접 연결됩니다. crowd tick 안에서도 smart link 진입과 종료가 별도로 처리됩니다.
 
+## 왜 필요한가
+
+이동 문제는 "목적지를 모른다", "경로를 못 찾는다", "경로는 있으나 따라가지 못한다"가 섞여 보인다. NavLink와 Smart Link(NavLink Smart Link)를 볼 때는 nav data, query, following, movement를 단계별로 끊어서 확인해야 한다.
+
+## 작동 모델
+
+RecastNavMesh는 월드 지오메트리를 tile 기반 nav data로 만들고, query filter는 어떤 영역을 얼마나 선호할지 정한다. PathFollowingComponent는 생성된 path를 segment 단위로 따라가며, Smart Link와 avoidance는 실제 이동 중 예외 처리를 담당한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `RecastNavMesh` | tile 기반 navigation data | bounds, agent radius/height, rebuild 상태 |
+| `UNavigationSystemV1` | path query와 nav data 선택 | supported agent, main nav data |
+| `UNavigationQueryFilter` | area cost와 통과 가능 여부 | include/exclude flag, cost |
+| `UPathFollowingComponent` | path segment 실행 | move result, current segment |
+| NavLink / Crowd / RVO | 단차 이동과 회피 | link 활성화, avoidance 설정 |
+
+## 실행 흐름
+
+1. NavMesh bounds와 agent 설정을 기준으로 tile이 생성된다.
+2. Move request가 들어오면 NavigationSystem이 적절한 nav data를 고른다.
+3. query filter와 area cost를 적용해 path를 계산한다.
+4. PathFollowingComponent가 path segment를 따라 movement component에 입력을 보낸다.
+5. link, obstacle, crowd/avoidance, dynamic obstacle 변화가 경로 갱신 또는 실패를 만든다.
+
 ## Simple Link와 Smart Link의 차이
 | 구분 | Simple Link | Smart Link |
 | --- | --- | --- |
@@ -31,9 +83,9 @@
 | 구성 요소 | 엔진 클래스 | 역할 |
 | --- | --- | --- |
 | 링크 인터페이스 | `INavLinkCustomInterface` | pathfinding 허용 여부, area class, custom move 시작/종료, custom reach condition 정의 |
-| 스마트 링크 컴포넌트 | `UNavLinkCustomComponent` | custom link id 생성/등록, enable/disable, moving agent 추적, 브로드캐스트 |
+| 스마트 링크(Smart Link) 컴포넌트 | `UNavLinkCustomComponent` | custom link id 생성/등록, enable/disable, moving agent 추적, 브로드캐스트 |
 | 링크 프록시 | `ANavLinkProxy` | simple links + smart link를 한 액터에서 호스팅 |
-| 경로 추종기 | `UPathFollowingComponent` | 현재 세그먼트가 custom link인지 판정하고 `StartUsingCustomLink()` 호출 |
+| 경로 추종(Path Following)기 | `UPathFollowingComponent` | 현재 세그먼트가 custom link인지 판정하고 `StartUsingCustomLink()` 호출 |
 | 네비게이션 시스템 | `UNavigationSystemV1` | `GetCustomLink()`, `UpdateCustomLink()`, custom link 등록/해제 처리 |
 
 ## `INavLinkCustomInterface`가 정의하는 것
@@ -72,6 +124,7 @@
 > `PathPt1.CustomNavLinkId`는 "다음 세그먼트의 링크 시작 도달 규칙"을 캐시하는 쪽이고, `PathPt0.CustomNavLinkId`는 "지금 이 링크를 실제 사용 시작하는 지점"입니다. 둘을 같은 타이밍으로 보면 디버깅이 꼬입니다.
 
 ## `StartUsingCustomLink()` / `FinishUsingCustomLink()`의 의미
+
 ### `StartUsingCustomLink()`
 이 함수는 이전 custom link가 남아 있으면 먼저 강제로 `OnLinkMoveFinished()`를 호출해 정리합니다.
 그 다음 새 링크에 대해 `OnLinkMoveStarted()`를 호출합니다.
@@ -89,6 +142,7 @@
 > `ReceiveSmartLinkReached()`나 커스텀 점프/사다리 로직에서 이동을 직접 제어했다면, 마지막에 `ResumePathFollowing()` 또는 `FinishUsingCustomLink()`를 호출해야 합니다. 그렇지 않으면 AI는 custom link 사용 상태에 머문 채 다음 세그먼트로 넘어가지 못합니다.
 
 ## `UNavLinkCustomComponent`에서 중요한 지점
+
 ### 1. `CustomLinkId` 생성과 등록
 `OnRegister()`는 `CustomLinkId`를 만들고 `UNavigationSystemV1::RequestCustomLinkRegistering(*this, this)`를 호출합니다.
 에디터에서는 `AuxiliaryCustomLinkId + ActorInstanceGuid` 조합으로 결정적 ID를 만들고, 런타임 전용 스폰 경로에서는 새 GUID 기반 ID를 생성합니다.
@@ -113,6 +167,7 @@
 링크를 잠그거나 상태를 바꾸기 전에 이미 누가 타고 있는지 확인할 때 핵심입니다.
 
 ## `ANavLinkProxy`에서 중요한 지점
+
 ### 1. 한 액터에 simple link와 smart link를 함께 둘 수 있다
 헤더 주석 그대로 프록시 하나에 여러 simple link를 둘 수 있고, smart link는 최대 하나 둘 수 있습니다.
 둘은 동시에 켜 둘 수도 있고, 하나만 쓸 수도 있습니다.
@@ -139,6 +194,7 @@ smart link가 navigation relevant이면 `SmartLinkComp->GetLinkModifier()`도 pa
 즉 smart link는 이벤트 객체이면서 동시에 pathfinding modifier이기도 합니다.
 
 ## 실무 관점에서 꼭 알아둘 점
+
 ### 1. Smart Link는 "이벤트"가 아니라 pathfinding 규칙과 이동 전환까지 같이 가진다
 area class, enable/disable, broadcast, custom move를 모두 같이 봐야 합니다.
 
@@ -174,3 +230,26 @@ area class, enable/disable, broadcast, custom move를 모두 같이 봐야 합�
 - `Engine\Source\Runtime\NavigationSystem\Private\NavLinkCustomComponent.cpp`
 - `Engine\Source\Runtime\AIModule\Classes\Navigation\NavLinkProxy.h`
 - `Engine\Source\Runtime\AIModule\Private\Navigation\NavLinkProxy.cpp`
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 초록 NavMesh가 보이면 이동은 반드시 성공한다. | agent 설정, query filter, path following result를 함께 본다. |
+| area cost는 이동 속도를 바꾼다. | area cost는 경로 선택 비용이며 실제 속도는 movement 쪽에서 처리한다. |
+| RVO와 CrowdFollowing은 같은 계층이다. | path following, crowd simulation, movement avoidance의 적용 위치를 구분한다. |
+
+## 디버깅 체크리스트
+
+- [ ] NavMesh bounds, supported agent, runtime generation 설정을 확인했다.
+- [ ] `Show Navigation`과 navmesh tile 상태가 목표 지점을 포함한다.
+- [ ] query filter의 area cost와 exclude flag가 의도와 맞다.
+- [ ] `MoveTo` 결과와 PathFollowingComponent 상태를 로그로 확인했다.
+- [ ] movement component, acceptance radius, link/crowd/avoidance 설정을 함께 점검했다.
+
+## 관련 문서
+
+- [[네비게이션과 PathFollowing(Navigation)]]
+- [[커스텀 네비게이션 영역과 Query Filter(Custom Navigation Areas Query Filters)]]
+- [[CrowdFollowing과 RVO 회피(CrowdFollowing RVO Avoidance)]]
+- [[RecastNavMesh와 Navigation Data(Custom Recast Navigation Data)]]

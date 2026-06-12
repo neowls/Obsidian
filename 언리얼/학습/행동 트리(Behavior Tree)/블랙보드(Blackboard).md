@@ -1,7 +1,33 @@
+---
+type: unreal-learning
+status: review
+migration_status: done
+updated: 2026-06-10
+tags:
+  - unreal
+  - unreal/behavior-tree
+  - type/learning
+---
+
+# 블랙보드(Blackboard)
+
+> [!summary] 요약
+> 블랙보드(Blackboard)는 AIController, BrainComponent, Blackboard, Behavior Tree 노드가 함께 만드는 AI 의사결정 주제다.
+> AI가 선택한 행동이 왜 실행되거나 중단되는지 추적할 때 사용한다.
+> 핵심은 Blackboard 값 변화, decorator 조건, abort 범위, task 종료 신호를 같은 흐름에서 보는 것이다.
+
+## 핵심 결론
+
+- Behavior Tree는 노드 배치보다 Blackboard key와 observer/abort 조건 설계가 먼저다.
+- task는 반드시 성공, 실패, 진행 중 상태를 명확히 끝내야 한다.
+- 문제가 생기면 AIController possession, BrainComponent 실행 상태, Blackboard 값, decorator abort 로그를 확인한다.
+
+## 참고 자료
+
 [Behavior Tree User Guide](https://dev.epicgames.com/documentation/en-us/unreal-engine/behavior-tree-in-unreal-engine---user-guide) | [UBlackboardComponent API](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/BehaviorTree/UBlackboardComponent) | [AAIController::UseBlackboard](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/AIModule/AAIController/UseBlackboard)
 
 ## 개요
-**블랙보드(Blackboard)** 는 비헤이비어 트리가 읽고 쓰는 상태 저장소입니다.
+**블랙보드(Blackboard)** 는 비헤이비어 트리(Behavior Tree)가 읽고 쓰는 상태 저장소입니다.
 다만 엔진 코드 기준으로 보면 단순한 `TMap`이 아니라:
 
 - 키 정의를 담는 `UBlackboardData`
@@ -11,7 +37,33 @@
 조합으로 이루어진 typed memory system에 가깝습니다.
 
 > [!info]
-> 비헤이비어 트리는 의사결정을 직접 저장하지 않습니다. 의사결정에 필요한 상태를 블랙보드에 저장하고, 데코레이터/서비스/태스크가 이를 읽고 갱신합니다.
+> 비헤이비어 트리는 의사결정을 직접 저장하지 않습니다. 의사결정에 필요한 상태를 블랙보드에 저장하고, 데코레이터(Decorator)/서비스(Service)/태스크(Task)가 이를 읽고 갱신합니다.
+
+## 왜 필요한가
+
+AI 문제는 눈에 보이는 task가 아니라 그 task에 도달하기 전의 조건 평가에서 자주 발생한다. 블랙보드(Blackboard)를 볼 때는 실행 중인 노드만 보지 말고 Blackboard 변경과 재선택 조건까지 추적해야 한다.
+
+## 작동 모델
+
+AIController가 pawn을 소유하고 BrainComponent가 Behavior Tree를 구동한다. Blackboard는 의사결정 상태를 저장하고, Composite는 탐색 순서, Decorator는 조건, Service는 주기적 갱신, Task는 실제 행동을 담당한다.
+
+## 주요 객체와 책임
+
+| 객체 | 책임 | 먼저 볼 것 |
+| --- | --- | --- |
+| `AAIController` | pawn 소유와 AI 실행 시작점 | possess, `RunBehaviorTree` |
+| `UBrainComponent` | AI 로직 실행/정지 관리 | start/stop/restart 상태 |
+| `UBehaviorTreeComponent` | 트리 탐색과 노드 실행 | active node, execution index |
+| `UBlackboardComponent` | 의사결정 데이터 저장 | key type, 값 갱신 시점 |
+| Task/Decorator/Service | 행동, 조건, 주기 갱신 | finish, abort, tick interval |
+
+## 실행 흐름
+
+1. AIController가 pawn을 possess하고 Blackboard/Behavior Tree를 초기화한다.
+2. Composite가 child 순서를 따라 실행 후보를 고른다.
+3. Decorator가 Blackboard와 조건을 검사하고 observer abort를 등록한다.
+4. Service가 주기적으로 key를 갱신하고 Task가 실제 행동을 시작한다.
+5. Task 완료, 실패, abort, key 변경이 다음 선택 흐름을 만든다.
 
 ## 핵심 구성
 | 구성 요소 | 엔진 클래스 | 역할 |
@@ -41,7 +93,7 @@
 를 가집니다.
 
 > [!tip]
-> 블랙보드 키는 단순 이름 목록이 아니라 타입이 강하게 붙는 엔트리입니다. 즉 `TargetActor`와 `TargetLocation`은 이름만 다른 것이 아니라, 내부적으로 다른 `UBlackboardKeyType` 규칙을 가집니다.
+> 블랙보드 키(Blackboard Key)는 단순 이름 목록이 아니라 타입이 강하게 붙는 엔트리입니다. 즉 `TargetActor`와 `TargetLocation`은 이름만 다른 것이 아니라, 내부적으로 다른 `UBlackboardKeyType` 규칙을 가집니다.
 
 ## UBlackboardComponent: 런타임 값 저장소
 `UBlackboardComponent`는 실제 값을 메모리 블록에 보관합니다.
@@ -161,3 +213,28 @@
 - `Engine\Source\Runtime\AIModule\Classes\BehaviorTree\Blackboard\BlackboardKeyType.h`
 - `Engine\Source\Runtime\AIModule\Classes\AIController.h`
   - `ShouldSyncBlackboardWith()`
+
+## 흔한 실수와 안전한 대안
+
+| 오해 | 안전한 대안 |
+| --- | --- |
+| 트리 모양만 맞으면 AI가 의도대로 움직인다. | Blackboard key 타입, 초기값, 갱신 주기를 함께 검증한다. |
+| Task는 실행 함수만 구현하면 된다. | `FinishLatentTask` 또는 종료 신호가 모든 경로에서 호출되는지 확인한다. |
+| Decorator 조건은 한 번만 검사된다. | observer abort 설정과 Blackboard 변경 알림 범위를 같이 본다. |
+
+## 디버깅 체크리스트
+
+- [ ] AIController가 pawn을 정상 possess했고 Behavior Tree를 실행했다.
+- [ ] Blackboard asset과 Behavior Tree가 같은 key 정의를 사용한다.
+- [ ] 현재 active node, selected branch, abort 원인을 Behavior Tree debugger에서 확인했다.
+- [ ] Task가 success/fail/in progress 상태를 명확히 반환한다.
+- [ ] Service tick interval과 Decorator observer abort 설정이 의도와 맞다.
+
+## 관련 문서
+
+- [[데코레이터(Decorator)]]
+- [[비헤이비어 트리 디버거(Behavior Tree Debugger)]]
+- [[비헤이비어 트리(Behavior Tree)]]
+- [[서비스(Service)]]
+- [[컴포짓(Composite)]]
+- [[태스크(Task)]]
