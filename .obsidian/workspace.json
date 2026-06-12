@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "옵시디언/콜아웃.md",
+                "file": "언리얼/학습/행동 트리(Behavior Tree)/블랙보드(Blackboard).md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "콜아웃"
+              "title": "블랙보드(Blackboard)"
             }
           }
         ]
@@ -172,21 +172,26 @@
       "command-palette:명령어 팔레트 열기": false
     }
   },
-  "active": "eb67d260ce3d7c1c",
+  "active": "f6e0754aea98cb35",
   "lastOpenFiles": [
+    "언리얼/학습/월드 관리(World Management)/World Partition과 Data Layer.md",
+    "언리얼/학습/에셋 레지스트리(Asset Registry).md",
+    "언리얼/학습/행동 트리(Behavior Tree)/AI 컨트롤러(AIController)와 BrainComponent.md",
+    "언리얼/프로젝트/ProjectKY/스프린트.md",
+    "언리얼/프로젝트/ProjectKY/할 것 임시.md",
+    "언리얼/학습/행동 트리(Behavior Tree)/태스크(Task).md",
+    "옵시디언/콜아웃.md",
     "옵시디언/마크 다운.md",
     "언리얼/학습/게임 어빌리티 시스템(GAS)/게임플레이 어빌리티 스펙(Spec).md",
     "학습/imGui Chat 프로그램.md",
     "학습/TCP IP.md",
     "학습/Vulkan.md",
-    "언리얼/학습/에셋 레지스트리(Asset Registry).md",
     "Obsidian 문서 가독성 기준.md",
     "README.md",
     "언리얼/학습/언리얼 멀티플레이 팁.md",
     "언리얼/학습/물리(Physics)/내적과 외적.md",
     "언리얼/학습/에셋 매니저(Asset Manager).md",
     "언리얼/학습/언리얼 초기화 과정.md",
-    "언리얼/학습/월드 관리(World Management)/World Partition과 Data Layer.md",
     "언리얼/학습/행동 트리(Behavior Tree)/블랙보드(Blackboard).md",
     "언리얼/학습/환경 쿼리 시스템(EQS)/환경 쿼리 시스템(EQS).md",
     "언리얼/학습/카메라(Camera)/Gameplay Cameras.md",
@@ -195,11 +200,6 @@
     "언리얼/학습/델리게이트(Delegate).md",
     "언리얼/학습/UPROPERTY Object Reference Guide.md",
     "언리얼/학습/AGENTS.md",
-    "언리얼/학습/내적과 외적.md",
-    "언리얼/학습/행동 트리(Behavior Tree)/서비스(Service).md",
-    "언리얼/학습/인터랙티브 시각화 학습자료 제작 가이드.md",
-    "언리얼/AGENTS.md",
-    "언리얼/학습/행동 트리(Behavior Tree)/AI 컨트롤러(AIController)와 BrainComponent.md",
     "언리얼/학습 노트.base",
     "언리얼/학습/게임 어빌리티 시스템(GAS)/게임플레이 어빌리티 시스템.canvas",
     "언리얼/프로젝트/NightCaretaker/Img/ref_00.png",
